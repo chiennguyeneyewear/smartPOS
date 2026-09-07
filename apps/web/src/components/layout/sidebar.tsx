@@ -6,7 +6,8 @@ import {
   Users,
   Truck,
   BarChart3,
-  Settings,
+  Building2,
+  UserCog,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -17,7 +18,8 @@ const NAV_ITEMS = [
   { to: "/customers", label: "Khách hàng", icon: Users },
   { to: "/suppliers", label: "Nhà cung cấp", icon: Truck },
   { to: "/reports", label: "Báo cáo", icon: BarChart3 },
-  { to: "/settings/users", label: "Thiết lập", icon: Settings },
+  { to: "/settings/branches", label: "Quản lý chi nhánh", icon: Building2 },
+  { to: "/settings/users", label: "Quản lý người dùng", icon: UserCog },
 ];
 
 export function Sidebar() {
