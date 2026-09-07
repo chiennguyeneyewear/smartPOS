@@ -26,9 +26,7 @@ import { CustomerFormDialog } from "@/components/shared/customer-form-dialog";
 
 export function PosPage() {
   const user = useAuthStore((s) => s.user);
-  const branches = user?.branches ?? [];
   const activeBranchId = useAuthStore((s) => s.activeBranchId);
-  const activeBranch = branches.find((b) => b.id === activeBranchId) ?? branches[0];
   const logout = useLogout();
   const tabs = usePosStore((s) => s.tabs);
   const activeTabId = usePosStore((s) => s.activeTabId);
@@ -124,9 +122,6 @@ export function PosPage() {
         <ProductQuickSearch ref={productSearchRef} className="max-w-xs" />
         <InvoiceTabsBar />
         <div className="flex shrink-0 items-center gap-1.5">
-          {activeBranch && (
-            <span className="px-2.5 text-sm font-medium text-primary-foreground">{activeBranch.name}</span>
-          )}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="flex h-8 items-center gap-1.5 rounded-md px-2.5 text-sm font-medium text-primary-foreground hover:bg-white/10">
