@@ -96,3 +96,7 @@ npm run build             # build production cho cả 2 app
 git remote add origin <URL_REPO_CUA_BAN>
 git push -u origin main
 ```
+
+## Triển khai lên Internet (truy cập từ máy khác / điện thoại)
+
+Xem hướng dẫn chi tiết tại [DEPLOY.md](DEPLOY.md) — triển khai backend lên Render và frontend lên Vercel, cả hai đều có gói miễn phí và tự động deploy lại mỗi khi push code mới lên GitHub.

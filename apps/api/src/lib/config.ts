@@ -9,8 +9,11 @@ function required(name: string): string {
 }
 
 export const config = {
-  port: Number(process.env.API_PORT ?? 4000),
-  corsOrigin: process.env.CORS_ORIGIN ?? "http://localhost:5173",
+  port: Number(process.env.PORT ?? process.env.API_PORT ?? 4000),
+  corsOrigins: (process.env.CORS_ORIGIN ?? "http://localhost:5173")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean),
   databaseUrl: required("DATABASE_URL"),
   jwt: {
     accessSecret: required("JWT_ACCESS_SECRET"),

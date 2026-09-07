@@ -26,7 +26,7 @@ export function buildApp() {
 
   app.register(helmet);
   app.register(cors, {
-    origin: config.corsOrigin,
+    origin: config.corsOrigins,
     credentials: true,
   });
   app.register(cookie);
