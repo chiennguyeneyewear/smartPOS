@@ -6,7 +6,8 @@ import { usePosStore, getActiveTab, getLineTotal, getLineUnitDiscount } from "@/
 import { useCreateDraftInvoice, useCheckoutInvoice } from "@/features/sales/hooks";
 import { toast } from "@/stores/toast-store";
 import { InvoiceTabsBar } from "./invoice-tabs-bar";
-import { ProductSearchPane } from "./product-search-pane";
+import { ProductQuickSearch } from "./product-quick-search";
+import { ProductGridPanel } from "./product-grid-panel";
 import { CartPanel } from "./cart-panel";
 import { SaleModeTabs } from "./sale-mode-tabs";
 import { CheckoutDialog } from "./checkout-dialog";
@@ -93,23 +94,21 @@ export function PosPage() {
     );
   }
 
-  const total = Math.max(
-    0,
-    tab.items.reduce((sum, item) => sum + getLineTotal(item), 0) - tab.discountAmount,
-  );
+  const total = Math.max(0, tab.items.reduce((sum, item) => sum + getLineTotal(item), 0) - tab.discountAmount);
 
   return (
     <div className="flex h-full flex-col">
-      <InvoiceTabsBar />
+      <div className="flex h-12 shrink-0 items-center gap-3 border-b bg-secondary/40 px-2">
+        <ProductQuickSearch ref={productSearchRef} className="max-w-sm" />
+        <InvoiceTabsBar />
+      </div>
       <div className="flex flex-1 overflow-hidden">
-        <div className="flex-1 overflow-hidden">
-          <ProductSearchPane ref={productSearchRef} />
-        </div>
-        <CartPanel
+        <CartPanel tab={tab} onRequestCheckout={handleOpenCheckout} />
+        <ProductGridPanel
           tab={tab}
+          tabId={tab.id}
           customerInputRef={customerSearchRef}
           onRequestQuickAddCustomer={() => setQuickAddOpen(true)}
-          onRequestCheckout={handleOpenCheckout}
         />
       </div>
       <SaleModeTabs value={tab.saleMode} onChange={(mode) => setSaleMode(tab.id, mode)} />

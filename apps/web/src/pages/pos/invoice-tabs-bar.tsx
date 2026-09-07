@@ -10,7 +10,7 @@ export function InvoiceTabsBar() {
   const closeTab = usePosStore((s) => s.closeTab);
 
   return (
-    <div className="flex h-10 shrink-0 items-center gap-1 overflow-x-auto border-b bg-secondary/40 px-2">
+    <div className="flex h-10 min-w-0 flex-1 items-center gap-1 overflow-x-auto px-2">
       {tabs.map((tab) => (
         <button
           key={tab.id}

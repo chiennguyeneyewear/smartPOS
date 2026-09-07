@@ -1,24 +1,19 @@
-import { forwardRef, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Minus, Plus, Trash2 } from "lucide-react";
-import type { CustomerSummary } from "@smartpos/shared";
 import { usePosStore, getLineTotal, getLineUnitDiscount, type PosTab } from "@/stores/pos-store";
 import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { CustomerSearchBox } from "./customer-search-box";
 import { LineDiscountPopover } from "./line-discount-popover";
 
 interface CartPanelProps {
   tab: PosTab;
-  customerInputRef: React.Ref<HTMLInputElement>;
-  onRequestQuickAddCustomer: () => void;
   onRequestCheckout: () => void;
 }
 
-export function CartPanel({ tab, customerInputRef, onRequestQuickAddCustomer, onRequestCheckout }: CartPanelProps) {
+export function CartPanel({ tab, onRequestCheckout }: CartPanelProps) {
   const updateQuantity = usePosStore((s) => s.updateQuantity);
   const removeItem = usePosStore((s) => s.removeItem);
-  const setCustomer = usePosStore((s) => s.setCustomer);
   const setNote = usePosStore((s) => s.setNote);
   const setDiscount = usePosStore((s) => s.setDiscount);
   const [noteDraft, setNoteDraft] = useState(tab.note);
@@ -28,16 +23,7 @@ export function CartPanel({ tab, customerInputRef, onRequestQuickAddCustomer, on
   const total = Math.max(0, subTotal - tab.discountAmount);
 
   return (
-    <div className="flex h-full w-[380px] shrink-0 flex-col">
-      <div className="border-b p-2">
-        <CustomerSearchBox
-          ref={customerInputRef}
-          customer={tab.customer as CustomerSummary | undefined}
-          onSelect={(c) => setCustomer(tab.id, c)}
-          onRequestQuickAdd={onRequestQuickAddCustomer}
-        />
-      </div>
-
+    <div className="flex h-full flex-1 flex-col">
       <div className="flex-1 overflow-auto">
         {tab.items.length === 0 ? (
           <p className="p-6 text-center text-sm text-muted-foreground">Chưa có sản phẩm nào trong giỏ hàng.</p>
@@ -67,7 +53,7 @@ export function CartPanel({ tab, customerInputRef, onRequestQuickAddCustomer, on
                         </button>
                       </div>
                     </td>
-                    <td className="relative w-24 p-2 text-right align-top">
+                    <td className="relative w-28 p-2 text-right align-top">
                       <button
                         onClick={() => setOpenDiscountLineId(line.lineId)}
                         className="text-xs text-muted-foreground hover:text-foreground hover:underline"
@@ -89,7 +75,7 @@ export function CartPanel({ tab, customerInputRef, onRequestQuickAddCustomer, on
                         onOpenChange={(open) => setOpenDiscountLineId(open ? line.lineId : null)}
                       />
                     </td>
-                    <td className="w-20 p-2 text-right align-top text-xs font-semibold">
+                    <td className="w-24 p-2 text-right align-top text-xs font-semibold">
                       {formatCurrency(getLineTotal(line))}
                     </td>
                     <td className="w-8 p-2 text-right align-top">
