@@ -23,6 +23,12 @@ export const SALE_MODE = {
 } as const;
 export type SaleMode = (typeof SALE_MODE)[keyof typeof SALE_MODE];
 
+export const GENDER = {
+  MALE: "MALE",
+  FEMALE: "FEMALE",
+} as const;
+export type Gender = (typeof GENDER)[keyof typeof GENDER];
+
 export const PAYMENT_METHOD = {
   CASH: "CASH",
   BANK_TRANSFER: "BANK_TRANSFER",

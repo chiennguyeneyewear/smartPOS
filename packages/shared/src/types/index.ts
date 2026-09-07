@@ -1,4 +1,4 @@
-import type { InvoiceStatus, PaymentMethod, SaleMode, StockMovementType } from "../constants/enums.js";
+import type { Gender, InvoiceStatus, PaymentMethod, SaleMode, StockMovementType } from "../constants/enums.js";
 
 export interface PageMeta {
   total: number;
@@ -54,6 +54,15 @@ export interface CustomerSummary {
   name: string;
   phone: string | null;
   address: string | null;
+  province: string | null;
+  ward: string | null;
+  groupName: string | null;
+  birthday: string | null;
+  gender: Gender | null;
+  email: string | null;
+  facebook: string | null;
+  note: string | null;
+  avatarUrl: string | null;
   debtBalance: number;
 }
 

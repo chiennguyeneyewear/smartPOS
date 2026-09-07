@@ -10,7 +10,7 @@ import { ProductSearchPane } from "./product-search-pane";
 import { CartPanel } from "./cart-panel";
 import { SaleModeTabs } from "./sale-mode-tabs";
 import { CheckoutDialog } from "./checkout-dialog";
-import { QuickCustomerDialog } from "./quick-customer-dialog";
+import { CustomerFormDialog } from "@/components/shared/customer-form-dialog";
 
 export function PosPage() {
   const activeBranchId = useAuthStore((s) => s.activeBranchId);
@@ -123,7 +123,7 @@ export function PosPage() {
         onConfirm={handleConfirmCheckout}
       />
 
-      <QuickCustomerDialog
+      <CustomerFormDialog
         open={quickAddOpen}
         onOpenChange={setQuickAddOpen}
         onCreated={(customer: CustomerSummary) => setCustomer(tab.id, customer)}

@@ -1,4 +1,4 @@
-import type { CustomerInput, CustomerSummary, QuickCustomerInput } from "@smartpos/shared";
+import type { CustomerInput, CustomerSummary } from "@smartpos/shared";
 import { apiClient } from "@/lib/api-client";
 
 export async function searchCustomers(search: string): Promise<CustomerSummary[]> {
@@ -8,11 +8,6 @@ export async function searchCustomers(search: string): Promise<CustomerSummary[]
 
 export async function createCustomer(input: CustomerInput): Promise<CustomerSummary> {
   const { data } = await apiClient.post<CustomerSummary>("/customers", input);
-  return data;
-}
-
-export async function quickCreateCustomer(input: QuickCustomerInput): Promise<CustomerSummary> {
-  const { data } = await apiClient.post<CustomerSummary>("/customers/quick", input);
   return data;
 }
 

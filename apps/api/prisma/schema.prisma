@@ -178,12 +178,26 @@ model StockMovementLine {
 // Partners
 // ------------------------------------------------------------------
 
+enum Gender {
+  MALE
+  FEMALE
+}
+
 model Customer {
   id          String            @id @default(cuid())
   code        String            @unique
   name        String
   phone       String?
   address     String?
+  province    String?
+  ward        String?
+  groupName   String?
+  birthday    DateTime?
+  gender      Gender?
+  email       String?
+  facebook    String?
+  note        String?
+  avatarUrl   String?
   debtBalance Decimal           @default(0) @db.Decimal(14, 2)
   deletedAt   DateTime?
   createdAt   DateTime          @default(now())

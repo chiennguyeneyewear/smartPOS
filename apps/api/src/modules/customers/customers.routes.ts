@@ -1,12 +1,24 @@
 import type { FastifyInstance } from "fastify";
-import { PERMISSIONS, customerSchema, quickCustomerSchema } from "@smartpos/shared";
+import { PERMISSIONS, customerSchema, type CustomerInput } from "@smartpos/shared";
 import { authenticate } from "../../middleware/authenticate.js";
 import { requirePermission } from "../../middleware/require-permission.js";
 import { prisma } from "../../lib/prisma.js";
 import { generateCustomerCode } from "../../lib/codes.js";
 
-function toDto(customer: { debtBalance: unknown; [key: string]: unknown }) {
-  return { ...customer, debtBalance: Number(customer.debtBalance) };
+function toDto(customer: { debtBalance: unknown; birthday: Date | null; [key: string]: unknown }) {
+  return {
+    ...customer,
+    debtBalance: Number(customer.debtBalance),
+    birthday: customer.birthday ? customer.birthday.toISOString() : null,
+  };
+}
+
+function toPrismaData<T extends Partial<CustomerInput>>(input: T) {
+  const { birthday, ...rest } = input;
+  return {
+    ...rest,
+    ...(birthday !== undefined ? { birthday: birthday ? new Date(birthday) : null } : {}),
+  };
 }
 
 export function registerCustomerRoutes(app: FastifyInstance) {
@@ -26,25 +38,18 @@ export function registerCustomerRoutes(app: FastifyInstance) {
     return { data: customers.map(toDto) };
   });
 
+  // Used both by the back-office "Thêm khách hàng" page and the POS "+" quick-add dialog
   app.post("/customers", { preHandler: authenticate }, async (request, reply) => {
     const input = customerSchema.parse(request.body);
     const code = await generateCustomerCode();
-    const customer = await prisma.customer.create({ data: { ...input, code } });
-    return reply.code(201).send(toDto(customer));
-  });
-
-  // Quick-add: the "+" button next to the customer search box on the POS screen (name + phone only)
-  app.post("/customers/quick", { preHandler: authenticate }, async (request, reply) => {
-    const input = quickCustomerSchema.parse(request.body);
-    const code = await generateCustomerCode();
-    const customer = await prisma.customer.create({ data: { ...input, code } });
+    const customer = await prisma.customer.create({ data: { ...toPrismaData(input), code } });
     return reply.code(201).send(toDto(customer));
   });
 
   app.patch("/customers/:id", { preHandler: authenticate }, async (request) => {
     const { id } = request.params as { id: string };
     const input = customerSchema.partial().parse(request.body);
-    const customer = await prisma.customer.update({ where: { id }, data: input });
+    const customer = await prisma.customer.update({ where: { id }, data: toPrismaData(input) });
     return toDto(customer);
   });
 

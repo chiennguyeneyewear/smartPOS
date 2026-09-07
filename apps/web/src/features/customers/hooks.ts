@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createCustomer, fetchDebtHistory, quickCreateCustomer, searchCustomers } from "./api";
+import { createCustomer, fetchDebtHistory, searchCustomers } from "./api";
 
 export function useCustomerSearch(search: string) {
   return useQuery({
@@ -17,14 +17,6 @@ export function useCreateCustomer() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: createCustomer,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["customers"] }),
-  });
-}
-
-export function useQuickCreateCustomer() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: quickCreateCustomer,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["customers"] }),
   });
 }

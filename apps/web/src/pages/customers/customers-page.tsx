@@ -1,24 +1,22 @@
 import { useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Plus, Search } from "lucide-react";
-import { customerSchema, type CustomerInput, type CustomerSummary } from "@smartpos/shared";
+import type { CustomerSummary } from "@smartpos/shared";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
+import { CustomerFormDialog } from "@/components/shared/customer-form-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { formatCurrency } from "@/lib/utils";
-import { useCreateCustomer, useCustomerList } from "@/features/customers/hooks";
+import { useCustomerList } from "@/features/customers/hooks";
 
 const columns: ColumnDef<CustomerSummary, any>[] = [
   { accessorKey: "code", header: "Mã KH" },
   { accessorKey: "name", header: "Tên khách hàng", cell: ({ row }) => <span className="font-medium">{row.original.name}</span> },
   { accessorKey: "phone", header: "Điện thoại" },
   { accessorKey: "address", header: "Địa chỉ" },
+  { accessorKey: "groupName", header: "Nhóm" },
   {
     accessorKey: "debtBalance",
     header: "Công nợ",
@@ -33,23 +31,6 @@ export function CustomersPage() {
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
   const { data, isLoading } = useCustomerList(search);
-  const createCustomer = useCreateCustomer();
-
-  const {
-    register,
-    handleSubmit,
-    reset,
-    formState: { errors },
-  } = useForm<CustomerInput>({ resolver: zodResolver(customerSchema) });
-
-  const onSubmit = handleSubmit((values) => {
-    createCustomer.mutate(values, {
-      onSuccess: () => {
-        reset();
-        setOpen(false);
-      },
-    });
-  });
 
   return (
     <div>
@@ -68,33 +49,7 @@ export function CustomersPage() {
       </div>
       <DataTable columns={columns} data={data ?? []} isLoading={isLoading} emptyMessage="Chưa có khách hàng" />
 
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Thêm khách hàng</DialogTitle>
-          </DialogHeader>
-          <form className="space-y-4" onSubmit={onSubmit}>
-            <div className="space-y-1.5">
-              <Label>Tên khách hàng</Label>
-              <Input {...register("name")} />
-              {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
-            </div>
-            <div className="space-y-1.5">
-              <Label>Số điện thoại</Label>
-              <Input {...register("phone")} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Địa chỉ</Label>
-              <Input {...register("address")} />
-            </div>
-            <DialogFooter>
-              <Button type="submit" disabled={createCustomer.isPending}>
-                {createCustomer.isPending ? "Đang lưu..." : "Lưu khách hàng"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <CustomerFormDialog open={open} onOpenChange={setOpen} />
     </div>
   );
 }
