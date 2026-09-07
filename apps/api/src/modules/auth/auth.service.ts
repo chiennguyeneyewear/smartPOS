@@ -2,6 +2,7 @@ import argon2 from "argon2";
 import { loginSchema, type LoginInput } from "@smartpos/shared";
 import { prisma } from "../../lib/prisma.js";
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from "../../lib/jwt.js";
+import { resolveMenuAccess } from "../../lib/menu-access.js";
 
 class AuthError extends Error {
   statusCode = 401;
@@ -45,6 +46,7 @@ function toCurrentUser(user: Awaited<ReturnType<typeof loadAuthContext>>) {
     fullName: user.fullName,
     role: user.role.name,
     permissions: user.role.permissions.map((p) => p.id),
+    menuAccess: resolveMenuAccess(user.menuAccess, user.role.name),
     branches: user.branches.map((b) => ({
       id: b.branch.id,
       name: b.branch.name,

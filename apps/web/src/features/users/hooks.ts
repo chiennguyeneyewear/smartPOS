@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/stores/toast-store";
-import { createUser, fetchRoles, fetchUsers } from "./api";
+import { createUser, fetchRoles, fetchUsers, updateUser, type UpdateUserInput } from "./api";
 
 export function useUsers() {
   return useQuery({ queryKey: ["users"], queryFn: fetchUsers });
@@ -17,6 +17,17 @@ export function useCreateUser() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
       toast({ title: "Đã thêm nhân viên", variant: "success" });
+    },
+  });
+}
+
+export function useUpdateUser() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: UpdateUserInput }) => updateUser(id, input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      toast({ title: "Đã cập nhật nhân viên", variant: "success" });
     },
   });
 }

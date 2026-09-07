@@ -49,3 +49,44 @@ export const ROLE_PERMISSIONS: Record<RoleName, PermissionName[]> = {
     PERMISSIONS.SUPPLIERS_MANAGE,
   ],
 };
+
+// Menu items correspond 1:1 to the sidebar entries in apps/web. Independent from
+// PERMISSIONS (which gate actions) — this controls what a user can even *see* in
+// the nav, and is set per-user (defaulting from their role) rather than fixed by role.
+export const MENU_ITEMS = {
+  DASHBOARD: "dashboard",
+  POS: "pos",
+  PRODUCTS: "products",
+  CUSTOMERS: "customers",
+  SUPPLIERS: "suppliers",
+  REPORTS: "reports",
+  BRANCHES: "branches",
+  USERS: "users",
+} as const;
+
+export type MenuKey = (typeof MENU_ITEMS)[keyof typeof MENU_ITEMS];
+
+export const MENU_ITEM_LABELS: Record<MenuKey, string> = {
+  [MENU_ITEMS.DASHBOARD]: "Tổng quan",
+  [MENU_ITEMS.POS]: "Bán hàng",
+  [MENU_ITEMS.PRODUCTS]: "Hàng hóa",
+  [MENU_ITEMS.CUSTOMERS]: "Khách hàng",
+  [MENU_ITEMS.SUPPLIERS]: "Nhà cung cấp",
+  [MENU_ITEMS.REPORTS]: "Báo cáo",
+  [MENU_ITEMS.BRANCHES]: "Quản lý chi nhánh",
+  [MENU_ITEMS.USERS]: "Quản lý người dùng",
+};
+
+export const DEFAULT_MENU_ACCESS: Record<RoleName, MenuKey[]> = {
+  [ROLES.ADMIN]: Object.values(MENU_ITEMS),
+  [ROLES.MANAGER]: [
+    MENU_ITEMS.DASHBOARD,
+    MENU_ITEMS.POS,
+    MENU_ITEMS.PRODUCTS,
+    MENU_ITEMS.CUSTOMERS,
+    MENU_ITEMS.SUPPLIERS,
+    MENU_ITEMS.REPORTS,
+  ],
+  [ROLES.CASHIER]: [MENU_ITEMS.POS, MENU_ITEMS.PRODUCTS, MENU_ITEMS.CUSTOMERS],
+  [ROLES.WAREHOUSE]: [MENU_ITEMS.PRODUCTS, MENU_ITEMS.SUPPLIERS],
+};

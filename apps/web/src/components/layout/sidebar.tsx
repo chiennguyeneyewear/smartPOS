@@ -9,20 +9,25 @@ import {
   Building2,
   UserCog,
 } from "lucide-react";
+import { MENU_ITEMS } from "@smartpos/shared";
 import { cn } from "@/lib/utils";
+import { useAuthStore } from "@/stores/auth-store";
 
 const NAV_ITEMS = [
-  { to: "/dashboard", label: "Tổng quan", icon: LayoutDashboard },
-  { to: "/pos", label: "Bán hàng", icon: ShoppingCart },
-  { to: "/inventory/products", label: "Hàng hóa", icon: Package },
-  { to: "/customers", label: "Khách hàng", icon: Users },
-  { to: "/suppliers", label: "Nhà cung cấp", icon: Truck },
-  { to: "/reports", label: "Báo cáo", icon: BarChart3 },
-  { to: "/settings/branches", label: "Quản lý chi nhánh", icon: Building2 },
-  { to: "/settings/users", label: "Quản lý người dùng", icon: UserCog },
+  { to: "/dashboard", label: "Tổng quan", icon: LayoutDashboard, menuKey: MENU_ITEMS.DASHBOARD },
+  { to: "/pos", label: "Bán hàng", icon: ShoppingCart, menuKey: MENU_ITEMS.POS },
+  { to: "/inventory/products", label: "Hàng hóa", icon: Package, menuKey: MENU_ITEMS.PRODUCTS },
+  { to: "/customers", label: "Khách hàng", icon: Users, menuKey: MENU_ITEMS.CUSTOMERS },
+  { to: "/suppliers", label: "Nhà cung cấp", icon: Truck, menuKey: MENU_ITEMS.SUPPLIERS },
+  { to: "/reports", label: "Báo cáo", icon: BarChart3, menuKey: MENU_ITEMS.REPORTS },
+  { to: "/settings/branches", label: "Quản lý chi nhánh", icon: Building2, menuKey: MENU_ITEMS.BRANCHES },
+  { to: "/settings/users", label: "Quản lý người dùng", icon: UserCog, menuKey: MENU_ITEMS.USERS },
 ];
 
 export function Sidebar() {
+  const menuAccess = useAuthStore((s) => s.user?.menuAccess) ?? [];
+  const items = NAV_ITEMS.filter((item) => menuAccess.includes(item.menuKey));
+
   return (
     <aside className="flex h-full w-56 shrink-0 flex-col border-r bg-card">
       <div className="flex h-14 items-center gap-2 border-b px-4">
@@ -32,7 +37,7 @@ export function Sidebar() {
         <span className="text-sm font-semibold">SmartPOS</span>
       </div>
       <nav className="flex-1 space-y-1 p-2">
-        {NAV_ITEMS.map(({ to, label, icon: Icon }) => (
+        {items.map(({ to, label, icon: Icon }) => (
           <NavLink
             key={to}
             to={to}

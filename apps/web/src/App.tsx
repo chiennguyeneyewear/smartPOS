@@ -1,5 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
+import { MENU_ITEMS } from "@smartpos/shared";
 import { ProtectedRoute } from "@/app/protected-route";
+import { MenuGuard } from "@/app/menu-guard";
 import { AppShell } from "@/components/layout/app-shell";
 import { PosLayout } from "@/components/layout/pos-layout";
 import { LoginPage } from "@/pages/auth/login-page";
@@ -21,19 +23,89 @@ export default function App() {
 
       <Route element={<ProtectedRoute />}>
         <Route element={<PosLayout />}>
-          <Route path="/pos" element={<PosPage />} />
+          <Route
+            path="/pos"
+            element={
+              <MenuGuard menuKey={MENU_ITEMS.POS}>
+                <PosPage />
+              </MenuGuard>
+            }
+          />
         </Route>
 
         <Route element={<AppShell />}>
-          <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/inventory/products" element={<ProductsPage />} />
-          <Route path="/inventory/stock" element={<StockPage />} />
-          <Route path="/inventory/movements" element={<MovementsPage />} />
-          <Route path="/customers" element={<CustomersPage />} />
-          <Route path="/suppliers" element={<SuppliersPage />} />
-          <Route path="/reports" element={<ReportsPage />} />
-          <Route path="/settings/users" element={<UsersPage />} />
-          <Route path="/settings/branches" element={<BranchesPage />} />
+          <Route
+            path="/dashboard"
+            element={
+              <MenuGuard menuKey={MENU_ITEMS.DASHBOARD}>
+                <DashboardPage />
+              </MenuGuard>
+            }
+          />
+          <Route
+            path="/inventory/products"
+            element={
+              <MenuGuard menuKey={MENU_ITEMS.PRODUCTS}>
+                <ProductsPage />
+              </MenuGuard>
+            }
+          />
+          <Route
+            path="/inventory/stock"
+            element={
+              <MenuGuard menuKey={MENU_ITEMS.PRODUCTS}>
+                <StockPage />
+              </MenuGuard>
+            }
+          />
+          <Route
+            path="/inventory/movements"
+            element={
+              <MenuGuard menuKey={MENU_ITEMS.PRODUCTS}>
+                <MovementsPage />
+              </MenuGuard>
+            }
+          />
+          <Route
+            path="/customers"
+            element={
+              <MenuGuard menuKey={MENU_ITEMS.CUSTOMERS}>
+                <CustomersPage />
+              </MenuGuard>
+            }
+          />
+          <Route
+            path="/suppliers"
+            element={
+              <MenuGuard menuKey={MENU_ITEMS.SUPPLIERS}>
+                <SuppliersPage />
+              </MenuGuard>
+            }
+          />
+          <Route
+            path="/reports"
+            element={
+              <MenuGuard menuKey={MENU_ITEMS.REPORTS}>
+                <ReportsPage />
+              </MenuGuard>
+            }
+          />
+          <Route
+            path="/settings/users"
+            element={
+              <MenuGuard menuKey={MENU_ITEMS.USERS}>
+                <UsersPage />
+              </MenuGuard>
+            }
+          />
+          <Route
+            path="/settings/branches"
+            element={
+              <MenuGuard menuKey={MENU_ITEMS.BRANCHES}>
+                <BranchesPage />
+              </MenuGuard>
+            }
+          />
         </Route>
       </Route>
 

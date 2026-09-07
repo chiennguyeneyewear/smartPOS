@@ -40,6 +40,9 @@ model User {
   role            Role      @relation(fields: [roleId], references: [id])
   defaultBranchId String?
   branches        UserBranch[]
+  // Which sidebar menu items this user can see. Empty = fall back to the role's
+  // default (see DEFAULT_MENU_ACCESS in @smartpos/shared) rather than "no access".
+  menuAccess      String[]  @default([])
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 

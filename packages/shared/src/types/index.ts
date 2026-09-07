@@ -127,6 +127,7 @@ export interface CurrentUser {
   fullName: string;
   role: string;
   permissions: string[];
+  menuAccess: string[];
   branches: BranchSummary[];
   defaultBranchId: string | null;
 }

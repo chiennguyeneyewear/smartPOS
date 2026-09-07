@@ -7,8 +7,10 @@ export interface UserRow {
   phone: string | null;
   isActive: boolean;
   role: string;
+  roleId: string;
   branches: { id: string; name: string; code: string }[];
   defaultBranchId: string | null;
+  menuAccess: string[];
 }
 
 export interface RoleRow {
@@ -23,6 +25,17 @@ export interface CreateUserInput {
   phone?: string;
   roleId: string;
   branchIds: string[];
+  menuAccess: string[];
+}
+
+export interface UpdateUserInput {
+  fullName?: string;
+  phone?: string;
+  isActive?: boolean;
+  roleId?: string;
+  password?: string;
+  menuAccess?: string[];
+  branchIds?: string[];
 }
 
 export async function fetchUsers(): Promise<UserRow[]> {
@@ -37,5 +50,14 @@ export async function fetchRoles(): Promise<RoleRow[]> {
 
 export async function createUser(input: CreateUserInput) {
   const { data } = await apiClient.post("/users", input);
+  return data;
+}
+
+export async function updateUser(id: string, input: UpdateUserInput) {
+  const { branchIds, ...rest } = input;
+  const { data } = await apiClient.patch(`/users/${id}`, rest);
+  if (branchIds) {
+    await apiClient.patch(`/users/${id}/branches`, { branchIds });
+  }
   return data;
 }

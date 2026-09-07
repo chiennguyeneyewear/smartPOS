@@ -4,6 +4,7 @@ import { PERMISSIONS } from "@smartpos/shared";
 import { authenticate } from "../../middleware/authenticate.js";
 import { requirePermission } from "../../middleware/require-permission.js";
 import { prisma } from "../../lib/prisma.js";
+import { resolveMenuAccess } from "../../lib/menu-access.js";
 
 export function registerUserRoutes(app: FastifyInstance) {
   app.get(
@@ -22,8 +23,10 @@ export function registerUserRoutes(app: FastifyInstance) {
           phone: u.phone,
           isActive: u.isActive,
           role: u.role.name,
+          roleId: u.roleId,
           branches: u.branches.map((b) => ({ id: b.branch.id, name: b.branch.name, code: b.branch.code })),
           defaultBranchId: u.defaultBranchId,
+          menuAccess: resolveMenuAccess(u.menuAccess, u.role.name),
         })),
       };
     },
@@ -41,6 +44,7 @@ export function registerUserRoutes(app: FastifyInstance) {
         roleId: string;
         branchIds: string[];
         defaultBranchId?: string;
+        menuAccess?: string[];
       };
       const passwordHash = await argon2.hash(body.password);
       const user = await prisma.user.create({
@@ -52,6 +56,7 @@ export function registerUserRoutes(app: FastifyInstance) {
           roleId: body.roleId,
           defaultBranchId: body.defaultBranchId ?? body.branchIds[0],
           branches: { create: body.branchIds.map((branchId) => ({ branchId })) },
+          menuAccess: body.menuAccess ?? [],
         },
       });
       return reply.code(201).send({ id: user.id, email: user.email });
@@ -69,8 +74,14 @@ export function registerUserRoutes(app: FastifyInstance) {
         isActive: boolean;
         roleId: string;
         defaultBranchId: string;
+        menuAccess: string[];
+        password: string;
       }>;
-      return prisma.user.update({ where: { id }, data: body });
+      const { password, ...rest } = body;
+      return prisma.user.update({
+        where: { id },
+        data: { ...rest, ...(password ? { passwordHash: await argon2.hash(password) } : {}) },
+      });
     },
   );
 
