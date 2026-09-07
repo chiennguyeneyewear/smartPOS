@@ -2,10 +2,11 @@ import type { FastifyInstance } from "fastify";
 import { PERMISSIONS, createStockMovementSchema } from "@smartpos/shared";
 import { authenticate } from "../../middleware/authenticate.js";
 import { requirePermission } from "../../middleware/require-permission.js";
+import { branchScope } from "../../middleware/branch-scope.js";
 import * as inventoryService from "./inventory.service.js";
 
 export function registerInventoryRoutes(app: FastifyInstance) {
-  app.get("/inventory/stock", { preHandler: authenticate }, async (request) => {
+  app.get("/inventory/stock", { preHandler: [authenticate, branchScope] }, async (request) => {
     const query = request.query as { branchId: string; lowStock?: string; search?: string };
     const data = await inventoryService.getStock(query.branchId, {
       lowStock: query.lowStock === "true",
@@ -16,7 +17,7 @@ export function registerInventoryRoutes(app: FastifyInstance) {
 
   app.post(
     "/inventory/movements",
-    { preHandler: [authenticate, requirePermission(PERMISSIONS.INVENTORY_ADJUST)] },
+    { preHandler: [authenticate, requirePermission(PERMISSIONS.INVENTORY_ADJUST), branchScope] },
     async (request, reply) => {
       const input = createStockMovementSchema.parse(request.body);
       const movement = await inventoryService.createStockMovement(input, request.authUser!.id);
@@ -24,7 +25,7 @@ export function registerInventoryRoutes(app: FastifyInstance) {
     },
   );
 
-  app.get("/inventory/movements", { preHandler: authenticate }, async (request) => {
+  app.get("/inventory/movements", { preHandler: [authenticate, branchScope] }, async (request) => {
     const query = request.query as { branchId?: string; type?: string };
     const data = await inventoryService.listMovements(query);
     return { data };

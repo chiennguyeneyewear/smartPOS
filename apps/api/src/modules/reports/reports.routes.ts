@@ -1,11 +1,14 @@
 import type { FastifyInstance } from "fastify";
-import { PERMISSIONS } from "@smartpos/shared";
+import { PERMISSIONS, ROLES } from "@smartpos/shared";
 import { authenticate } from "../../middleware/authenticate.js";
 import { requirePermission } from "../../middleware/require-permission.js";
+import { branchScope } from "../../middleware/branch-scope.js";
 import * as reportsService from "./reports.service.js";
 
 export function registerReportRoutes(app: FastifyInstance) {
-  const guard = [authenticate, requirePermission(PERMISSIONS.REPORTS_VIEW)];
+  // branchScope resolves & authorizes the requested branch: a manager can only
+  // ever see the branch(es) they were assigned in Nhân viên > Chi nhánh được phép truy cập.
+  const guard = [authenticate, requirePermission(PERMISSIONS.REPORTS_VIEW), branchScope];
 
   app.get("/reports/revenue", { preHandler: guard }, async (request) => {
     const query = request.query as {
@@ -34,11 +37,18 @@ export function registerReportRoutes(app: FastifyInstance) {
     return reportsService.getStockValue(query.branchId);
   });
 
-  app.get("/reports/branch-comparison", { preHandler: guard }, async (request) => {
-    const query = request.query as { from?: string; to?: string };
-    const data = await reportsService.getBranchComparison(query);
-    return { data };
-  });
+  app.get(
+    "/reports/branch-comparison",
+    { preHandler: [authenticate, requirePermission(PERMISSIONS.REPORTS_VIEW)] },
+    async (request) => {
+      const query = request.query as { from?: string; to?: string };
+      // Not gated through branchScope (it compares across branches by design) — instead,
+      // a non-admin only ever sees the branches they're assigned to, admins see all.
+      const allowedBranchIds = request.authUser!.role === ROLES.ADMIN ? undefined : request.authUser!.branchIds;
+      const data = await reportsService.getBranchComparison(query, allowedBranchIds);
+      return { data };
+    },
+  );
 
   app.get("/reports/profit", { preHandler: guard }, async (request) => {
     const query = request.query as { branchId?: string; from?: string; to?: string };

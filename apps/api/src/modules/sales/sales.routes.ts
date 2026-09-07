@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { PERMISSIONS, saveInvoiceSchema, checkoutInvoiceSchema } from "@smartpos/shared";
 import { authenticate } from "../../middleware/authenticate.js";
 import { requirePermission } from "../../middleware/require-permission.js";
+import { branchScope } from "../../middleware/branch-scope.js";
 import * as salesService from "./sales.service.js";
 
 export function registerSalesRoutes(app: FastifyInstance) {
@@ -44,7 +45,7 @@ export function registerSalesRoutes(app: FastifyInstance) {
     },
   );
 
-  app.get("/sales/invoices", { preHandler: authenticate }, async (request) => {
+  app.get("/sales/invoices", { preHandler: [authenticate, branchScope] }, async (request) => {
     const query = request.query as { branchId?: string; status?: string; customerId?: string };
     const data = await salesService.listInvoices(query);
     return { data };

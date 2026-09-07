@@ -118,8 +118,10 @@ export async function getStockValue(branchId?: string) {
   return { totalValue, totalUnits, itemCount: items.length };
 }
 
-export async function getBranchComparison(range: { from?: string; to?: string }) {
-  const branches = await prisma.branch.findMany({ where: { isActive: true } });
+export async function getBranchComparison(range: { from?: string; to?: string }, allowedBranchIds?: string[]) {
+  const branches = await prisma.branch.findMany({
+    where: { isActive: true, ...(allowedBranchIds ? { id: { in: allowedBranchIds } } : {}) },
+  });
   const results = [];
   for (const branch of branches) {
     const invoices = await prisma.invoice.findMany({
