@@ -8,9 +8,19 @@ export function registerReportRoutes(app: FastifyInstance) {
   const guard = [authenticate, requirePermission(PERMISSIONS.REPORTS_VIEW)];
 
   app.get("/reports/revenue", { preHandler: guard }, async (request) => {
-    const query = request.query as { branchId?: string; from?: string; to?: string; groupBy?: "day" | "week" | "month" };
+    const query = request.query as {
+      branchId?: string;
+      from?: string;
+      to?: string;
+      groupBy?: "day" | "week" | "month" | "hour" | "weekday";
+    };
     const data = await reportsService.getRevenueOverTime(query, query.groupBy ?? "day");
     return { data };
+  });
+
+  app.get("/reports/dashboard-summary", { preHandler: guard }, async (request) => {
+    const query = request.query as { branchId?: string };
+    return reportsService.getDashboardSummary(query.branchId);
   });
 
   app.get("/reports/top-products", { preHandler: guard }, async (request) => {

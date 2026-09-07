@@ -1,0 +1,169 @@
+import { useMemo, useState } from "react";
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { ArrowDownRight, ArrowUpRight, Cake, ReceiptText, RotateCcw, Wallet } from "lucide-react";
+import { PageHeader } from "@/components/shared/page-header";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { formatCurrency, formatDateTime } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import { useAuthStore } from "@/stores/auth-store";
+import { useDashboardSummary, useRevenueReport } from "@/features/reports/hooks";
+
+type ChartMode = "day" | "hour" | "weekday";
+
+const CHART_TABS: { value: ChartMode; label: string }[] = [
+  { value: "day", label: "Theo ngày" },
+  { value: "hour", label: "Theo giờ" },
+  { value: "weekday", label: "Theo thứ" },
+];
+
+function monthStartIso() {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+}
+
+function ChangeBadge({ pct }: { pct: number }) {
+  const isUp = pct >= 0;
+  const Icon = isUp ? ArrowUpRight : ArrowDownRight;
+  return (
+    <span className={cn("inline-flex items-center gap-0.5 text-xs font-medium", isUp ? "text-success" : "text-destructive")}>
+      <Icon className="h-3.5 w-3.5" />
+      {Math.abs(pct).toFixed(2)}%
+    </span>
+  );
+}
+
+export function DashboardPage() {
+  const activeBranchId = useAuthStore((s) => s.activeBranchId);
+  const [chartMode, setChartMode] = useState<ChartMode>("day");
+
+  const { data: summary } = useDashboardSummary(activeBranchId ?? undefined);
+  const { data: revenue } = useRevenueReport({
+    branchId: activeBranchId ?? undefined,
+    groupBy: chartMode,
+    from: monthStartIso(),
+  });
+
+  const chartData = useMemo(() => revenue ?? [], [revenue]);
+
+  return (
+    <div className="space-y-4">
+      <PageHeader title="Tổng quan" description="Kết quả bán hàng hôm nay" />
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="flex-row items-center justify-between gap-2 space-y-0">
+            <div>
+              <CardDescription>Doanh thu</CardDescription>
+              <CardTitle className="text-xl">{formatCurrency(summary?.revenueToday ?? 0)}</CardTitle>
+              <p className="text-xs text-muted-foreground">{summary?.invoiceCountToday ?? 0} hóa đơn</p>
+            </div>
+            <Wallet className="h-8 w-8 text-primary/70" />
+          </CardHeader>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex-row items-center justify-between gap-2 space-y-0">
+            <div>
+              <CardDescription>Đơn hủy</CardDescription>
+              <CardTitle className="text-xl">{summary?.cancelledCountToday ?? 0}</CardTitle>
+              <p className="text-xs text-muted-foreground">Hôm nay</p>
+            </div>
+            <RotateCcw className="h-8 w-8 text-muted-foreground/60" />
+          </CardHeader>
+        </Card>
+
+        <Card>
+          <CardHeader className="space-y-1">
+            <CardDescription>Doanh thu</CardDescription>
+            <ChangeBadge pct={summary?.changeVsYesterdayPct ?? 0} />
+            <p className="text-xs text-muted-foreground">So với hôm qua</p>
+          </CardHeader>
+        </Card>
+
+        <Card>
+          <CardHeader className="space-y-1">
+            <CardDescription>Doanh thu</CardDescription>
+            <ChangeBadge pct={summary?.changeVsLastMonthPct ?? 0} />
+            <p className="text-xs text-muted-foreground">So với cùng kỳ tháng trước</p>
+          </CardHeader>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <Card className="lg:col-span-2">
+          <CardHeader className="flex-row items-center justify-between gap-4 space-y-0">
+            <div>
+              <CardDescription>Doanh thu thuần</CardDescription>
+              <CardTitle className="text-xl">{formatCurrency(summary?.revenueMonth ?? 0)}</CardTitle>
+            </div>
+            <Tabs value={chartMode} onValueChange={(v) => setChartMode(v as ChartMode)}>
+              <TabsList>
+                {CHART_TABS.map((tab) => (
+                  <TabsTrigger key={tab.value} value={tab.value}>
+                    {tab.label}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </Tabs>
+          </CardHeader>
+          <CardContent className="h-72">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                <XAxis dataKey="period" fontSize={12} />
+                <YAxis fontSize={12} tickFormatter={(v) => `${v / 1_000_000} tr`} />
+                <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        <div className="space-y-4">
+          {!!summary?.birthdaysToday?.length && (
+            <Card>
+              <CardHeader className="flex-row items-center gap-2 space-y-0">
+                <Cake className="h-5 w-5 text-primary" />
+                <CardTitle>
+                  Có {summary.birthdaysToday.length} khách hàng sinh nhật hôm nay
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-1 text-sm text-muted-foreground">
+                {summary.birthdaysToday.map((c) => (
+                  <p key={c.id}>{c.name}</p>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Hoạt động gần đây</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {summary?.recentInvoices.length ? (
+                summary.recentInvoices.map((inv) => (
+                  <div key={inv.id} className="flex items-start gap-2 border-b pb-2 text-sm last:border-0 last:pb-0">
+                    <ReceiptText className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate">
+                        <span className="font-medium">{inv.customerName}</span> vừa bán đơn hàng với giá trị{" "}
+                        <span className="font-medium">{formatCurrency(inv.totalAmount)}</span>
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {inv.code} · {inv.completedAt ? formatDateTime(inv.completedAt) : ""}
+                      </p>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-muted-foreground">Chưa có hoạt động nào</p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}

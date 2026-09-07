@@ -1,5 +1,6 @@
 import { NavLink } from "react-router-dom";
 import {
+  LayoutDashboard,
   ShoppingCart,
   Package,
   Users,
@@ -10,6 +11,7 @@ import {
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
+  { to: "/dashboard", label: "Tổng quan", icon: LayoutDashboard },
   { to: "/pos", label: "Bán hàng", icon: ShoppingCart },
   { to: "/inventory/products", label: "Hàng hóa", icon: Package },
   { to: "/customers", label: "Khách hàng", icon: Users },

@@ -6,7 +6,24 @@ export interface ReportRange {
   to?: string;
 }
 
-export async function fetchRevenue(params: ReportRange & { groupBy?: "day" | "week" | "month" }) {
+export interface DashboardSummary {
+  revenueToday: number;
+  invoiceCountToday: number;
+  cancelledCountToday: number;
+  changeVsYesterdayPct: number;
+  changeVsLastMonthPct: number;
+  revenueMonth: number;
+  recentInvoices: {
+    id: string;
+    code: string;
+    customerName: string;
+    totalAmount: number;
+    completedAt: string | null;
+  }[];
+  birthdaysToday: { id: string; name: string }[];
+}
+
+export async function fetchRevenue(params: ReportRange & { groupBy?: "day" | "week" | "month" | "hour" | "weekday" }) {
   const { data } = await apiClient.get<{ data: { period: string; revenue: number }[] }>("/reports/revenue", {
     params,
   });
@@ -39,5 +56,10 @@ export async function fetchProfit(params: ReportRange) {
   const { data } = await apiClient.get<{ revenue: number; cost: number; profit: number }>("/reports/profit", {
     params,
   });
+  return data;
+}
+
+export async function fetchDashboardSummary(branchId?: string) {
+  const { data } = await apiClient.get<DashboardSummary>("/reports/dashboard-summary", { params: { branchId } });
   return data;
 }

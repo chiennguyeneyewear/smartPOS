@@ -3,6 +3,7 @@ import { ProtectedRoute } from "@/app/protected-route";
 import { AppShell } from "@/components/layout/app-shell";
 import { PosLayout } from "@/components/layout/pos-layout";
 import { LoginPage } from "@/pages/auth/login-page";
+import { DashboardPage } from "@/pages/dashboard/dashboard-page";
 import { PosPage } from "@/pages/pos/pos-page";
 import { ProductsPage } from "@/pages/inventory/products-page";
 import { StockPage } from "@/pages/inventory/stock-page";
@@ -24,6 +25,7 @@ export default function App() {
         </Route>
 
         <Route element={<AppShell />}>
+          <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/inventory/products" element={<ProductsPage />} />
           <Route path="/inventory/stock" element={<StockPage />} />
           <Route path="/inventory/movements" element={<MovementsPage />} />

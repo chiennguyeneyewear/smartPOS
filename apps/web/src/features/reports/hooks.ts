@@ -1,8 +1,24 @@
 import { useQuery } from "@tanstack/react-query";
-import { fetchBranchComparison, fetchProfit, fetchRevenue, fetchStockValue, fetchTopProducts, type ReportRange } from "./api";
+import {
+  fetchBranchComparison,
+  fetchDashboardSummary,
+  fetchProfit,
+  fetchRevenue,
+  fetchStockValue,
+  fetchTopProducts,
+  type ReportRange,
+} from "./api";
 
-export function useRevenueReport(params: ReportRange & { groupBy?: "day" | "week" | "month" }) {
+export function useRevenueReport(params: ReportRange & { groupBy?: "day" | "week" | "month" | "hour" | "weekday" }) {
   return useQuery({ queryKey: ["reports", "revenue", params], queryFn: () => fetchRevenue(params) });
+}
+
+export function useDashboardSummary(branchId?: string) {
+  return useQuery({
+    queryKey: ["reports", "dashboard-summary", branchId],
+    queryFn: () => fetchDashboardSummary(branchId),
+    refetchInterval: 60_000,
+  });
 }
 
 export function useTopProductsReport(params: ReportRange & { limit?: number }) {
