@@ -1,10 +1,21 @@
 import { useRef, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
+import { Link } from "react-router-dom";
+import { ChevronDown, LayoutGrid, LogOut, User } from "lucide-react";
 import type { CustomerSummary, PaymentMethod } from "@smartpos/shared";
 import { useAuthStore } from "@/stores/auth-store";
+import { useLogout } from "@/features/auth/hooks";
 import { usePosStore, getActiveTab, getLineTotal, getLineUnitDiscount } from "@/stores/pos-store";
 import { useCreateDraftInvoice, useCheckoutInvoice } from "@/features/sales/hooks";
 import { toast } from "@/stores/toast-store";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { InvoiceTabsBar } from "./invoice-tabs-bar";
 import { ProductQuickSearch } from "./product-quick-search";
 import { ProductGridPanel } from "./product-grid-panel";
@@ -14,7 +25,12 @@ import { CheckoutDialog } from "./checkout-dialog";
 import { CustomerFormDialog } from "@/components/shared/customer-form-dialog";
 
 export function PosPage() {
+  const user = useAuthStore((s) => s.user);
+  const branches = user?.branches ?? [];
   const activeBranchId = useAuthStore((s) => s.activeBranchId);
+  const setActiveBranch = useAuthStore((s) => s.setActiveBranch);
+  const activeBranch = branches.find((b) => b.id === activeBranchId) ?? branches[0];
+  const logout = useLogout();
   const tabs = usePosStore((s) => s.tabs);
   const activeTabId = usePosStore((s) => s.activeTabId);
   const setSaleMode = usePosStore((s) => s.setSaleMode);
@@ -98,9 +114,51 @@ export function PosPage() {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex h-12 shrink-0 items-center gap-3 border-b bg-secondary/40 px-2">
-        <ProductQuickSearch ref={productSearchRef} className="max-w-sm" />
+      <div className="flex h-14 shrink-0 items-center gap-2 bg-primary px-2">
+        <Link
+          to="/inventory/products"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-primary-foreground/80 hover:bg-white/10 hover:text-primary-foreground"
+          title="Quay lại quản lý"
+        >
+          <LayoutGrid className="h-5 w-5" />
+        </Link>
+        <ProductQuickSearch ref={productSearchRef} className="max-w-xs" />
         <InvoiceTabsBar />
+        <div className="flex shrink-0 items-center gap-1.5">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="flex h-8 items-center gap-1.5 rounded-md px-2.5 text-sm font-medium text-primary-foreground hover:bg-white/10">
+                {activeBranch?.name ?? "Chọn chi nhánh"}
+                <ChevronDown className="h-3.5 w-3.5" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Chi nhánh</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {branches.map((branch) => (
+                <DropdownMenuItem key={branch.id} onSelect={() => setActiveBranch(branch.id)}>
+                  {branch.name}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="flex h-8 items-center gap-1.5 rounded-md px-2.5 text-sm font-medium text-primary-foreground hover:bg-white/10">
+                <User className="h-4 w-4" />
+                {user?.fullName}
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>{user?.email}</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={() => logout.mutate()}>
+                <LogOut className="mr-2 h-4 w-4" />
+                Đăng xuất
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
       <div className="flex flex-1 overflow-hidden">
         <CartPanel tab={tab} onRequestCheckout={handleOpenCheckout} />

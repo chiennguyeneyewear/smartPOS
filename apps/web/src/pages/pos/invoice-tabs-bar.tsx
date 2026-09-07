@@ -10,21 +10,28 @@ export function InvoiceTabsBar() {
   const closeTab = usePosStore((s) => s.closeTab);
 
   return (
-    <div className="flex h-10 min-w-0 flex-1 items-center gap-1 overflow-x-auto px-2">
+    <div className="flex h-9 min-w-0 flex-1 items-center gap-1 overflow-x-auto">
       {tabs.map((tab) => (
         <button
           key={tab.id}
           onClick={() => setActiveTab(tab.id)}
           className={cn(
-            "group flex h-8 shrink-0 items-center gap-2 rounded-t-md px-3 text-xs font-medium transition-colors",
+            "group flex h-8 shrink-0 items-center gap-2 rounded-md px-3 text-sm font-medium transition-colors",
             tab.id === activeTabId
-              ? "bg-background text-foreground shadow-sm"
-              : "text-muted-foreground hover:bg-background/60",
+              ? "bg-white text-primary shadow-sm"
+              : "text-primary-foreground/80 hover:bg-white/10 hover:text-primary-foreground",
           )}
         >
           <span>{tab.label}</span>
           {tab.items.length > 0 && (
-            <span className="rounded-full bg-primary/10 px-1.5 text-[10px] text-primary">{tab.items.length}</span>
+            <span
+              className={cn(
+                "rounded-full px-1.5 text-[10px]",
+                tab.id === activeTabId ? "bg-primary/10 text-primary" : "bg-white/20 text-primary-foreground",
+              )}
+            >
+              {tab.items.length}
+            </span>
           )}
           {tabs.length > 1 && (
             <span
@@ -34,7 +41,7 @@ export function InvoiceTabsBar() {
                 e.stopPropagation();
                 closeTab(tab.id);
               }}
-              className="ml-1 rounded p-0.5 opacity-0 hover:bg-accent group-hover:opacity-100"
+              className="ml-1 rounded p-0.5 opacity-0 hover:bg-black/10 group-hover:opacity-100"
             >
               <X className="h-3 w-3" />
             </span>
@@ -43,7 +50,7 @@ export function InvoiceTabsBar() {
       ))}
       <button
         onClick={addTab}
-        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-background/60"
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-primary-foreground/80 hover:bg-white/10 hover:text-primary-foreground"
         title="Thêm hóa đơn mới"
       >
         <Plus className="h-4 w-4" />

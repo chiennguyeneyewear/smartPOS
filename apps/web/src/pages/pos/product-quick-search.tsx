@@ -54,7 +54,7 @@ export const ProductQuickSearch = forwardRef<HTMLInputElement, { className?: str
         />
       </div>
       <button
-        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border text-muted-foreground hover:bg-accent"
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-white text-primary shadow-sm hover:bg-white/90"
         title="Quét mã vạch"
       >
         <ScanLine className="h-4 w-4" />
