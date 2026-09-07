@@ -2,6 +2,8 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { SALE_MODE, type ProductSummary, type SaleMode, type CustomerSummary } from "@smartpos/shared";
 
+export type LineDiscountType = "AMOUNT" | "PERCENT";
+
 export interface CartLine {
   lineId: string;
   productId: string;
@@ -9,7 +11,25 @@ export interface CartLine {
   imageUrl: string | null;
   unitPrice: number;
   quantity: number;
-  discount: number;
+  discountType: LineDiscountType;
+  discountValue: number;
+}
+
+// Discount is entered either as a flat VND amount or a percentage of unitPrice,
+// matching the KiotViet-style per-line discount popover.
+export function getLineUnitDiscount(line: CartLine): number {
+  if (line.discountType === "PERCENT") {
+    return Math.round((line.unitPrice * line.discountValue) / 100);
+  }
+  return line.discountValue;
+}
+
+export function getLineSellPrice(line: CartLine): number {
+  return Math.max(0, line.unitPrice - getLineUnitDiscount(line));
+}
+
+export function getLineTotal(line: CartLine): number {
+  return getLineSellPrice(line) * line.quantity;
 }
 
 export interface PosTab {
@@ -43,6 +63,7 @@ interface PosState {
   addItem: (product: ProductSummary) => void;
   updateQuantity: (tabId: string, lineId: string, quantity: number) => void;
   updateLinePrice: (tabId: string, lineId: string, unitPrice: number) => void;
+  setLineDiscount: (tabId: string, lineId: string, discountType: LineDiscountType, discountValue: number) => void;
   removeItem: (tabId: string, lineId: string) => void;
   setCustomer: (tabId: string, customer: CustomerSummary | undefined) => void;
   setNote: (tabId: string, note: string) => void;
@@ -98,7 +119,8 @@ export const usePosStore = create<PosState>()(
               imageUrl: product.imageUrl,
               unitPrice: product.sellPrice,
               quantity: 1,
-              discount: 0,
+              discountType: "AMOUNT",
+              discountValue: 0,
             };
             return { ...tab, items: [...tab.items, newLine] };
           }),
@@ -124,6 +146,20 @@ export const usePosStore = create<PosState>()(
             tab.id !== tabId
               ? tab
               : { ...tab, items: tab.items.map((line) => (line.lineId === lineId ? { ...line, unitPrice } : line)) },
+          ),
+        })),
+
+      setLineDiscount: (tabId, lineId, discountType, discountValue) =>
+        set((state) => ({
+          tabs: state.tabs.map((tab) =>
+            tab.id !== tabId
+              ? tab
+              : {
+                  ...tab,
+                  items: tab.items.map((line) =>
+                    line.lineId === lineId ? { ...line, discountType, discountValue } : line,
+                  ),
+                },
           ),
         })),
 

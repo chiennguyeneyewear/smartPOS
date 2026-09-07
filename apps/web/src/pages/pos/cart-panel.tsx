@@ -1,11 +1,12 @@
 import { forwardRef, useMemo, useState } from "react";
 import { Minus, Plus, Trash2 } from "lucide-react";
 import type { CustomerSummary } from "@smartpos/shared";
-import { usePosStore, type PosTab } from "@/stores/pos-store";
+import { usePosStore, getLineTotal, getLineUnitDiscount, type PosTab } from "@/stores/pos-store";
 import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CustomerSearchBox } from "./customer-search-box";
+import { LineDiscountPopover } from "./line-discount-popover";
 
 interface CartPanelProps {
   tab: PosTab;
@@ -21,11 +22,9 @@ export function CartPanel({ tab, customerInputRef, onRequestQuickAddCustomer, on
   const setNote = usePosStore((s) => s.setNote);
   const setDiscount = usePosStore((s) => s.setDiscount);
   const [noteDraft, setNoteDraft] = useState(tab.note);
+  const [openDiscountLineId, setOpenDiscountLineId] = useState<string | null>(null);
 
-  const subTotal = useMemo(
-    () => tab.items.reduce((sum, item) => sum + item.quantity * item.unitPrice - item.discount, 0),
-    [tab.items],
-  );
+  const subTotal = useMemo(() => tab.items.reduce((sum, item) => sum + getLineTotal(item), 0), [tab.items]);
   const total = Math.max(0, subTotal - tab.discountAmount);
 
   return (
@@ -45,42 +44,65 @@ export function CartPanel({ tab, customerInputRef, onRequestQuickAddCustomer, on
         ) : (
           <table className="w-full text-sm">
             <tbody>
-              {tab.items.map((line) => (
-                <tr key={line.lineId} className="border-b last:border-0">
-                  <td className="p-2">
-                    <p className="line-clamp-2 text-xs font-medium">{line.name}</p>
-                    <p className="text-xs text-muted-foreground">{formatCurrency(line.unitPrice)}</p>
-                  </td>
-                  <td className="w-24 p-2">
-                    <div className="flex items-center gap-1">
+              {tab.items.map((line) => {
+                const unitDiscount = getLineUnitDiscount(line);
+                const hasDiscount = unitDiscount > 0;
+                return (
+                  <tr key={line.lineId} className="border-b last:border-0">
+                    <td className="p-2">
+                      <p className="line-clamp-2 text-xs font-medium">{line.name}</p>
+                      <div className="mt-1 flex items-center gap-1">
+                        <button
+                          onClick={() => updateQuantity(tab.id, line.lineId, line.quantity - 1)}
+                          className="flex h-6 w-6 items-center justify-center rounded border text-muted-foreground hover:bg-accent"
+                        >
+                          <Minus className="h-3 w-3" />
+                        </button>
+                        <span className="w-6 text-center text-xs">{line.quantity}</span>
+                        <button
+                          onClick={() => updateQuantity(tab.id, line.lineId, line.quantity + 1)}
+                          className="flex h-6 w-6 items-center justify-center rounded border text-muted-foreground hover:bg-accent"
+                        >
+                          <Plus className="h-3 w-3" />
+                        </button>
+                      </div>
+                    </td>
+                    <td className="relative w-24 p-2 text-right align-top">
                       <button
-                        onClick={() => updateQuantity(tab.id, line.lineId, line.quantity - 1)}
-                        className="flex h-6 w-6 items-center justify-center rounded border text-muted-foreground hover:bg-accent"
+                        onClick={() => setOpenDiscountLineId(line.lineId)}
+                        className="text-xs text-muted-foreground hover:text-foreground hover:underline"
                       >
-                        <Minus className="h-3 w-3" />
+                        {formatCurrency(line.unitPrice)}
                       </button>
-                      <span className="w-6 text-center text-xs">{line.quantity}</span>
+                      {hasDiscount && (
+                        <p className="text-[10px] text-destructive">
+                          -
+                          {line.discountType === "PERCENT"
+                            ? `${line.discountValue.toFixed(2)}%`
+                            : formatCurrency(line.discountValue)}
+                        </p>
+                      )}
+                      <LineDiscountPopover
+                        tabId={tab.id}
+                        line={line}
+                        open={openDiscountLineId === line.lineId}
+                        onOpenChange={(open) => setOpenDiscountLineId(open ? line.lineId : null)}
+                      />
+                    </td>
+                    <td className="w-20 p-2 text-right align-top text-xs font-semibold">
+                      {formatCurrency(getLineTotal(line))}
+                    </td>
+                    <td className="w-8 p-2 text-right align-top">
                       <button
-                        onClick={() => updateQuantity(tab.id, line.lineId, line.quantity + 1)}
-                        className="flex h-6 w-6 items-center justify-center rounded border text-muted-foreground hover:bg-accent"
+                        onClick={() => removeItem(tab.id, line.lineId)}
+                        className="text-muted-foreground hover:text-destructive"
                       >
-                        <Plus className="h-3 w-3" />
+                        <Trash2 className="h-3.5 w-3.5" />
                       </button>
-                    </div>
-                  </td>
-                  <td className="w-20 p-2 text-right text-xs font-semibold">
-                    {formatCurrency(line.quantity * line.unitPrice - line.discount)}
-                  </td>
-                  <td className="w-8 p-2 text-right">
-                    <button
-                      onClick={() => removeItem(tab.id, line.lineId)}
-                      className="text-muted-foreground hover:text-destructive"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}

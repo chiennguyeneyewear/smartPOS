@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import type { CustomerSummary, PaymentMethod } from "@smartpos/shared";
 import { useAuthStore } from "@/stores/auth-store";
-import { usePosStore, getActiveTab } from "@/stores/pos-store";
+import { usePosStore, getActiveTab, getLineTotal, getLineUnitDiscount } from "@/stores/pos-store";
 import { useCreateDraftInvoice, useCheckoutInvoice } from "@/features/sales/hooks";
 import { toast } from "@/stores/toast-store";
 import { InvoiceTabsBar } from "./invoice-tabs-bar";
@@ -64,7 +64,7 @@ export function PosPage() {
           productId: line.productId,
           quantity: line.quantity,
           unitPrice: line.unitPrice,
-          discount: line.discount,
+          discount: getLineUnitDiscount(line) * line.quantity,
         })),
       },
       {
@@ -95,7 +95,7 @@ export function PosPage() {
 
   const total = Math.max(
     0,
-    tab.items.reduce((sum, item) => sum + item.quantity * item.unitPrice - item.discount, 0) - tab.discountAmount,
+    tab.items.reduce((sum, item) => sum + getLineTotal(item), 0) - tab.discountAmount,
   );
 
   return (
