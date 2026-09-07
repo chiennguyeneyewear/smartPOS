@@ -11,8 +11,12 @@ import {
   type ProductQuery,
 } from "./api";
 
-export function useProducts(query: ProductQuery) {
-  return useQuery({ queryKey: ["products", query], queryFn: () => fetchProducts(query) });
+export function useProducts(query: ProductQuery, options: { enabled?: boolean } = {}) {
+  return useQuery({
+    queryKey: ["products", query],
+    queryFn: () => fetchProducts(query),
+    enabled: options.enabled ?? true,
+  });
 }
 
 export function useCategories() {

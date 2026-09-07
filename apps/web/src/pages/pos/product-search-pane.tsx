@@ -1,5 +1,5 @@
 import { forwardRef, useState } from "react";
-import { ScanLine, Search, ChevronLeft, ChevronRight, ImageOff } from "lucide-react";
+import { ScanLine, Search, ChevronLeft, ChevronRight, ImageOff, PackageSearch } from "lucide-react";
 import { useProducts } from "@/features/products/hooks";
 import { usePosStore } from "@/stores/pos-store";
 import { formatCurrency, cn } from "@/lib/utils";
@@ -12,7 +12,8 @@ export const ProductSearchPane = forwardRef<HTMLInputElement>(function ProductSe
   const [page, setPage] = useState(1);
   const addItem = usePosStore((s) => s.addItem);
 
-  const { data, isLoading } = useProducts({ search, page, pageSize: PAGE_SIZE });
+  const hasSearch = search.trim().length > 0;
+  const { data, isLoading } = useProducts({ search, page, pageSize: PAGE_SIZE }, { enabled: hasSearch });
   const totalPages = data ? Math.max(1, Math.ceil(data.meta.total / PAGE_SIZE)) : 1;
 
   return (
@@ -40,12 +41,19 @@ export const ProductSearchPane = forwardRef<HTMLInputElement>(function ProductSe
       </div>
 
       <div className="flex-1 overflow-auto p-2">
-        {isLoading && <p className="p-4 text-sm text-muted-foreground">Đang tải sản phẩm...</p>}
-        {!isLoading && data?.data.length === 0 && (
+        {!hasSearch && (
+          <div className="flex h-full flex-col items-center justify-center gap-2 text-center text-muted-foreground">
+            <PackageSearch className="h-8 w-8" />
+            <p className="text-sm">Nhập mã hoặc tên sản phẩm để tìm kiếm</p>
+          </div>
+        )}
+        {hasSearch && isLoading && <p className="p-4 text-sm text-muted-foreground">Đang tải sản phẩm...</p>}
+        {hasSearch && !isLoading && data?.data.length === 0 && (
           <p className="p-4 text-sm text-muted-foreground">Không tìm thấy sản phẩm phù hợp.</p>
         )}
         <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-          {data?.data.map((product) => (
+          {hasSearch &&
+            data?.data.map((product) => (
             <button
               key={product.id}
               onClick={() => addItem(product)}
@@ -65,7 +73,12 @@ export const ProductSearchPane = forwardRef<HTMLInputElement>(function ProductSe
         </div>
       </div>
 
-      <div className="flex items-center justify-center gap-3 border-t p-2 text-xs text-muted-foreground">
+      <div
+        className={cn(
+          "flex items-center justify-center gap-3 border-t p-2 text-xs text-muted-foreground",
+          !hasSearch && "invisible",
+        )}
+      >
         <button
           onClick={() => setPage((p) => Math.max(1, p - 1))}
           disabled={page <= 1}
