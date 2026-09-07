@@ -22,7 +22,7 @@ export function DataTable<TData>({ columns, data, isLoading, emptyMessage }: Dat
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>
               {headerGroup.headers.map((header) => (
-                <th key={header.id} className="whitespace-nowrap p-2.5 text-left text-xs font-semibold text-muted-foreground">
+                <th key={header.id} className="whitespace-nowrap p-3 text-left text-sm font-semibold text-muted-foreground">
                   {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                 </th>
               ))}
@@ -48,7 +48,7 @@ export function DataTable<TData>({ columns, data, isLoading, emptyMessage }: Dat
             table.getRowModel().rows.map((row) => (
               <tr key={row.id} className="border-t hover:bg-accent/40">
                 {row.getVisibleCells().map((cell) => (
-                  <td key={cell.id} className="whitespace-nowrap p-2.5">
+                  <td key={cell.id} className="whitespace-nowrap p-3">
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </td>
                 ))}

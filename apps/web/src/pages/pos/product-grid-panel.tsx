@@ -53,8 +53,8 @@ export function ProductGridPanel({ tab, tabId, customerInputRef, onRequestQuickA
                   <ImageOff className="h-6 w-6 text-muted-foreground" />
                 )}
               </div>
-              <p className="line-clamp-2 text-xs font-medium leading-tight">{product.name}</p>
-              <p className="text-xs font-semibold text-primary">{formatCurrency(product.sellPrice)}</p>
+              <p className="line-clamp-2 text-sm font-medium leading-tight">{product.name}</p>
+              <p className="text-sm font-semibold text-primary">{formatCurrency(product.sellPrice)}</p>
             </button>
           ))}
         </div>
