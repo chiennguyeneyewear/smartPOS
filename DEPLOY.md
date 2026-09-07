@@ -16,7 +16,7 @@ Kiến trúc triển khai:
    - **Root Directory**: để trống (thư mục gốc)
    - **Build Command**:
      ```
-     npm install && npm run build --workspace=packages/shared && npm run prisma:generate --workspace=apps/api && npm run build --workspace=apps/api
+     npm install && npm run build --workspace=packages/shared && npm run prisma:generate --workspace=apps/api && npm run build --workspace=apps/api && npm run prisma:deploy --workspace=apps/api
      ```
    - **Start Command**: `node apps/api/dist/server.js`
 5. Ở mục **Environment Variables**, thêm các biến sau (copy từ file `.env` của bạn):
