@@ -1,0 +1,31 @@
+import type { CheckoutInvoiceInput, InvoiceSummary, SaveInvoiceInput } from "@smartpos/shared";
+import { apiClient } from "@/lib/api-client";
+
+export async function createDraftInvoice(input: SaveInvoiceInput): Promise<InvoiceSummary> {
+  const { data } = await apiClient.post<InvoiceSummary>("/sales/invoices", input);
+  return data;
+}
+
+export async function updateDraftInvoice(id: string, input: SaveInvoiceInput): Promise<InvoiceSummary> {
+  const { data } = await apiClient.patch<InvoiceSummary>(`/sales/invoices/${id}`, input);
+  return data;
+}
+
+export async function checkoutInvoice(id: string, input: CheckoutInvoiceInput): Promise<InvoiceSummary> {
+  const { data } = await apiClient.post<InvoiceSummary>(`/sales/invoices/${id}/checkout`, input);
+  return data;
+}
+
+export async function voidInvoice(id: string): Promise<InvoiceSummary> {
+  const { data } = await apiClient.post<InvoiceSummary>(`/sales/invoices/${id}/void`);
+  return data;
+}
+
+export async function fetchInvoices(params: {
+  branchId?: string;
+  status?: string;
+  customerId?: string;
+}): Promise<InvoiceSummary[]> {
+  const { data } = await apiClient.get<{ data: InvoiceSummary[] }>("/sales/invoices", { params });
+  return data.data;
+}

@@ -1,0 +1,293 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ------------------------------------------------------------------
+// Organization / Access
+// ------------------------------------------------------------------
+
+model Branch {
+  id        String   @id @default(cuid())
+  name      String
+  code      String   @unique
+  address   String?
+  phone     String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users            UserBranch[]
+  stockItems       StockItem[]
+  invoices         Invoice[]
+  stockMovements   StockMovement[] @relation("MovementBranch")
+
+  @@map("branches")
+}
+
+model User {
+  id              String    @id @default(cuid())
+  email           String    @unique
+  passwordHash    String
+  fullName        String
+  phone           String?
+  isActive        Boolean   @default(true)
+  roleId          String
+  role            Role      @relation(fields: [roleId], references: [id])
+  defaultBranchId String?
+  branches        UserBranch[]
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@map("users")
+}
+
+model UserBranch {
+  userId   String
+  branchId String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  branch   Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@id([userId, branchId])
+  @@map("user_branches")
+}
+
+model Role {
+  id          String       @id @default(cuid())
+  name        String       @unique
+  users       User[]
+  permissions Permission[] @relation("RolePermissions")
+
+  @@map("roles")
+}
+
+model Permission {
+  id    String @id @default(cuid())
+  label String
+  roles Role[] @relation("RolePermissions")
+
+  @@map("permissions")
+}
+
+// ------------------------------------------------------------------
+// Catalog
+// ------------------------------------------------------------------
+
+model Category {
+  id       String     @id @default(cuid())
+  name     String
+  parentId String?
+  parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  children Category[] @relation("CategoryTree")
+  products Product[]
+
+  @@map("categories")
+}
+
+model Unit {
+  id       String    @id @default(cuid())
+  name     String    @unique
+  products Product[]
+
+  @@map("units")
+}
+
+model Product {
+  id                String    @id @default(cuid())
+  sku               String    @unique
+  barcode           String?   @unique
+  name              String
+  imageUrl          String?
+  categoryId        String?
+  category          Category? @relation(fields: [categoryId], references: [id])
+  unitId            String
+  unit              Unit      @relation(fields: [unitId], references: [id])
+  costPrice         Decimal   @db.Decimal(14, 2)
+  sellPrice         Decimal   @db.Decimal(14, 2)
+  reorderThreshold  Decimal?  @db.Decimal(14, 3)
+  isActive          Boolean   @default(true)
+  deletedAt         DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  stockItems         StockItem[]
+  invoiceItems       InvoiceItem[]
+  stockMovementLines StockMovementLine[]
+
+  @@map("products")
+}
+
+// ------------------------------------------------------------------
+// Inventory
+// ------------------------------------------------------------------
+
+model StockItem {
+  id        String  @id @default(cuid())
+  productId String
+  branchId  String
+  quantity  Decimal @default(0) @db.Decimal(14, 3)
+  product   Product @relation(fields: [productId], references: [id])
+  branch    Branch  @relation(fields: [branchId], references: [id])
+
+  @@unique([productId, branchId])
+  @@map("stock_items")
+}
+
+enum StockMovementType {
+  IMPORT
+  EXPORT
+  TRANSFER
+  STOCK_TAKE
+  SALE
+  SALE_RETURN
+}
+
+model StockMovement {
+  id           String              @id @default(cuid())
+  type         StockMovementType
+  branchId     String
+  fromBranchId String?
+  toBranchId   String?
+  supplierId   String?
+  note         String?
+  createdById  String
+  createdAt    DateTime            @default(now())
+  branch       Branch              @relation("MovementBranch", fields: [branchId], references: [id])
+  lines        StockMovementLine[]
+
+  @@map("stock_movements")
+}
+
+model StockMovementLine {
+  id              String        @id @default(cuid())
+  stockMovementId String
+  productId       String
+  quantity        Decimal       @db.Decimal(14, 3)
+  unitCost        Decimal?      @db.Decimal(14, 2)
+  stockMovement   StockMovement @relation(fields: [stockMovementId], references: [id], onDelete: Cascade)
+  product         Product       @relation(fields: [productId], references: [id])
+
+  @@map("stock_movement_lines")
+}
+
+// ------------------------------------------------------------------
+// Partners
+// ------------------------------------------------------------------
+
+model Customer {
+  id          String            @id @default(cuid())
+  code        String            @unique
+  name        String
+  phone       String?
+  address     String?
+  debtBalance Decimal           @default(0) @db.Decimal(14, 2)
+  deletedAt   DateTime?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  invoices    Invoice[]
+  debtEntries DebtLedgerEntry[]
+
+  @@map("customers")
+}
+
+model Supplier {
+  id          String    @id @default(cuid())
+  code        String    @unique
+  name        String
+  phone       String?
+  address     String?
+  debtBalance Decimal   @default(0) @db.Decimal(14, 2)
+  deletedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("suppliers")
+}
+
+model DebtLedgerEntry {
+  id         String   @id @default(cuid())
+  customerId String
+  amount     Decimal  @db.Decimal(14, 2)
+  invoiceId  String?
+  note       String?
+  createdAt  DateTime @default(now())
+  customer   Customer @relation(fields: [customerId], references: [id])
+
+  @@map("debt_ledger_entries")
+}
+
+// ------------------------------------------------------------------
+// Sales
+// ------------------------------------------------------------------
+
+enum InvoiceStatus {
+  DRAFT
+  COMPLETED
+  CANCELLED
+}
+
+enum SaleMode {
+  QUICK
+  NORMAL
+  DELIVERY
+}
+
+model Invoice {
+  id             String        @id @default(cuid())
+  code           String        @unique
+  branchId       String
+  customerId     String?
+  saleMode       SaleMode      @default(NORMAL)
+  status         InvoiceStatus @default(DRAFT)
+  note           String?
+  subTotal       Decimal       @default(0) @db.Decimal(14, 2)
+  discountAmount Decimal       @default(0) @db.Decimal(14, 2)
+  totalAmount    Decimal       @default(0) @db.Decimal(14, 2)
+  paidAmount     Decimal       @default(0) @db.Decimal(14, 2)
+  createdById    String
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  completedAt    DateTime?
+  branch         Branch        @relation(fields: [branchId], references: [id])
+  customer       Customer?     @relation(fields: [customerId], references: [id])
+  items          InvoiceItem[]
+  payments       Payment[]
+
+  @@map("invoices")
+}
+
+model InvoiceItem {
+  id         String  @id @default(cuid())
+  invoiceId  String
+  productId  String
+  quantity   Decimal @db.Decimal(14, 3)
+  unitPrice  Decimal @db.Decimal(14, 2)
+  discount   Decimal @default(0) @db.Decimal(14, 2)
+  lineTotal  Decimal @db.Decimal(14, 2)
+  invoice    Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  product    Product @relation(fields: [productId], references: [id])
+
+  @@map("invoice_items")
+}
+
+enum PaymentMethod {
+  CASH
+  BANK_TRANSFER
+  CARD
+  DEBT
+}
+
+model Payment {
+  id        String        @id @default(cuid())
+  invoiceId String
+  method    PaymentMethod
+  amount    Decimal       @db.Decimal(14, 2)
+  createdAt DateTime      @default(now())
+  invoice   Invoice       @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@map("payments")
+}
