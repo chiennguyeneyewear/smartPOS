@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { Link } from "react-router-dom";
-import { ChevronDown, LayoutGrid, LogOut, User } from "lucide-react";
+import { LayoutGrid, LogOut, User } from "lucide-react";
 import type { CustomerSummary, PaymentMethod } from "@smartpos/shared";
 import { useAuthStore } from "@/stores/auth-store";
 import { useLogout } from "@/features/auth/hooks";
@@ -28,7 +28,6 @@ export function PosPage() {
   const user = useAuthStore((s) => s.user);
   const branches = user?.branches ?? [];
   const activeBranchId = useAuthStore((s) => s.activeBranchId);
-  const setActiveBranch = useAuthStore((s) => s.setActiveBranch);
   const activeBranch = branches.find((b) => b.id === activeBranchId) ?? branches[0];
   const logout = useLogout();
   const tabs = usePosStore((s) => s.tabs);
@@ -125,23 +124,9 @@ export function PosPage() {
         <ProductQuickSearch ref={productSearchRef} className="max-w-xs" />
         <InvoiceTabsBar />
         <div className="flex shrink-0 items-center gap-1.5">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className="flex h-8 items-center gap-1.5 rounded-md px-2.5 text-sm font-medium text-primary-foreground hover:bg-white/10">
-                {activeBranch?.name ?? "Chọn chi nhánh"}
-                <ChevronDown className="h-3.5 w-3.5" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Chi nhánh</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {branches.map((branch) => (
-                <DropdownMenuItem key={branch.id} onSelect={() => setActiveBranch(branch.id)}>
-                  {branch.name}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {activeBranch && (
+            <span className="px-2.5 text-sm font-medium text-primary-foreground">{activeBranch.name}</span>
+          )}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="flex h-8 items-center gap-1.5 rounded-md px-2.5 text-sm font-medium text-primary-foreground hover:bg-white/10">
