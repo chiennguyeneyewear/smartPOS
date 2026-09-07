@@ -23,7 +23,7 @@ export function CartPanel({ tab, onRequestCheckout }: CartPanelProps) {
   const total = Math.max(0, subTotal - tab.discountAmount);
 
   return (
-    <div className="flex h-full flex-1 flex-col">
+    <div className="flex h-full flex-[3] min-w-[420px] flex-col">
       <div className="flex-1 overflow-auto">
         {tab.items.length === 0 ? (
           <p className="p-6 text-center text-sm text-muted-foreground">Chưa có sản phẩm nào trong giỏ hàng.</p>
@@ -35,33 +35,33 @@ export function CartPanel({ tab, onRequestCheckout }: CartPanelProps) {
                 const hasDiscount = unitDiscount > 0;
                 return (
                   <tr key={line.lineId} className="border-b last:border-0">
-                    <td className="p-2">
-                      <p className="line-clamp-2 text-xs font-medium">{line.name}</p>
-                      <div className="mt-1 flex items-center gap-1">
+                    <td className="p-3">
+                      <p className="line-clamp-2 text-sm font-medium">{line.name}</p>
+                      <div className="mt-1.5 flex items-center gap-1.5">
                         <button
                           onClick={() => updateQuantity(tab.id, line.lineId, line.quantity - 1)}
-                          className="flex h-6 w-6 items-center justify-center rounded border text-muted-foreground hover:bg-accent"
+                          className="flex h-7 w-7 items-center justify-center rounded border text-muted-foreground hover:bg-accent"
                         >
-                          <Minus className="h-3 w-3" />
+                          <Minus className="h-3.5 w-3.5" />
                         </button>
-                        <span className="w-6 text-center text-xs">{line.quantity}</span>
+                        <span className="w-7 text-center text-sm">{line.quantity}</span>
                         <button
                           onClick={() => updateQuantity(tab.id, line.lineId, line.quantity + 1)}
-                          className="flex h-6 w-6 items-center justify-center rounded border text-muted-foreground hover:bg-accent"
+                          className="flex h-7 w-7 items-center justify-center rounded border text-muted-foreground hover:bg-accent"
                         >
-                          <Plus className="h-3 w-3" />
+                          <Plus className="h-3.5 w-3.5" />
                         </button>
                       </div>
                     </td>
-                    <td className="relative w-28 p-2 text-right align-top">
+                    <td className="relative w-32 p-3 text-right align-top">
                       <button
                         onClick={() => setOpenDiscountLineId(line.lineId)}
-                        className="text-xs text-muted-foreground hover:text-foreground hover:underline"
+                        className="text-sm text-muted-foreground hover:text-foreground hover:underline"
                       >
                         {formatCurrency(line.unitPrice)}
                       </button>
                       {hasDiscount && (
-                        <p className="text-[10px] text-destructive">
+                        <p className="text-xs text-destructive">
                           -
                           {line.discountType === "PERCENT"
                             ? `${line.discountValue.toFixed(2)}%`
@@ -75,15 +75,15 @@ export function CartPanel({ tab, onRequestCheckout }: CartPanelProps) {
                         onOpenChange={(open) => setOpenDiscountLineId(open ? line.lineId : null)}
                       />
                     </td>
-                    <td className="w-24 p-2 text-right align-top text-xs font-semibold">
+                    <td className="w-28 p-3 text-right align-top text-sm font-semibold">
                       {formatCurrency(getLineTotal(line))}
                     </td>
-                    <td className="w-8 p-2 text-right align-top">
+                    <td className="w-10 p-3 text-right align-top">
                       <button
                         onClick={() => removeItem(tab.id, line.lineId)}
                         className="text-muted-foreground hover:text-destructive"
                       >
-                        <Trash2 className="h-3.5 w-3.5" />
+                        <Trash2 className="h-4 w-4" />
                       </button>
                     </td>
                   </tr>
@@ -94,27 +94,27 @@ export function CartPanel({ tab, onRequestCheckout }: CartPanelProps) {
         )}
       </div>
 
-      <div className="space-y-2 border-t p-3">
+      <div className="space-y-2.5 border-t p-4">
         <Input
           placeholder="Ghi chú đơn hàng"
           value={noteDraft}
           onChange={(e) => setNoteDraft(e.target.value)}
           onBlur={() => setNote(tab.id, noteDraft)}
-          className="text-xs"
+          className="text-sm"
         />
-        <div className="flex items-center justify-between text-xs">
+        <div className="flex items-center justify-between text-sm">
           <span className="text-muted-foreground">Giảm giá</span>
           <Input
             type="number"
             min={0}
             value={tab.discountAmount}
             onChange={(e) => setDiscount(tab.id, Number(e.target.value))}
-            className="h-7 w-28 text-right text-xs"
+            className="h-8 w-32 text-right text-sm"
           />
         </div>
-        <div className="flex items-center justify-between border-t pt-2">
-          <span className="text-sm font-medium text-muted-foreground">Tổng tiền hàng</span>
-          <span className="text-lg font-bold text-primary">{formatCurrency(total)}</span>
+        <div className="flex items-center justify-between border-t pt-2.5">
+          <span className="text-base font-medium text-muted-foreground">Tổng tiền hàng</span>
+          <span className="text-xl font-bold text-primary">{formatCurrency(total)}</span>
         </div>
         <Button
           size="lg"

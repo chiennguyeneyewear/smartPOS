@@ -27,7 +27,7 @@ export function ProductGridPanel({ tab, tabId, customerInputRef, onRequestQuickA
   const totalPages = data ? Math.max(1, Math.ceil(data.meta.total / PAGE_SIZE)) : 1;
 
   return (
-    <div className="flex h-full w-[400px] shrink-0 flex-col border-l">
+    <div className="flex h-full flex-[2] min-w-[360px] flex-col border-l">
       <div className="border-b p-2">
         <CustomerSearchBox
           ref={customerInputRef}
