@@ -51,21 +51,13 @@ export function CartPanel({ tab, onRequestCheckout }: CartPanelProps) {
                       >
                         <Plus className="h-4 w-4" />
                       </button>
-                      <div className="relative shrink-0">
-                        <button
-                          onClick={() => setOpenDiscountLineId(line.lineId)}
-                          className="text-muted-foreground hover:text-foreground"
-                          title="Chiết khấu"
-                        >
-                          <MoreVertical className="h-4 w-4" />
-                        </button>
-                        <LineDiscountPopover
-                          tabId={tab.id}
-                          line={line}
-                          open={openDiscountLineId === line.lineId}
-                          onOpenChange={(open) => setOpenDiscountLineId(open ? line.lineId : null)}
-                        />
-                      </div>
+                      <button
+                        onClick={() => setOpenDiscountLineId(line.lineId)}
+                        className="shrink-0 text-muted-foreground hover:text-foreground"
+                        title="Chiết khấu"
+                      >
+                        <MoreVertical className="h-4 w-4" />
+                      </button>
                     </div>
                     <div className="mt-1 flex items-center gap-3 pl-6">
                       <div className="flex shrink-0 items-center gap-1">
@@ -89,8 +81,13 @@ export function CartPanel({ tab, onRequestCheckout }: CartPanelProps) {
                           <Plus className="h-3.5 w-3.5" />
                         </button>
                       </div>
-                      <div className="flex-1 text-right">
-                        <span className="text-sm">{formatCurrency(line.unitPrice)}</span>
+                      <div className="relative flex-1 text-right">
+                        <button
+                          onClick={() => setOpenDiscountLineId(line.lineId)}
+                          className="text-sm hover:text-primary hover:underline"
+                        >
+                          {formatCurrency(line.unitPrice)}
+                        </button>
                         {hasDiscount && (
                           <p className="text-xs text-destructive">
                             -
@@ -99,6 +96,12 @@ export function CartPanel({ tab, onRequestCheckout }: CartPanelProps) {
                               : formatCurrency(line.discountValue)}
                           </p>
                         )}
+                        <LineDiscountPopover
+                          tabId={tab.id}
+                          line={line}
+                          open={openDiscountLineId === line.lineId}
+                          onOpenChange={(open) => setOpenDiscountLineId(open ? line.lineId : null)}
+                        />
                       </div>
                       <span className="w-28 shrink-0 text-right text-sm font-semibold">
                         {formatCurrency(getLineTotal(line))}
