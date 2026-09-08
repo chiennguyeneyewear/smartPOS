@@ -4,15 +4,25 @@ import {
   getCoreRowModel,
   useReactTable,
 } from "@tanstack/react-table";
+import { cn } from "@/lib/utils";
 
 interface DataTableProps<TData> {
   columns: ColumnDef<TData, any>[];
   data: TData[];
   isLoading?: boolean;
   emptyMessage?: string;
+  onRowClick?: (row: TData) => void;
+  isRowSelected?: (row: TData) => boolean;
 }
 
-export function DataTable<TData>({ columns, data, isLoading, emptyMessage }: DataTableProps<TData>) {
+export function DataTable<TData>({
+  columns,
+  data,
+  isLoading,
+  emptyMessage,
+  onRowClick,
+  isRowSelected,
+}: DataTableProps<TData>) {
   const table = useReactTable({ data, columns, getCoreRowModel: getCoreRowModel() });
 
   return (
@@ -46,7 +56,15 @@ export function DataTable<TData>({ columns, data, isLoading, emptyMessage }: Dat
           )}
           {!isLoading &&
             table.getRowModel().rows.map((row) => (
-              <tr key={row.id} className="border-t hover:bg-accent/40">
+              <tr
+                key={row.id}
+                onClick={onRowClick ? () => onRowClick(row.original) : undefined}
+                className={cn(
+                  "border-t hover:bg-accent/40",
+                  onRowClick && "cursor-pointer",
+                  isRowSelected?.(row.original) && "bg-accent/60",
+                )}
+              >
                 {row.getVisibleCells().map((cell) => (
                   <td key={cell.id} className="whitespace-nowrap p-3">
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}

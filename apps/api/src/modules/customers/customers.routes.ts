@@ -42,8 +42,22 @@ export function registerCustomerRoutes(app: FastifyInstance) {
   app.post("/customers", { preHandler: authenticate }, async (request, reply) => {
     const input = customerSchema.parse(request.body);
     const code = await generateCustomerCode();
-    const customer = await prisma.customer.create({ data: { ...toPrismaData(input), code } });
+    const customer = await prisma.customer.create({
+      data: { ...toPrismaData(input), code, createdById: request.authUser!.id },
+    });
     return reply.code(201).send(toDto(customer));
+  });
+
+  app.get("/customers/:id", { preHandler: authenticate }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const customer = await prisma.customer.findUnique({ where: { id } });
+    if (!customer) return reply.code(404).send({ message: "Không tìm thấy khách hàng" });
+
+    const createdBy = customer.createdById
+      ? await prisma.user.findUnique({ where: { id: customer.createdById }, select: { username: true } })
+      : null;
+
+    return { ...toDto(customer), createdByName: createdBy?.username ?? null };
   });
 
   app.patch("/customers/:id", { preHandler: authenticate }, async (request) => {

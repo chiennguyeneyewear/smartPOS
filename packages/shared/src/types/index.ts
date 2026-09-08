@@ -64,6 +64,7 @@ export interface CustomerSummary {
   note: string | null;
   avatarUrl: string | null;
   debtBalance: number;
+  createdAt: string;
 }
 
 export interface SupplierSummary {
