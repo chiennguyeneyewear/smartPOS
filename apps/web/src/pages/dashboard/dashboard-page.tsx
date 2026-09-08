@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/shared/date-picker";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth-store";
@@ -79,14 +79,9 @@ export function DashboardPage() {
           </Select>
           {preset === "custom" && (
             <div className="flex items-center gap-2">
-              <Input
-                type="date"
-                value={customFrom}
-                onChange={(e) => setCustomFrom(e.target.value)}
-                className="w-[150px]"
-              />
+              <DatePicker value={customFrom} onChange={setCustomFrom} className="w-[130px]" />
               <span className="text-sm text-muted-foreground">-</span>
-              <Input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} className="w-[150px]" />
+              <DatePicker value={customTo} onChange={setCustomTo} className="w-[130px]" />
             </div>
           )}
         </div>
