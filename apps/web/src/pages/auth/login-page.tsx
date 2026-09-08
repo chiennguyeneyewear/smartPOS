@@ -28,9 +28,9 @@ export function LoginPage() {
         <CardContent>
           <form className="space-y-4" onSubmit={handleSubmit((data) => login.mutate(data))}>
             <div className="space-y-1.5">
-              <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" placeholder="admin@smartpos.vn" {...register("email")} />
-              {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
+              <Label htmlFor="username">Tên đăng nhập</Label>
+              <Input id="username" placeholder="admin" {...register("username")} />
+              {errors.username && <p className="text-xs text-destructive">{errors.username.message}</p>}
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="password">Mật khẩu</Label>
@@ -42,7 +42,7 @@ export function LoginPage() {
             </Button>
           </form>
           <p className="mt-4 text-center text-xs text-muted-foreground">
-            Demo: admin@smartpos.vn / Admin@123
+            Demo: admin / Admin@123
           </p>
         </CardContent>
       </Card>

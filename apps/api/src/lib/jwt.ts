@@ -3,8 +3,7 @@ import { config } from "./config.js";
 
 export interface AccessTokenPayload {
   sub: string;
-  email: string;
-  fullName: string;
+  username: string;
   role: string;
   permissions: string[];
   branchIds: string[];

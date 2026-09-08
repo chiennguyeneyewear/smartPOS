@@ -2,8 +2,8 @@ import { apiClient } from "@/lib/api-client";
 
 export interface UserRow {
   id: string;
-  email: string;
-  fullName: string;
+  username: string;
+  email: string | null;
   phone: string | null;
   isActive: boolean;
   role: string;
@@ -19,9 +19,8 @@ export interface RoleRow {
 }
 
 export interface CreateUserInput {
-  email: string;
+  username: string;
   password: string;
-  fullName: string;
   phone?: string;
   roleId: string;
   branchIds: string[];
@@ -29,7 +28,7 @@ export interface CreateUserInput {
 }
 
 export interface UpdateUserInput {
-  fullName?: string;
+  username?: string;
   phone?: string;
   isActive?: boolean;
   roleId?: string;

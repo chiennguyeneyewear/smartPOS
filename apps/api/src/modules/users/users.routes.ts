@@ -1,10 +1,15 @@
 import type { FastifyInstance } from "fastify";
 import argon2 from "argon2";
+import { Prisma } from "@prisma/client";
 import { PERMISSIONS } from "@smartpos/shared";
 import { authenticate } from "../../middleware/authenticate.js";
 import { requirePermission } from "../../middleware/require-permission.js";
 import { prisma } from "../../lib/prisma.js";
 import { resolveMenuAccess } from "../../lib/menu-access.js";
+
+function isUniqueConstraintError(error: unknown): boolean {
+  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
+}
 
 export function registerUserRoutes(app: FastifyInstance) {
   app.get(
@@ -13,13 +18,13 @@ export function registerUserRoutes(app: FastifyInstance) {
     async () => {
       const users = await prisma.user.findMany({
         include: { role: true, branches: { include: { branch: true } } },
-        orderBy: { fullName: "asc" },
+        orderBy: { username: "asc" },
       });
       return {
         data: users.map((u) => ({
           id: u.id,
+          username: u.username,
           email: u.email,
-          fullName: u.fullName,
           phone: u.phone,
           isActive: u.isActive,
           role: u.role.name,
@@ -37,9 +42,8 @@ export function registerUserRoutes(app: FastifyInstance) {
     { preHandler: [authenticate, requirePermission(PERMISSIONS.USERS_MANAGE)] },
     async (request, reply) => {
       const body = request.body as {
-        email: string;
+        username: string;
         password: string;
-        fullName: string;
         phone?: string;
         roleId: string;
         branchIds: string[];
@@ -47,29 +51,35 @@ export function registerUserRoutes(app: FastifyInstance) {
         menuAccess?: string[];
       };
       const passwordHash = await argon2.hash(body.password);
-      const user = await prisma.user.create({
-        data: {
-          email: body.email,
-          passwordHash,
-          fullName: body.fullName,
-          phone: body.phone,
-          roleId: body.roleId,
-          defaultBranchId: body.defaultBranchId ?? body.branchIds[0],
-          branches: { create: body.branchIds.map((branchId) => ({ branchId })) },
-          menuAccess: body.menuAccess ?? [],
-        },
-      });
-      return reply.code(201).send({ id: user.id, email: user.email });
+      try {
+        const user = await prisma.user.create({
+          data: {
+            username: body.username,
+            passwordHash,
+            phone: body.phone,
+            roleId: body.roleId,
+            defaultBranchId: body.defaultBranchId ?? body.branchIds[0],
+            branches: { create: body.branchIds.map((branchId) => ({ branchId })) },
+            menuAccess: body.menuAccess ?? [],
+          },
+        });
+        return reply.code(201).send({ id: user.id, username: user.username });
+      } catch (error) {
+        if (isUniqueConstraintError(error)) {
+          return reply.code(409).send({ error: "Conflict", message: "Tên đăng nhập đã tồn tại" });
+        }
+        throw error;
+      }
     },
   );
 
   app.patch(
     "/users/:id",
     { preHandler: [authenticate, requirePermission(PERMISSIONS.USERS_MANAGE)] },
-    async (request) => {
+    async (request, reply) => {
       const { id } = request.params as { id: string };
       const body = request.body as Partial<{
-        fullName: string;
+        username: string;
         phone: string;
         isActive: boolean;
         roleId: string;
@@ -78,10 +88,17 @@ export function registerUserRoutes(app: FastifyInstance) {
         password: string;
       }>;
       const { password, ...rest } = body;
-      return prisma.user.update({
-        where: { id },
-        data: { ...rest, ...(password ? { passwordHash: await argon2.hash(password) } : {}) },
-      });
+      try {
+        return await prisma.user.update({
+          where: { id },
+          data: { ...rest, ...(password ? { passwordHash: await argon2.hash(password) } : {}) },
+        });
+      } catch (error) {
+        if (isUniqueConstraintError(error)) {
+          return reply.code(409).send({ error: "Conflict", message: "Tên đăng nhập đã tồn tại" });
+        }
+        throw error;
+      }
     },
   );
 

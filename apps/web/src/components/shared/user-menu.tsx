@@ -25,11 +25,11 @@ export function UserMenu({ className }: UserMenuProps) {
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="sm" className={cn("gap-2", className)}>
           <User className="h-4 w-4" />
-          {user?.fullName}
+          {user?.username}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuLabel>{user?.email}</DropdownMenuLabel>
+        <DropdownMenuLabel>{user?.username}</DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem onSelect={() => logout.mutate()}>
           <LogOut className="mr-2 h-4 w-4" />

@@ -123,8 +123,8 @@ export interface StockMovementSummary {
 
 export interface CurrentUser {
   id: string;
-  email: string;
-  fullName: string;
+  username: string;
+  email: string | null;
   role: string;
   permissions: string[];
   menuAccess: string[];

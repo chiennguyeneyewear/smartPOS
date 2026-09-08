@@ -15,7 +15,7 @@ export function useLogin() {
       navigate("/pos", { replace: true });
     },
     onError: () => {
-      toast({ title: "Đăng nhập thất bại", description: "Email hoặc mật khẩu không đúng", variant: "destructive" });
+      toast({ title: "Đăng nhập thất bại", description: "Tên đăng nhập hoặc mật khẩu không đúng", variant: "destructive" });
     },
   });
 }

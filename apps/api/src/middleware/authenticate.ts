@@ -6,8 +6,7 @@ export async function authenticate(request: FastifyRequest, reply: FastifyReply)
     const payload = request.user;
     request.authUser = {
       id: payload.sub,
-      email: payload.email,
-      fullName: payload.fullName,
+      username: payload.username,
       role: payload.role,
       permissions: payload.permissions,
       branchIds: payload.branchIds,

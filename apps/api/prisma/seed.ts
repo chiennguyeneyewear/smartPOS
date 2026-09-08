@@ -81,12 +81,11 @@ async function main() {
   // Users
   const adminPasswordHash = await argon2.hash("Admin@123");
   const admin = await prisma.user.upsert({
-    where: { email: "admin@smartpos.vn" },
+    where: { username: "admin" },
     update: {},
     create: {
-      email: "admin@smartpos.vn",
+      username: "admin",
       passwordHash: adminPasswordHash,
-      fullName: "Quản trị viên",
       roleId: adminRole.id,
       defaultBranchId: branch1.id,
       branches: { create: [{ branchId: branch1.id }, { branchId: branch2.id }] },
@@ -95,12 +94,11 @@ async function main() {
 
   const cashierPasswordHash = await argon2.hash("Cashier@123");
   const cashier = await prisma.user.upsert({
-    where: { email: "cashier@smartpos.vn" },
+    where: { username: "cashier1" },
     update: {},
     create: {
-      email: "cashier@smartpos.vn",
+      username: "cashier1",
       passwordHash: cashierPasswordHash,
-      fullName: "Thu ngân Chi nhánh 1",
       roleId: cashierRole.id,
       defaultBranchId: branch1.id,
       branches: { create: [{ branchId: branch1.id }] },
@@ -190,8 +188,8 @@ async function main() {
   }
 
   console.log("Seed hoàn tất.");
-  console.log(`Admin: admin@smartpos.vn / Admin@123`);
-  console.log(`Cashier: cashier@smartpos.vn / Cashier@123`);
+  console.log(`Admin: admin / Admin@123`);
+  console.log(`Cashier: cashier1 / Cashier@123`);
   console.log(`Branches: ${branch1.name}, ${branch2.name}`);
 }
 

@@ -26,21 +26,19 @@ const ROLE_LABELS: Record<string, string> = {
 const MENU_KEYS = Object.values(MENU_ITEMS);
 
 interface FormValues {
-  fullName: string;
-  email: string;
+  username: string;
   password: string;
   roleId: string;
 }
 
 function emptyForm(): FormValues {
-  return { fullName: "", email: "", password: "", roleId: "" };
+  return { username: "", password: "", roleId: "" };
 }
 
 export function UsersPage() {
   const [open, setOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserRow | null>(null);
   const [deletingUser, setDeletingUser] = useState<UserRow | null>(null);
-  const [selectedBranches, setSelectedBranches] = useState<string[]>([]);
   const [selectedMenu, setSelectedMenu] = useState<string[]>([]);
   const [isActive, setIsActive] = useState(true);
 
@@ -78,10 +76,6 @@ export function UsersPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roleId, isEditing]);
 
-  function toggleBranch(id: string) {
-    setSelectedBranches((prev) => (prev.includes(id) ? prev.filter((b) => b !== id) : [...prev, id]));
-  }
-
   function toggleMenu(key: string) {
     setSelectedMenu((prev) => (prev.includes(key) ? prev.filter((m) => m !== key) : [...prev, key]));
   }
@@ -89,7 +83,6 @@ export function UsersPage() {
   function openCreateDialog() {
     setEditingUser(null);
     reset(emptyForm());
-    setSelectedBranches([]);
     setSelectedMenu([]);
     setIsActive(true);
     setOpen(true);
@@ -97,8 +90,7 @@ export function UsersPage() {
 
   function openEditDialog(user: UserRow) {
     setEditingUser(user);
-    reset({ fullName: user.fullName, email: user.email, password: "", roleId: user.roleId });
-    setSelectedBranches(user.branches.map((b) => b.id));
+    reset({ username: user.username, password: "", roleId: user.roleId });
     setSelectedMenu(user.menuAccess);
     setIsActive(user.isActive);
     setOpen(true);
@@ -110,11 +102,10 @@ export function UsersPage() {
         {
           id: editingUser.id,
           input: {
-            fullName: values.fullName,
+            username: values.username,
             roleId: values.roleId,
             isActive,
             menuAccess: selectedMenu,
-            branchIds: selectedBranches,
             ...(values.password ? { password: values.password } : {}),
           },
         },
@@ -122,13 +113,14 @@ export function UsersPage() {
       );
       return;
     }
+    // New accounts get access to every branch — there's no per-user branch
+    // picker in this dialog anymore.
     createUser.mutate(
       {
-        fullName: values.fullName,
-        email: values.email,
+        username: values.username,
         password: values.password,
         roleId: values.roleId,
-        branchIds: selectedBranches,
+        branchIds: branches?.map((b) => b.id) ?? [],
         menuAccess: selectedMenu,
       } satisfies CreateUserInput,
       { onSuccess: () => setOpen(false) },
@@ -141,7 +133,7 @@ export function UsersPage() {
   }
 
   const columns: ColumnDef<UserRow, any>[] = [
-    { accessorKey: "fullName", header: "Họ tên", cell: ({ row }) => <span className="font-medium">{row.original.fullName}</span> },
+    { accessorKey: "username", header: "Tên đăng nhập", cell: ({ row }) => <span className="font-medium">{row.original.username}</span> },
     { accessorKey: "role", header: "Vai trò", cell: ({ getValue }) => <Badge variant="secondary">{ROLE_LABELS[getValue() as string] ?? (getValue() as string)}</Badge> },
     {
       id: "menuAccess",
@@ -195,17 +187,13 @@ export function UsersPage() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{isEditing ? `Sửa nhân viên — ${editingUser?.fullName}` : "Thêm nhân viên"}</DialogTitle>
+            <DialogTitle>{isEditing ? `Sửa nhân viên — ${editingUser?.username}` : "Thêm nhân viên"}</DialogTitle>
           </DialogHeader>
           <form className="space-y-4" onSubmit={onSubmit}>
             <div className="space-y-1.5">
-              <Label>Họ tên</Label>
-              <Input {...register("fullName", { required: true })} />
-              {errors.fullName && <p className="text-xs text-destructive">Bắt buộc</p>}
-            </div>
-            <div className="space-y-1.5">
-              <Label>Email</Label>
-              <Input type="email" disabled={isEditing} {...register("email", { required: true })} />
+              <Label>Tên đăng nhập</Label>
+              <Input {...register("username", { required: true })} />
+              {errors.username && <p className="text-xs text-destructive">Bắt buộc</p>}
             </div>
             <div className="space-y-1.5">
               <Label>{isEditing ? "Mật khẩu mới (để trống nếu không đổi)" : "Mật khẩu"}</Label>
@@ -225,25 +213,6 @@ export function UsersPage() {
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Chi nhánh được phép truy cập</Label>
-              <div className="flex flex-wrap gap-2">
-                {branches?.map((b) => (
-                  <button
-                    type="button"
-                    key={b.id}
-                    onClick={() => toggleBranch(b.id)}
-                    className={
-                      selectedBranches.includes(b.id)
-                        ? "rounded-md bg-primary px-2.5 py-1 text-xs text-primary-foreground"
-                        : "rounded-md border px-2.5 py-1 text-xs text-muted-foreground"
-                    }
-                  >
-                    {b.name}
-                  </button>
-                ))}
-              </div>
             </div>
             <div className="space-y-1.5">
               <Label>Menu được phép xem</Label>
@@ -289,8 +258,8 @@ export function UsersPage() {
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
             Bạn có chắc chắn muốn xóa tài khoản{" "}
-            <span className="font-medium text-foreground">{deletingUser?.fullName}</span> ({deletingUser?.email})?
-            Hành động này không thể hoàn tác.
+            <span className="font-medium text-foreground">{deletingUser?.username}</span>? Hành động này không thể
+            hoàn tác.
           </p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeletingUser(null)}>

@@ -31,8 +31,7 @@ async function loadAuthContext(userId: string) {
 function buildTokenPayload(user: Awaited<ReturnType<typeof loadAuthContext>>) {
   return {
     sub: user.id,
-    email: user.email,
-    fullName: user.fullName,
+    username: user.username,
     role: user.role.name,
     permissions: user.role.permissions.map((p) => p.id),
     branchIds: user.branches.map((b) => b.branchId),
@@ -42,8 +41,8 @@ function buildTokenPayload(user: Awaited<ReturnType<typeof loadAuthContext>>) {
 function toCurrentUser(user: Awaited<ReturnType<typeof loadAuthContext>>) {
   return {
     id: user.id,
+    username: user.username,
     email: user.email,
-    fullName: user.fullName,
     role: user.role.name,
     permissions: user.role.permissions.map((p) => p.id),
     menuAccess: resolveMenuAccess(user.menuAccess, user.role.name),
@@ -57,10 +56,10 @@ function toCurrentUser(user: Awaited<ReturnType<typeof loadAuthContext>>) {
 }
 
 export async function login(input: LoginInput) {
-  const { email, password } = loginSchema.parse(input);
+  const { username, password } = loginSchema.parse(input);
 
   const user = await prisma.user.findUnique({
-    where: { email },
+    where: { username },
     include: {
       role: { include: { permissions: true } },
       branches: { include: { branch: true } },
@@ -68,12 +67,12 @@ export async function login(input: LoginInput) {
   });
 
   if (!user || !user.isActive) {
-    throw new AuthError("Email hoặc mật khẩu không đúng");
+    throw new AuthError("Tên đăng nhập hoặc mật khẩu không đúng");
   }
 
   const passwordValid = await argon2.verify(user.passwordHash, password);
   if (!passwordValid) {
-    throw new AuthError("Email hoặc mật khẩu không đúng");
+    throw new AuthError("Tên đăng nhập hoặc mật khẩu không đúng");
   }
 
   const accessToken = signAccessToken(buildTokenPayload(user));
