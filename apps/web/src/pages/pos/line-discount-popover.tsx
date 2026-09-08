@@ -77,7 +77,7 @@ export function LineDiscountPopover({ tabId, line, open, onOpenChange }: LineDis
       </div>
       <div className={gridClass}>
         <span className="whitespace-nowrap text-sm font-semibold text-foreground">Giảm giá</span>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center justify-end gap-2">
           <input
             type="text"
             inputMode="numeric"
