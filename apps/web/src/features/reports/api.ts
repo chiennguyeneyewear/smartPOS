@@ -37,6 +37,13 @@ export async function fetchTopProducts(params: ReportRange & { limit?: number })
   return data.data;
 }
 
+export async function fetchTopCustomers(params: ReportRange & { limit?: number }) {
+  const { data } = await apiClient.get<{
+    data: { customerId: string; name: string; revenue: number }[];
+  }>("/reports/top-customers", { params });
+  return data.data;
+}
+
 export async function fetchStockValue(branchId?: string) {
   const { data } = await apiClient.get<{ totalValue: number; totalUnits: number; itemCount: number }>(
     "/reports/stock-value",

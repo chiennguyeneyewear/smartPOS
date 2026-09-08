@@ -105,6 +105,29 @@ export async function getTopProducts(range: DateRange, limit = 10) {
     .slice(0, limit);
 }
 
+export async function getTopCustomers(range: DateRange, limit = 10) {
+  const invoices = await prisma.invoice.findMany({
+    where: { ...dateFilter(range), customerId: { not: null } },
+    select: { customerId: true, totalAmount: true, customer: { select: { name: true } } },
+  });
+
+  const totals = new Map<string, { customerId: string; name: string; revenue: number }>();
+  for (const inv of invoices) {
+    if (!inv.customerId) continue;
+    const existing = totals.get(inv.customerId) ?? {
+      customerId: inv.customerId,
+      name: inv.customer?.name ?? "Khách lẻ",
+      revenue: 0,
+    };
+    existing.revenue += Number(inv.totalAmount);
+    totals.set(inv.customerId, existing);
+  }
+
+  return Array.from(totals.values())
+    .sort((a, b) => b.revenue - a.revenue)
+    .slice(0, limit);
+}
+
 export async function getStockValue(branchId?: string) {
   const items = await prisma.stockItem.findMany({
     where: branchId ? { branchId } : {},

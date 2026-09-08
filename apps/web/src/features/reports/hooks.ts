@@ -5,6 +5,7 @@ import {
   fetchProfit,
   fetchRevenue,
   fetchStockValue,
+  fetchTopCustomers,
   fetchTopProducts,
   type ReportRange,
 } from "./api";
@@ -23,6 +24,10 @@ export function useDashboardSummary(params: { branchId?: string; from: string; t
 
 export function useTopProductsReport(params: ReportRange & { limit?: number }) {
   return useQuery({ queryKey: ["reports", "top-products", params], queryFn: () => fetchTopProducts(params) });
+}
+
+export function useTopCustomersReport(params: ReportRange & { limit?: number }) {
+  return useQuery({ queryKey: ["reports", "top-customers", params], queryFn: () => fetchTopCustomers(params) });
 }
 
 export function useStockValueReport(branchId?: string) {

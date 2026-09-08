@@ -9,8 +9,12 @@ import { DatePicker } from "@/components/shared/date-picker";
 import { formatCurrency, formatRelativeTime } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth-store";
-import { useDashboardSummary, useRevenueReport } from "@/features/reports/hooks";
+import { useDashboardSummary, useRevenueReport, useTopCustomersReport, useTopProductsReport } from "@/features/reports/hooks";
 import { PERIOD_PRESET_OPTIONS, formatPeriodLabel, getPeriodRange, type PeriodPreset } from "./period-presets";
+
+function truncateLabel(value: string, max = 22) {
+  return value.length > max ? `${value.slice(0, max - 1)}…` : value;
+}
 
 type ChartMode = "day" | "hour" | "weekday";
 
@@ -59,6 +63,29 @@ export function DashboardPage() {
   });
 
   const chartData = useMemo(() => revenue ?? [], [revenue]);
+
+  const { data: topProducts } = useTopProductsReport({
+    branchId: activeBranchId ?? undefined,
+    from: fromIso,
+    to: toIso,
+    limit: 10,
+  });
+  const { data: topCustomers } = useTopCustomersReport({
+    branchId: activeBranchId ?? undefined,
+    from: fromIso,
+    to: toIso,
+    limit: 10,
+  });
+
+  const topProductsData = useMemo(
+    () => (topProducts ?? []).map((p) => ({ ...p, label: truncateLabel(p.name) })),
+    [topProducts],
+  );
+  const topCustomersData = useMemo(
+    () => (topCustomers ?? []).map((c) => ({ ...c, label: truncateLabel(c.name) })),
+    [topCustomers],
+  );
+  const topChartHeight = Math.max(240, Math.max(topProductsData.length, topCustomersData.length) * 36);
 
   return (
     <div className="space-y-4">
@@ -202,6 +229,52 @@ export function DashboardPage() {
             </CardContent>
           </Card>
         </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Top 10 hàng bán chạy</CardTitle>
+            <CardDescription>{periodLabel}</CardDescription>
+          </CardHeader>
+          <CardContent style={{ height: topChartHeight }}>
+            {topProductsData.length ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={topProductsData} layout="vertical" margin={{ left: 8, right: 24 }}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" horizontal={false} />
+                  <XAxis type="number" fontSize={12} tickFormatter={(v) => `${v / 1_000_000} tr`} />
+                  <YAxis type="category" dataKey="label" width={140} fontSize={12} />
+                  <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                  <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-sm text-muted-foreground">Chưa có dữ liệu</p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Top 10 khách mua nhiều nhất</CardTitle>
+            <CardDescription>{periodLabel}</CardDescription>
+          </CardHeader>
+          <CardContent style={{ height: topChartHeight }}>
+            {topCustomersData.length ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={topCustomersData} layout="vertical" margin={{ left: 8, right: 24 }}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" horizontal={false} />
+                  <XAxis type="number" fontSize={12} tickFormatter={(v) => `${v / 1_000_000} tr`} />
+                  <YAxis type="category" dataKey="label" width={140} fontSize={12} />
+                  <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                  <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-sm text-muted-foreground">Chưa có dữ liệu</p>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

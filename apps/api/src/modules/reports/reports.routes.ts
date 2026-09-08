@@ -35,6 +35,12 @@ export function registerReportRoutes(app: FastifyInstance) {
     return { data };
   });
 
+  app.get("/reports/top-customers", { preHandler: guard }, async (request) => {
+    const query = request.query as { branchId?: string; from?: string; to?: string; limit?: string };
+    const data = await reportsService.getTopCustomers(query, Number(query.limit ?? 10));
+    return { data };
+  });
+
   app.get("/reports/stock-value", { preHandler: guard }, async (request) => {
     const query = request.query as { branchId?: string };
     return reportsService.getStockValue(query.branchId);
