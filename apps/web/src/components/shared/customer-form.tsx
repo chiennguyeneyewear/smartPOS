@@ -41,16 +41,16 @@ export function CustomerForm({ form, code, onSubmit, onCancel, submitting, submi
 
           <div className="space-y-1.5">
             <Label>Tên khách hàng</Label>
-            <Input autoFocus className={lineInputClass} {...register("name")} />
+            <Input autoFocus className={cn(lineInputClass, "font-semibold")} {...register("name")} />
             {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
-            <Input placeholder="Tên thứ 2 (nếu có)" className={lineInputClass} {...register("name2")} />
+            <Input className={lineInputClass} {...register("name2")} />
           </div>
 
           <div className="space-y-1.5">
             <Label>Điện thoại</Label>
-            <Input className={lineInputClass} {...register("phone")} />
+            <Input className={cn(lineInputClass, "font-semibold")} {...register("phone")} />
             {errors.phone && <p className="text-xs text-destructive">{errors.phone.message}</p>}
-            <Input placeholder="Số điện thoại thứ 2 (nếu có)" className={lineInputClass} {...register("phone2")} />
+            <Input className={lineInputClass} {...register("phone2")} />
           </div>
         </div>
 
