@@ -10,7 +10,7 @@ interface LineDiscountPopoverProps {
 }
 
 const lineInputClass =
-  "w-full rounded-none border-0 border-b border-input bg-transparent px-0 py-1 text-right text-sm shadow-none outline-none focus-visible:border-primary";
+  "w-28 shrink-0 rounded-none border-0 border-b border-input bg-transparent px-0 py-1 text-right text-sm text-foreground shadow-none outline-none focus-visible:border-primary";
 
 // Every field here writes straight to the store on change (no local draft +
 // commit-on-close step) so the cart total is always exactly what's in the
@@ -54,7 +54,7 @@ export function LineDiscountPopover({ tabId, line, open, onOpenChange }: LineDis
           min={0}
           value={line.unitPrice}
           onChange={(e) => updateLinePrice(tabId, line.lineId, Math.max(0, Number(e.target.value)))}
-          className={cn(lineInputClass, "max-w-[140px] font-medium text-amber-600")}
+          className={cn(lineInputClass, "font-medium")}
         />
       </div>
       <div className="flex items-center justify-between gap-3">
@@ -73,7 +73,7 @@ export function LineDiscountPopover({ tabId, line, open, onOpenChange }: LineDis
                 Math.min(Math.max(0, Number(e.target.value)), discountMax),
               )
             }
-            className={cn(lineInputClass, "max-w-[80px] text-left")}
+            className={cn(lineInputClass, "text-left")}
           />
           <div className="flex shrink-0 items-center gap-1.5">
             <button
@@ -105,7 +105,7 @@ export function LineDiscountPopover({ tabId, line, open, onOpenChange }: LineDis
       </div>
       <div className="flex items-center justify-between gap-3">
         <span className="text-sm text-muted-foreground">Giá bán</span>
-        <span className="border-b border-input pb-1 text-sm font-medium text-amber-600">
+        <span className={cn(lineInputClass, "inline-block font-medium leading-6")}>
           {formatCurrency(sellPrice)}
         </span>
       </div>
