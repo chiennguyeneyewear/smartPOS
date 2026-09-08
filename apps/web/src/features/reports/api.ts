@@ -7,12 +7,10 @@ export interface ReportRange {
 }
 
 export interface DashboardSummary {
-  revenueToday: number;
-  invoiceCountToday: number;
-  cancelledCountToday: number;
-  changeVsYesterdayPct: number;
-  changeVsLastMonthPct: number;
-  revenueMonth: number;
+  revenue: number;
+  invoiceCount: number;
+  cancelledCount: number;
+  changeVsPreviousPct: number;
   recentInvoices: {
     id: string;
     code: string;
@@ -59,7 +57,7 @@ export async function fetchProfit(params: ReportRange) {
   return data;
 }
 
-export async function fetchDashboardSummary(branchId?: string) {
-  const { data } = await apiClient.get<DashboardSummary>("/reports/dashboard-summary", { params: { branchId } });
+export async function fetchDashboardSummary(params: { branchId?: string; from: string; to: string }) {
+  const { data } = await apiClient.get<DashboardSummary>("/reports/dashboard-summary", { params });
   return data;
 }

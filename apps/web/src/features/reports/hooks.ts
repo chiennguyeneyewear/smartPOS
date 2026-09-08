@@ -13,10 +13,10 @@ export function useRevenueReport(params: ReportRange & { groupBy?: "day" | "week
   return useQuery({ queryKey: ["reports", "revenue", params], queryFn: () => fetchRevenue(params) });
 }
 
-export function useDashboardSummary(branchId?: string) {
+export function useDashboardSummary(params: { branchId?: string; from: string; to: string }) {
   return useQuery({
-    queryKey: ["reports", "dashboard-summary", branchId],
-    queryFn: () => fetchDashboardSummary(branchId),
+    queryKey: ["reports", "dashboard-summary", params],
+    queryFn: () => fetchDashboardSummary(params),
     refetchInterval: 60_000,
   });
 }

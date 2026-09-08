@@ -22,8 +22,11 @@ export function registerReportRoutes(app: FastifyInstance) {
   });
 
   app.get("/reports/dashboard-summary", { preHandler: guard }, async (request) => {
-    const query = request.query as { branchId?: string };
-    return reportsService.getDashboardSummary(query.branchId);
+    const query = request.query as { branchId?: string; from?: string; to?: string };
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999).toISOString();
+    return reportsService.getDashboardSummary(query.branchId, query.from ?? todayStart, query.to ?? todayEnd);
   });
 
   app.get("/reports/top-products", { preHandler: guard }, async (request) => {

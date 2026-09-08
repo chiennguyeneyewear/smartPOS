@@ -4,10 +4,13 @@ import { ArrowDownRight, ArrowUpRight, Cake, ReceiptText, RotateCcw, Wallet } fr
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth-store";
 import { useDashboardSummary, useRevenueReport } from "@/features/reports/hooks";
+import { PERIOD_PRESET_OPTIONS, formatPeriodLabel, getPeriodRange, type PeriodPreset } from "./period-presets";
 
 type ChartMode = "day" | "hour" | "weekday";
 
@@ -17,9 +20,8 @@ const CHART_TABS: { value: ChartMode; label: string }[] = [
   { value: "weekday", label: "Theo thứ" },
 ];
 
-function monthStartIso() {
-  const now = new Date();
-  return new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+function toDateInputValue(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 function ChangeBadge({ pct }: { pct: number }) {
@@ -36,27 +38,67 @@ function ChangeBadge({ pct }: { pct: number }) {
 export function DashboardPage() {
   const activeBranchId = useAuthStore((s) => s.activeBranchId);
   const [chartMode, setChartMode] = useState<ChartMode>("day");
+  const [preset, setPreset] = useState<PeriodPreset>("today");
+  const [customFrom, setCustomFrom] = useState(() => toDateInputValue(new Date()));
+  const [customTo, setCustomTo] = useState(() => toDateInputValue(new Date()));
 
-  const { data: summary } = useDashboardSummary(activeBranchId ?? undefined);
+  const range = useMemo(
+    () => getPeriodRange(preset, { from: customFrom, to: customTo }),
+    [preset, customFrom, customTo],
+  );
+  const fromIso = range.from.toISOString();
+  const toIso = range.to.toISOString();
+  const periodLabel = formatPeriodLabel(preset, range);
+
+  const { data: summary } = useDashboardSummary({ branchId: activeBranchId ?? undefined, from: fromIso, to: toIso });
   const { data: revenue } = useRevenueReport({
     branchId: activeBranchId ?? undefined,
     groupBy: chartMode,
-    from: monthStartIso(),
+    from: fromIso,
+    to: toIso,
   });
 
   const chartData = useMemo(() => revenue ?? [], [revenue]);
 
   return (
     <div className="space-y-4">
-      <PageHeader title="Tổng quan" description="Kết quả bán hàng hôm nay" />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <PageHeader title="Tổng quan" description={`Kết quả bán hàng: ${periodLabel}`} />
+        <div className="flex flex-wrap items-center gap-2">
+          <Select value={preset} onValueChange={(v) => setPreset(v as PeriodPreset)}>
+            <SelectTrigger className="w-[160px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {PERIOD_PRESET_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {preset === "custom" && (
+            <div className="flex items-center gap-2">
+              <Input
+                type="date"
+                value={customFrom}
+                onChange={(e) => setCustomFrom(e.target.value)}
+                className="w-[150px]"
+              />
+              <span className="text-sm text-muted-foreground">-</span>
+              <Input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} className="w-[150px]" />
+            </div>
+          )}
+        </div>
+      </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Card>
           <CardHeader className="flex-row items-center justify-between gap-2 space-y-0">
             <div>
               <CardDescription>Doanh thu</CardDescription>
-              <CardTitle className="text-xl">{formatCurrency(summary?.revenueToday ?? 0)}</CardTitle>
-              <p className="text-xs text-muted-foreground">{summary?.invoiceCountToday ?? 0} hóa đơn</p>
+              <CardTitle className="text-xl">{formatCurrency(summary?.revenue ?? 0)}</CardTitle>
+              <p className="text-xs text-muted-foreground">{summary?.invoiceCount ?? 0} hóa đơn</p>
             </div>
             <Wallet className="h-8 w-8 text-primary/70" />
           </CardHeader>
@@ -66,8 +108,8 @@ export function DashboardPage() {
           <CardHeader className="flex-row items-center justify-between gap-2 space-y-0">
             <div>
               <CardDescription>Đơn hủy</CardDescription>
-              <CardTitle className="text-xl">{summary?.cancelledCountToday ?? 0}</CardTitle>
-              <p className="text-xs text-muted-foreground">Hôm nay</p>
+              <CardTitle className="text-xl">{summary?.cancelledCount ?? 0}</CardTitle>
+              <p className="text-xs text-muted-foreground">{periodLabel}</p>
             </div>
             <RotateCcw className="h-8 w-8 text-muted-foreground/60" />
           </CardHeader>
@@ -76,16 +118,8 @@ export function DashboardPage() {
         <Card>
           <CardHeader className="space-y-1">
             <CardDescription>Doanh thu</CardDescription>
-            <ChangeBadge pct={summary?.changeVsYesterdayPct ?? 0} />
-            <p className="text-xs text-muted-foreground">So với hôm qua</p>
-          </CardHeader>
-        </Card>
-
-        <Card>
-          <CardHeader className="space-y-1">
-            <CardDescription>Doanh thu</CardDescription>
-            <ChangeBadge pct={summary?.changeVsLastMonthPct ?? 0} />
-            <p className="text-xs text-muted-foreground">So với cùng kỳ tháng trước</p>
+            <ChangeBadge pct={summary?.changeVsPreviousPct ?? 0} />
+            <p className="text-xs text-muted-foreground">So với kỳ trước</p>
           </CardHeader>
         </Card>
       </div>
@@ -95,7 +129,7 @@ export function DashboardPage() {
           <CardHeader className="flex-row items-center justify-between gap-4 space-y-0">
             <div>
               <CardDescription>Doanh thu thuần</CardDescription>
-              <CardTitle className="text-xl">{formatCurrency(summary?.revenueMonth ?? 0)}</CardTitle>
+              <CardTitle className="text-xl">{formatCurrency(summary?.revenue ?? 0)}</CardTitle>
             </div>
             <Tabs value={chartMode} onValueChange={(v) => setChartMode(v as ChartMode)}>
               <TabsList>

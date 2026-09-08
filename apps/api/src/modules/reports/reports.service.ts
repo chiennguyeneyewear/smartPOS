@@ -143,71 +143,56 @@ function sumAmount(invoices: { totalAmount: unknown }[]): number {
   return invoices.reduce((sum, inv) => sum + Number(inv.totalAmount), 0);
 }
 
-export async function getDashboardSummary(branchId?: string) {
+// `from`/`to` bound the selected period (e.g. "this month", a custom range —
+// see PeriodPreset on the frontend). The comparison percentage is computed
+// against the immediately-preceding period of the same length, so it stays
+// meaningful regardless of which preset the user picked.
+export async function getDashboardSummary(branchId: string | undefined, from: string, to: string) {
   const now = new Date();
-  const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  const endOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
-
-  const today = startOfDay(now);
-  const todayEnd = endOfDay(now);
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
-  const yesterdayEnd = endOfDay(yesterday);
-  const lastMonthSameDay = new Date(today);
-  lastMonthSameDay.setMonth(lastMonthSameDay.getMonth() - 1);
-  const lastMonthSameDayEnd = endOfDay(lastMonthSameDay);
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const rangeStart = new Date(from);
+  const rangeEnd = new Date(to);
+  const rangeMs = Math.max(0, rangeEnd.getTime() - rangeStart.getTime());
+  const previousEnd = new Date(rangeStart.getTime() - 1);
+  const previousStart = new Date(previousEnd.getTime() - rangeMs);
 
   const branchFilter = branchId ? { branchId } : {};
 
-  const [todayInvoices, yesterdayInvoices, lastMonthInvoices, cancelledCountToday, monthInvoices, recentInvoices, customersWithBirthday] =
-    await Promise.all([
-      prisma.invoice.findMany({
-        where: { ...branchFilter, status: "COMPLETED", completedAt: { gte: today, lte: todayEnd } },
-        select: { totalAmount: true },
-      }),
-      prisma.invoice.findMany({
-        where: { ...branchFilter, status: "COMPLETED", completedAt: { gte: yesterday, lte: yesterdayEnd } },
-        select: { totalAmount: true },
-      }),
-      prisma.invoice.findMany({
-        where: { ...branchFilter, status: "COMPLETED", completedAt: { gte: lastMonthSameDay, lte: lastMonthSameDayEnd } },
-        select: { totalAmount: true },
-      }),
-      prisma.invoice.count({
-        where: { ...branchFilter, status: "CANCELLED", updatedAt: { gte: today, lte: todayEnd } },
-      }),
-      prisma.invoice.findMany({
-        where: { ...branchFilter, status: "COMPLETED", completedAt: { gte: monthStart, lte: todayEnd } },
-        select: { totalAmount: true },
-      }),
-      prisma.invoice.findMany({
-        where: { ...branchFilter, status: "COMPLETED" },
-        orderBy: { completedAt: "desc" },
-        take: 6,
-        include: { customer: { select: { name: true } } },
-      }),
-      prisma.customer.findMany({
-        where: { deletedAt: null, birthday: { not: null } },
-        select: { id: true, name: true, birthday: true },
-      }),
-    ]);
+  const [periodInvoices, previousInvoices, cancelledCount, recentInvoices, customersWithBirthday] = await Promise.all([
+    prisma.invoice.findMany({
+      where: { ...branchFilter, status: "COMPLETED", completedAt: { gte: rangeStart, lte: rangeEnd } },
+      select: { totalAmount: true },
+    }),
+    prisma.invoice.findMany({
+      where: { ...branchFilter, status: "COMPLETED", completedAt: { gte: previousStart, lte: previousEnd } },
+      select: { totalAmount: true },
+    }),
+    prisma.invoice.count({
+      where: { ...branchFilter, status: "CANCELLED", updatedAt: { gte: rangeStart, lte: rangeEnd } },
+    }),
+    prisma.invoice.findMany({
+      where: { ...branchFilter, status: "COMPLETED" },
+      orderBy: { completedAt: "desc" },
+      take: 6,
+      include: { customer: { select: { name: true } } },
+    }),
+    prisma.customer.findMany({
+      where: { deletedAt: null, birthday: { not: null } },
+      select: { id: true, name: true, birthday: true },
+    }),
+  ]);
 
-  const revenueToday = sumAmount(todayInvoices);
-  const revenueYesterday = sumAmount(yesterdayInvoices);
-  const revenueSameDayLastMonth = sumAmount(lastMonthInvoices);
+  const revenue = sumAmount(periodInvoices);
+  const previousRevenue = sumAmount(previousInvoices);
 
   const birthdaysToday = customersWithBirthday
     .filter((c) => c.birthday && c.birthday.getDate() === now.getDate() && c.birthday.getMonth() === now.getMonth())
     .map((c) => ({ id: c.id, name: c.name }));
 
   return {
-    revenueToday,
-    invoiceCountToday: todayInvoices.length,
-    cancelledCountToday,
-    changeVsYesterdayPct: pctChange(revenueToday, revenueYesterday),
-    changeVsLastMonthPct: pctChange(revenueToday, revenueSameDayLastMonth),
-    revenueMonth: sumAmount(monthInvoices),
+    revenue,
+    invoiceCount: periodInvoices.length,
+    cancelledCount,
+    changeVsPreviousPct: pctChange(revenue, previousRevenue),
     recentInvoices: recentInvoices.map((inv) => ({
       id: inv.id,
       code: inv.code,
