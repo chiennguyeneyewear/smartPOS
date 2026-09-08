@@ -20,10 +20,12 @@ function parseNumber(raw: string): number {
   return Number(raw.replace(/[^\d]/g, "")) || 0;
 }
 
-// A fixed-width grid (label / value / trailing) keeps every row's underline
-// starting and ending at the same x position regardless of label length
-// ("Giảm giá" vs "Đơn giá") or trailing content (the VND/% toggle).
-const gridClass = "grid grid-cols-[80px_112px_auto] items-center gap-x-3";
+// A fixed-width label column keeps every row's underline starting at the
+// same x position regardless of label length ("Giảm giá" vs "Đơn giá"). The
+// value cell itself is full-width so Đơn giá/Giá bán's underline reaches the
+// popover's edge, while Giảm giá's input stays short (its own fixed width)
+// so the VND/% toggle sits right after it instead of overflowing the row.
+const gridClass = "grid grid-cols-[80px_1fr] items-center gap-x-3";
 
 const lineInputClass =
   "w-full rounded-none border-0 border-b border-input bg-transparent px-0 py-1 text-sm text-foreground shadow-none outline-none focus-visible:border-primary";
@@ -75,26 +77,26 @@ export function LineDiscountPopover({ tabId, line, open, onOpenChange }: LineDis
       </div>
       <div className={gridClass}>
         <span className="whitespace-nowrap text-sm font-semibold text-foreground">Giảm giá</span>
-        <input
-          type="text"
-          inputMode="numeric"
-          value={line.discountValue ? formatNumber(line.discountValue) : ""}
-          onChange={(e) =>
-            setLineDiscount(
-              tabId,
-              line.lineId,
-              line.discountType,
-              Math.min(Math.max(0, parseNumber(e.target.value)), discountMax),
-            )
-          }
-          className={cn(lineInputClass, "text-left")}
-        />
-        <div className="flex items-center gap-1.5 pl-2">
+        <div className="flex items-center gap-2">
+          <input
+            type="text"
+            inputMode="numeric"
+            value={line.discountValue ? formatNumber(line.discountValue) : ""}
+            onChange={(e) =>
+              setLineDiscount(
+                tabId,
+                line.lineId,
+                line.discountType,
+                Math.min(Math.max(0, parseNumber(e.target.value)), discountMax),
+              )
+            }
+            className={cn(lineInputClass, "w-16 shrink-0 text-left")}
+          />
           <button
             type="button"
             onClick={() => setDiscountType("AMOUNT")}
             className={cn(
-              "rounded-full px-3 py-1 text-xs font-semibold transition-colors",
+              "shrink-0 rounded-full px-3 py-1 text-xs font-semibold transition-colors",
               line.discountType === "AMOUNT" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
             )}
           >
@@ -104,7 +106,7 @@ export function LineDiscountPopover({ tabId, line, open, onOpenChange }: LineDis
             type="button"
             onClick={() => setDiscountType("PERCENT")}
             className={cn(
-              "rounded-full px-3 py-1 text-xs font-semibold transition-colors",
+              "shrink-0 rounded-full px-3 py-1 text-xs font-semibold transition-colors",
               line.discountType === "PERCENT" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
             )}
           >
