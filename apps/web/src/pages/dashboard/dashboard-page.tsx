@@ -170,7 +170,7 @@ export function DashboardPage() {
             <CardHeader>
               <CardTitle>Hoạt động gần đây</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="max-h-[420px] space-y-4 overflow-y-auto pr-1">
               {summary?.recentActivities.length ? (
                 summary.recentActivities.map((activity) => {
                   const isCancelled = activity.type === "CANCELLED";

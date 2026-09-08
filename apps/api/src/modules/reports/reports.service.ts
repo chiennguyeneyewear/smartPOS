@@ -173,13 +173,13 @@ export async function getDashboardSummary(branchId: string | undefined, from: st
       prisma.invoice.findMany({
         where: { ...branchFilter, status: "COMPLETED" },
         orderBy: { completedAt: "desc" },
-        take: 6,
+        take: 20,
         include: { customer: { select: { name: true } } },
       }),
       prisma.invoice.findMany({
         where: { ...branchFilter, status: "CANCELLED" },
         orderBy: { updatedAt: "desc" },
-        take: 6,
+        take: 20,
         include: { customer: { select: { name: true } } },
       }),
       prisma.customer.findMany({
@@ -220,7 +220,7 @@ export async function getDashboardSummary(branchId: string | undefined, from: st
     })),
   ]
     .sort((a, b) => (b.at?.getTime() ?? 0) - (a.at?.getTime() ?? 0))
-    .slice(0, 6);
+    .slice(0, 20);
 
   return {
     revenue,
