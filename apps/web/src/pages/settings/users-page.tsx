@@ -142,13 +142,7 @@ export function UsersPage() {
 
   const columns: ColumnDef<UserRow, any>[] = [
     { accessorKey: "fullName", header: "Họ tên", cell: ({ row }) => <span className="font-medium">{row.original.fullName}</span> },
-    { accessorKey: "email", header: "Email" },
     { accessorKey: "role", header: "Vai trò", cell: ({ getValue }) => <Badge variant="secondary">{ROLE_LABELS[getValue() as string] ?? (getValue() as string)}</Badge> },
-    {
-      id: "branches",
-      header: "Chi nhánh",
-      cell: ({ row }) => row.original.branches.map((b) => b.name).join(", "),
-    },
     {
       id: "menuAccess",
       header: "Menu được xem",
