@@ -58,6 +58,7 @@ export const MENU_ITEMS = {
   POS: "pos",
   PRODUCTS: "products",
   CUSTOMERS: "customers",
+  ORDERS: "orders",
   REPORTS: "reports",
   USERS: "users",
 } as const;
@@ -69,6 +70,7 @@ export const MENU_ITEM_LABELS: Record<MenuKey, string> = {
   [MENU_ITEMS.POS]: "Bán hàng",
   [MENU_ITEMS.PRODUCTS]: "Hàng hóa",
   [MENU_ITEMS.CUSTOMERS]: "Khách hàng",
+  [MENU_ITEMS.ORDERS]: "Đơn hàng",
   [MENU_ITEMS.REPORTS]: "Báo cáo",
   [MENU_ITEMS.USERS]: "Quản lý người dùng",
 };

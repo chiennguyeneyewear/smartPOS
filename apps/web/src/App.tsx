@@ -11,6 +11,7 @@ import { ProductsPage } from "@/pages/inventory/products-page";
 import { StockPage } from "@/pages/inventory/stock-page";
 import { MovementsPage } from "@/pages/inventory/movements-page";
 import { CustomersPage } from "@/pages/customers/customers-page";
+import { OrdersPage } from "@/pages/orders/orders-page";
 import { ReportsPage } from "@/pages/reports/reports-page";
 import { UsersPage } from "@/pages/settings/users-page";
 
@@ -69,6 +70,14 @@ export default function App() {
             element={
               <MenuGuard menuKey={MENU_ITEMS.CUSTOMERS}>
                 <CustomersPage />
+              </MenuGuard>
+            }
+          />
+          <Route
+            path="/orders"
+            element={
+              <MenuGuard menuKey={MENU_ITEMS.ORDERS}>
+                <OrdersPage />
               </MenuGuard>
             }
           />

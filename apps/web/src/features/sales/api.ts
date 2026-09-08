@@ -21,11 +21,19 @@ export async function voidInvoice(id: string): Promise<InvoiceSummary> {
   return data;
 }
 
+export interface InvoiceListItem extends InvoiceSummary {
+  createdByName: string;
+  customer: { name: string; phone: string | null } | null;
+}
+
 export async function fetchInvoices(params: {
   branchId?: string;
   status?: string;
   customerId?: string;
-}): Promise<InvoiceSummary[]> {
-  const { data } = await apiClient.get<{ data: InvoiceSummary[] }>("/sales/invoices", { params });
+  createdById?: string;
+  from?: string;
+  to?: string;
+}): Promise<InvoiceListItem[]> {
+  const { data } = await apiClient.get<{ data: InvoiceListItem[] }>("/sales/invoices", { params });
   return data.data;
 }

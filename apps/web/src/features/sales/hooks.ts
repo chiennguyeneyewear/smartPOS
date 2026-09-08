@@ -3,7 +3,14 @@ import type { CheckoutInvoiceInput, SaveInvoiceInput } from "@smartpos/shared";
 import { toast } from "@/stores/toast-store";
 import { checkoutInvoice, createDraftInvoice, fetchInvoices, updateDraftInvoice, voidInvoice } from "./api";
 
-export function useInvoices(params: { branchId?: string; status?: string; customerId?: string }) {
+export function useInvoices(params: {
+  branchId?: string;
+  status?: string;
+  customerId?: string;
+  createdById?: string;
+  from?: string;
+  to?: string;
+}) {
   return useQuery({ queryKey: ["invoices", params], queryFn: () => fetchInvoices(params) });
 }
 

@@ -10,7 +10,7 @@ import { formatCurrency, formatRelativeTime } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth-store";
 import { useDashboardSummary, useRevenueReport, useTopCustomersReport, useTopProductsReport } from "@/features/reports/hooks";
-import { PERIOD_PRESET_OPTIONS, formatPeriodLabel, getPeriodRange, type PeriodPreset } from "./period-presets";
+import { PERIOD_PRESET_OPTIONS, formatPeriodLabel, getPeriodRange, type PeriodPreset } from "@/lib/period-presets";
 
 function truncateLabel(value: string, max = 22) {
   return value.length > max ? `${value.slice(0, max - 1)}…` : value;

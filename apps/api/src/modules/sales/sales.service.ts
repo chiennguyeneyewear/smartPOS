@@ -217,17 +217,46 @@ export async function listInvoices(filters: {
   branchId?: string;
   status?: string;
   customerId?: string;
+  createdById?: string;
+  from?: string;
+  to?: string;
 }) {
-  return prisma.invoice.findMany({
+  const invoices = await prisma.invoice.findMany({
     where: {
       ...(filters.branchId ? { branchId: filters.branchId } : {}),
       ...(filters.status ? { status: filters.status as InvoiceStatus } : {}),
       ...(filters.customerId ? { customerId: filters.customerId } : {}),
+      ...(filters.createdById ? { createdById: filters.createdById } : {}),
+      ...(filters.from || filters.to
+        ? {
+            createdAt: {
+              ...(filters.from ? { gte: new Date(filters.from) } : {}),
+              ...(filters.to ? { lte: new Date(filters.to) } : {}),
+            },
+          }
+        : {}),
     },
-    include: { items: { include: { product: true } }, payments: true },
+    include: {
+      items: { include: { product: true } },
+      payments: true,
+      customer: { select: { name: true, phone: true } },
+    },
     orderBy: { createdAt: "desc" },
-    take: 100,
+    take: 200,
   });
+
+  const userIds = [...new Set(invoices.map((inv) => inv.createdById))];
+  const users = await prisma.user.findMany({ where: { id: { in: userIds } }, select: { id: true, username: true } });
+  const userNameById = new Map(users.map((u) => [u.id, u.username]));
+
+  return invoices.map((inv) => ({
+    ...inv,
+    subTotal: Number(inv.subTotal),
+    discountAmount: Number(inv.discountAmount),
+    totalAmount: Number(inv.totalAmount),
+    paidAmount: Number(inv.paidAmount),
+    createdByName: userNameById.get(inv.createdById) ?? "N/A",
+  }));
 }
 
 export { SalesError };

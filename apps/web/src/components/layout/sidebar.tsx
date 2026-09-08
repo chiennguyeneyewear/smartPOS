@@ -4,6 +4,7 @@ import {
   ShoppingCart,
   Package,
   Users,
+  ClipboardList,
   BarChart3,
   UserCog,
 } from "lucide-react";
@@ -16,6 +17,7 @@ const NAV_ITEMS = [
   { to: "/pos", label: "Bán hàng", icon: ShoppingCart, menuKey: MENU_ITEMS.POS },
   { to: "/inventory/products", label: "Hàng hóa", icon: Package, menuKey: MENU_ITEMS.PRODUCTS },
   { to: "/customers", label: "Khách hàng", icon: Users, menuKey: MENU_ITEMS.CUSTOMERS },
+  { to: "/orders", label: "Đơn hàng", icon: ClipboardList, menuKey: MENU_ITEMS.ORDERS },
   { to: "/reports", label: "Báo cáo", icon: BarChart3, menuKey: MENU_ITEMS.REPORTS },
   { to: "/settings/users", label: "Quản lý người dùng", icon: UserCog, menuKey: MENU_ITEMS.USERS },
 ];

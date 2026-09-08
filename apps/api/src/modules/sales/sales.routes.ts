@@ -46,7 +46,14 @@ export function registerSalesRoutes(app: FastifyInstance) {
   );
 
   app.get("/sales/invoices", { preHandler: [authenticate, branchScope] }, async (request) => {
-    const query = request.query as { branchId?: string; status?: string; customerId?: string };
+    const query = request.query as {
+      branchId?: string;
+      status?: string;
+      customerId?: string;
+      createdById?: string;
+      from?: string;
+      to?: string;
+    };
     const data = await salesService.listInvoices(query);
     return { data };
   });
