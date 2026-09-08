@@ -10,8 +10,8 @@ interface LineDiscountPopoverProps {
 }
 
 // This popover matches the reference exactly: plain comma-grouped numbers
-// (no ₫ suffix, no vi-VN dot separator) in the app's primary blue, unlike
-// formatCurrency used everywhere else in the app.
+// (no ₫ suffix, no vi-VN dot separator), unlike formatCurrency used
+// everywhere else in the app.
 function formatNumber(value: number): string {
   return value.toLocaleString("en-US");
 }
@@ -20,8 +20,13 @@ function parseNumber(raw: string): number {
   return Number(raw.replace(/[^\d]/g, "")) || 0;
 }
 
+// A fixed-width grid (label / value / trailing) keeps every row's underline
+// starting and ending at the same x position regardless of label length
+// ("Giảm giá" vs "Đơn giá") or trailing content (the VND/% toggle).
+const gridClass = "grid grid-cols-[80px_112px_auto] items-center gap-x-3";
+
 const lineInputClass =
-  "w-28 shrink-0 rounded-none border-0 border-b border-input bg-transparent px-0 py-1 text-right text-sm text-primary shadow-none outline-none focus-visible:border-primary";
+  "w-full rounded-none border-0 border-b border-input bg-transparent px-0 py-1 text-sm text-foreground shadow-none outline-none focus-visible:border-primary";
 
 // Every field here writes straight to the store on change (no local draft +
 // commit-on-close step) so the cart total is always exactly what's in the
@@ -56,66 +61,62 @@ export function LineDiscountPopover({ tabId, line, open, onOpenChange }: LineDis
   return (
     <div
       ref={containerRef}
-      className="absolute right-0 top-full z-30 mt-1 w-72 space-y-4 rounded-xl border bg-popover p-4 shadow-lg"
+      className="absolute right-0 top-full z-30 mt-1 w-80 space-y-4 rounded-xl border bg-popover p-4 shadow-lg"
     >
-      <div className="flex items-center justify-between gap-3">
-        <span className="text-sm font-semibold text-foreground">Đơn giá</span>
+      <div className={gridClass}>
+        <span className="whitespace-nowrap text-sm font-semibold text-foreground">Đơn giá</span>
         <input
           type="text"
           inputMode="numeric"
           value={formatNumber(line.unitPrice)}
           onChange={(e) => updateLinePrice(tabId, line.lineId, Math.max(0, parseNumber(e.target.value)))}
-          className={cn(lineInputClass, "font-medium")}
+          className={cn(lineInputClass, "text-right font-medium")}
         />
       </div>
-      <div className="flex items-center justify-between gap-3">
-        <span className="text-sm font-semibold text-foreground">Giảm giá</span>
-        <div className="flex flex-1 items-center justify-end gap-2">
-          <input
-            type="text"
-            inputMode="numeric"
-            value={line.discountValue ? formatNumber(line.discountValue) : ""}
-            onChange={(e) =>
-              setLineDiscount(
-                tabId,
-                line.lineId,
-                line.discountType,
-                Math.min(Math.max(0, parseNumber(e.target.value)), discountMax),
-              )
-            }
-            className={cn(lineInputClass, "text-left")}
-          />
-          <div className="flex shrink-0 items-center gap-1.5">
-            <button
-              type="button"
-              onClick={() => setDiscountType("AMOUNT")}
-              className={cn(
-                "rounded-full px-3 py-1 text-xs font-semibold transition-colors",
-                line.discountType === "AMOUNT"
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted text-muted-foreground",
-              )}
-            >
-              VND
-            </button>
-            <button
-              type="button"
-              onClick={() => setDiscountType("PERCENT")}
-              className={cn(
-                "rounded-full px-3 py-1 text-xs font-semibold transition-colors",
-                line.discountType === "PERCENT"
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted text-muted-foreground",
-              )}
-            >
-              %
-            </button>
-          </div>
+      <div className={gridClass}>
+        <span className="whitespace-nowrap text-sm font-semibold text-foreground">Giảm giá</span>
+        <input
+          type="text"
+          inputMode="numeric"
+          value={line.discountValue ? formatNumber(line.discountValue) : ""}
+          onChange={(e) =>
+            setLineDiscount(
+              tabId,
+              line.lineId,
+              line.discountType,
+              Math.min(Math.max(0, parseNumber(e.target.value)), discountMax),
+            )
+          }
+          className={cn(lineInputClass, "text-left")}
+        />
+        <div className="flex items-center gap-1.5 pl-2">
+          <button
+            type="button"
+            onClick={() => setDiscountType("AMOUNT")}
+            className={cn(
+              "rounded-full px-3 py-1 text-xs font-semibold transition-colors",
+              line.discountType === "AMOUNT" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
+            )}
+          >
+            VND
+          </button>
+          <button
+            type="button"
+            onClick={() => setDiscountType("PERCENT")}
+            className={cn(
+              "rounded-full px-3 py-1 text-xs font-semibold transition-colors",
+              line.discountType === "PERCENT" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
+            )}
+          >
+            %
+          </button>
         </div>
       </div>
-      <div className="flex items-center justify-between gap-3">
-        <span className="text-sm font-semibold text-foreground">Giá bán</span>
-        <span className={cn(lineInputClass, "inline-block font-medium leading-6")}>{formatNumber(sellPrice)}</span>
+      <div className={gridClass}>
+        <span className="whitespace-nowrap text-sm font-semibold text-foreground">Giá bán</span>
+        <span className={cn(lineInputClass, "inline-block text-right font-medium leading-6")}>
+          {formatNumber(sellPrice)}
+        </span>
       </div>
     </div>
   );
