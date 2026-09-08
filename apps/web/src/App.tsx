@@ -14,7 +14,6 @@ import { CustomersPage } from "@/pages/customers/customers-page";
 import { SuppliersPage } from "@/pages/suppliers/suppliers-page";
 import { ReportsPage } from "@/pages/reports/reports-page";
 import { UsersPage } from "@/pages/settings/users-page";
-import { BranchesPage } from "@/pages/settings/branches-page";
 
 export default function App() {
   return (
@@ -95,14 +94,6 @@ export default function App() {
             element={
               <MenuGuard menuKey={MENU_ITEMS.USERS}>
                 <UsersPage />
-              </MenuGuard>
-            }
-          />
-          <Route
-            path="/settings/branches"
-            element={
-              <MenuGuard menuKey={MENU_ITEMS.BRANCHES}>
-                <BranchesPage />
               </MenuGuard>
             }
           />

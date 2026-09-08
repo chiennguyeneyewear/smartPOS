@@ -6,7 +6,6 @@ import {
   Users,
   Truck,
   BarChart3,
-  Building2,
   UserCog,
 } from "lucide-react";
 import { MENU_ITEMS } from "@smartpos/shared";
@@ -20,7 +19,6 @@ const NAV_ITEMS = [
   { to: "/customers", label: "Khách hàng", icon: Users, menuKey: MENU_ITEMS.CUSTOMERS },
   { to: "/suppliers", label: "Nhà cung cấp", icon: Truck, menuKey: MENU_ITEMS.SUPPLIERS },
   { to: "/reports", label: "Báo cáo", icon: BarChart3, menuKey: MENU_ITEMS.REPORTS },
-  { to: "/settings/branches", label: "Quản lý chi nhánh", icon: Building2, menuKey: MENU_ITEMS.BRANCHES },
   { to: "/settings/users", label: "Quản lý người dùng", icon: UserCog, menuKey: MENU_ITEMS.USERS },
 ];
 

@@ -13,7 +13,6 @@ const MENU_ORDER: MenuKey[] = [
   MENU_ITEMS.CUSTOMERS,
   MENU_ITEMS.SUPPLIERS,
   MENU_ITEMS.REPORTS,
-  MENU_ITEMS.BRANCHES,
   MENU_ITEMS.USERS,
 ];
 
@@ -24,7 +23,6 @@ const MENU_ROUTES: Record<MenuKey, string> = {
   [MENU_ITEMS.CUSTOMERS]: "/customers",
   [MENU_ITEMS.SUPPLIERS]: "/suppliers",
   [MENU_ITEMS.REPORTS]: "/reports",
-  [MENU_ITEMS.BRANCHES]: "/settings/branches",
   [MENU_ITEMS.USERS]: "/settings/users",
 };
 
