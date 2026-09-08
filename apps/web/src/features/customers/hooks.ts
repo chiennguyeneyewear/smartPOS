@@ -1,5 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createCustomer, fetchCustomer, fetchDebtHistory, searchCustomers } from "./api";
+import type { CustomerInput } from "@smartpos/shared";
+import { toast } from "@/stores/toast-store";
+import { createCustomer, fetchCustomer, fetchDebtHistory, searchCustomers, updateCustomer } from "./api";
 
 export function useCustomerSearch(search: string) {
   return useQuery({
@@ -18,6 +20,18 @@ export function useCreateCustomer() {
   return useMutation({
     mutationFn: createCustomer,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["customers"] }),
+  });
+}
+
+export function useUpdateCustomer() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: Partial<CustomerInput> }) => updateCustomer(id, input),
+    onSuccess: (_data, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
+      queryClient.invalidateQueries({ queryKey: ["customers", id] });
+      toast({ title: "Đã lưu thông tin khách hàng", variant: "success" });
+    },
   });
 }
 

@@ -11,6 +11,11 @@ export async function createCustomer(input: CustomerInput): Promise<CustomerSumm
   return data;
 }
 
+export async function updateCustomer(id: string, input: Partial<CustomerInput>): Promise<CustomerSummary> {
+  const { data } = await apiClient.patch<CustomerSummary>(`/customers/${id}`, input);
+  return data;
+}
+
 export interface CustomerDetail extends CustomerSummary {
   createdByName: string | null;
 }

@@ -12,7 +12,7 @@ export function CustomerDetailDialog({ customerId, onOpenChange }: CustomerDetai
 
   return (
     <Dialog open={!!customerId} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-3xl">
         <DialogHeader>
           <DialogTitle>
             {customer ? `${customer.name} · ${customer.code}` : "Chi tiết khách hàng"}
