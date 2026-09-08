@@ -35,6 +35,20 @@ const columns: ColumnDef<InvoiceListItem, any>[] = [
   },
   { accessorKey: "createdByName", header: "Người bán" },
   {
+    id: "status",
+    header: "Trạng thái",
+    cell: ({ row }) =>
+      row.original.status === "CANCELLED" ? (
+        <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive">
+          Đã hủy
+        </span>
+      ) : (
+        <span className="rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success">
+          Hoàn thành
+        </span>
+      ),
+  },
+  {
     id: "totalAmount",
     header: "Tổng tiền hàng",
     cell: ({ row }) => <span className="font-medium">{formatCurrency(row.original.totalAmount)}</span>,
@@ -47,6 +61,8 @@ export function OrdersPage() {
   const [customFrom, setCustomFrom] = useState(() => toDateInputValue(new Date()));
   const [customTo, setCustomTo] = useState(() => toDateInputValue(new Date()));
   const [sellerId, setSellerId] = useState<string>("all");
+  const [showCompleted, setShowCompleted] = useState(true);
+  const [showCancelled, setShowCancelled] = useState(true);
 
   const range = useMemo(
     () => getPeriodRange(preset, { from: customFrom, to: customTo }),
@@ -62,7 +78,19 @@ export function OrdersPage() {
     to: range.to.toISOString(),
   });
 
-  const total = useMemo(() => (invoices ?? []).reduce((sum, inv) => sum + inv.totalAmount, 0), [invoices]);
+  const filteredInvoices = useMemo(
+    () =>
+      (invoices ?? []).filter(
+        (inv) =>
+          (inv.status === "COMPLETED" && showCompleted) || (inv.status === "CANCELLED" && showCancelled),
+      ),
+    [invoices, showCompleted, showCancelled],
+  );
+
+  const total = useMemo(
+    () => filteredInvoices.reduce((sum, inv) => sum + inv.totalAmount, 0),
+    [filteredInvoices],
+  );
 
   return (
     <div className="space-y-4">
@@ -109,6 +137,26 @@ export function OrdersPage() {
                 </SelectContent>
               </Select>
             </div>
+
+            <div className="space-y-2">
+              <p className="text-sm font-semibold">Trạng thái hóa đơn</p>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={showCompleted}
+                  onChange={(e) => setShowCompleted(e.target.checked)}
+                />
+                Hoàn thành
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={showCancelled}
+                  onChange={(e) => setShowCancelled(e.target.checked)}
+                />
+                Đã hủy
+              </label>
+            </div>
           </CardContent>
         </Card>
 
@@ -116,11 +164,16 @@ export function OrdersPage() {
           <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
             <span>{periodLabel}</span>
             <span>
-              {invoices?.length ?? 0} hóa đơn · Tổng{" "}
+              {filteredInvoices.length} hóa đơn · Tổng{" "}
               <span className="font-semibold text-foreground">{formatCurrency(total)}</span>
             </span>
           </div>
-          <DataTable columns={columns} data={invoices ?? []} isLoading={isLoading} emptyMessage="Không có hóa đơn nào" />
+          <DataTable
+            columns={columns}
+            data={filteredInvoices}
+            isLoading={isLoading}
+            emptyMessage="Không có hóa đơn nào"
+          />
         </div>
       </div>
     </div>
