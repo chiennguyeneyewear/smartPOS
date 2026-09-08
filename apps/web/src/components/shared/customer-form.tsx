@@ -35,27 +35,27 @@ export function CustomerForm({ form, code, onSubmit, onCancel, submitting, submi
       <div className="grid grid-cols-2 gap-6">
         <div className="space-y-4">
           <div className="space-y-1.5">
-            <Label>Mã khách hàng</Label>
+            <Label className="font-bold">Mã khách hàng</Label>
             <Input value={code ?? "Tự động"} disabled className={cn(lineInputClass, "text-muted-foreground")} />
           </div>
 
           <div className="space-y-1.5">
-            <Label>Tên khách hàng</Label>
-            <Input autoFocus className={cn(lineInputClass, "font-semibold")} {...register("name")} />
+            <Label className="font-bold">Tên khách hàng</Label>
+            <Input autoFocus className={lineInputClass} {...register("name")} />
             {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
             <Input className={lineInputClass} {...register("name2")} />
           </div>
 
           <div className="space-y-1.5">
-            <Label>Điện thoại</Label>
-            <Input className={cn(lineInputClass, "font-semibold")} {...register("phone")} />
+            <Label className="font-bold">Điện thoại</Label>
+            <Input className={lineInputClass} {...register("phone")} />
             {errors.phone && <p className="text-xs text-destructive">{errors.phone.message}</p>}
             <Input className={lineInputClass} {...register("phone2")} />
           </div>
         </div>
 
         <div className="flex flex-col space-y-1.5">
-          <Label>Ghi chú</Label>
+          <Label className="font-bold">Ghi chú</Label>
           <Textarea {...register("note")} className="flex-1 resize-none" />
         </div>
       </div>
