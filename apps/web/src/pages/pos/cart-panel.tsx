@@ -3,7 +3,6 @@ import { Minus, Plus, Trash2 } from "lucide-react";
 import { usePosStore, getLineTotal, getLineUnitDiscount, type PosTab } from "@/stores/pos-store";
 import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { LineDiscountPopover } from "./line-discount-popover";
 
 interface CartPanelProps {
@@ -14,7 +13,6 @@ interface CartPanelProps {
 export function CartPanel({ tab, onRequestCheckout }: CartPanelProps) {
   const updateQuantity = usePosStore((s) => s.updateQuantity);
   const removeItem = usePosStore((s) => s.removeItem);
-  const setDiscount = usePosStore((s) => s.setDiscount);
   const [openDiscountLineId, setOpenDiscountLineId] = useState<string | null>(null);
 
   const subTotal = useMemo(() => tab.items.reduce((sum, item) => sum + getLineTotal(item), 0), [tab.items]);
@@ -93,16 +91,6 @@ export function CartPanel({ tab, onRequestCheckout }: CartPanelProps) {
       </div>
 
       <div className="space-y-2.5 border-t p-4">
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-muted-foreground">Giảm giá</span>
-          <Input
-            type="number"
-            min={0}
-            value={tab.discountAmount}
-            onChange={(e) => setDiscount(tab.id, Number(e.target.value))}
-            className="h-8 w-32 text-right text-sm"
-          />
-        </div>
         <div className="flex items-center justify-between border-t pt-2.5">
           <span className="text-base font-medium text-muted-foreground">Tổng tiền hàng</span>
           <span className="text-xl font-bold text-primary">{formatCurrency(total)}</span>
