@@ -25,7 +25,7 @@ function parseNumber(raw: string): number {
 // value cell itself is full-width so Đơn giá/Giá bán's underline reaches the
 // popover's edge, while Giảm giá's input stays short (its own fixed width)
 // so the VND/% toggle sits right after it instead of overflowing the row.
-const gridClass = "grid grid-cols-[80px_1fr] items-center gap-x-3";
+const gridClass = "grid grid-cols-[max-content_1fr] items-center gap-x-3";
 
 const lineInputClass =
   "w-full rounded-none border-0 border-b border-input bg-transparent px-0 py-1 text-sm text-foreground shadow-none outline-none focus-visible:border-primary";
