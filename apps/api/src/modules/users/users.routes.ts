@@ -85,6 +85,19 @@ export function registerUserRoutes(app: FastifyInstance) {
     },
   );
 
+  app.delete(
+    "/users/:id",
+    { preHandler: [authenticate, requirePermission(PERMISSIONS.USERS_MANAGE)] },
+    async (request, reply) => {
+      const { id } = request.params as { id: string };
+      if (id === request.authUser!.id) {
+        return reply.code(400).send({ error: "BadRequest", message: "Không thể xóa chính tài khoản đang đăng nhập" });
+      }
+      await prisma.user.delete({ where: { id } });
+      return reply.code(204).send();
+    },
+  );
+
   app.patch(
     "/users/:id/branches",
     { preHandler: [authenticate, requirePermission(PERMISSIONS.USERS_MANAGE)] },

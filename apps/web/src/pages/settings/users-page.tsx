@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Pencil, Plus } from "lucide-react";
+import { Pencil, Plus, Trash2 } from "lucide-react";
 import { MENU_ITEM_LABELS, MENU_ITEMS, DEFAULT_MENU_ACCESS, type RoleName } from "@smartpos/shared";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
@@ -11,8 +11,9 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useAuthStore } from "@/stores/auth-store";
 import { useBranches } from "@/features/branches/hooks";
-import { useCreateUser, useRoles, useUpdateUser, useUsers } from "@/features/users/hooks";
+import { useCreateUser, useDeleteUser, useRoles, useUpdateUser, useUsers } from "@/features/users/hooks";
 import type { CreateUserInput, RoleRow, UserRow } from "@/features/users/api";
 
 const ROLE_LABELS: Record<string, string> = {
@@ -38,15 +39,18 @@ function emptyForm(): FormValues {
 export function UsersPage() {
   const [open, setOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserRow | null>(null);
+  const [deletingUser, setDeletingUser] = useState<UserRow | null>(null);
   const [selectedBranches, setSelectedBranches] = useState<string[]>([]);
   const [selectedMenu, setSelectedMenu] = useState<string[]>([]);
   const [isActive, setIsActive] = useState(true);
 
+  const currentUserId = useAuthStore((s) => s.user?.id);
   const { data: users, isLoading } = useUsers();
   const { data: roles } = useRoles();
   const { data: branches } = useBranches();
   const createUser = useCreateUser();
   const updateUser = useUpdateUser();
+  const deleteUser = useDeleteUser();
 
   const {
     register,
@@ -131,6 +135,11 @@ export function UsersPage() {
     );
   });
 
+  function confirmDelete() {
+    if (!deletingUser) return;
+    deleteUser.mutate(deletingUser.id, { onSuccess: () => setDeletingUser(null) });
+  }
+
   const columns: ColumnDef<UserRow, any>[] = [
     { accessorKey: "fullName", header: "Họ tên", cell: ({ row }) => <span className="font-medium">{row.original.fullName}</span> },
     { accessorKey: "email", header: "Email" },
@@ -155,9 +164,21 @@ export function UsersPage() {
       id: "actions",
       header: "",
       cell: ({ row }) => (
-        <Button variant="ghost" size="sm" className="gap-1.5" onClick={() => openEditDialog(row.original)}>
-          <Pencil className="h-3.5 w-3.5" /> Sửa
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button variant="ghost" size="sm" className="gap-1.5" onClick={() => openEditDialog(row.original)}>
+            <Pencil className="h-3.5 w-3.5" /> Sửa
+          </Button>
+          {row.original.id !== currentUserId && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-1.5 text-destructive hover:text-destructive"
+              onClick={() => setDeletingUser(row.original)}
+            >
+              <Trash2 className="h-3.5 w-3.5" /> Xóa
+            </Button>
+          )}
+        </div>
       ),
     },
   ];
@@ -264,6 +285,27 @@ export function UsersPage() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!deletingUser} onOpenChange={(o) => !o && setDeletingUser(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Xóa nhân viên</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Bạn có chắc chắn muốn xóa tài khoản{" "}
+            <span className="font-medium text-foreground">{deletingUser?.fullName}</span> ({deletingUser?.email})?
+            Hành động này không thể hoàn tác.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeletingUser(null)}>
+              Hủy
+            </Button>
+            <Button variant="destructive" onClick={confirmDelete} disabled={deleteUser.isPending}>
+              {deleteUser.isPending ? "Đang xóa..." : "Xóa nhân viên"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

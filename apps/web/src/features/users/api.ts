@@ -61,3 +61,7 @@ export async function updateUser(id: string, input: UpdateUserInput) {
   }
   return data;
 }
+
+export async function deleteUser(id: string) {
+  await apiClient.delete(`/users/${id}`);
+}
