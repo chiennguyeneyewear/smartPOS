@@ -71,6 +71,7 @@ interface PosState {
   closeTab: (tabId: string) => void;
   setActiveTab: (tabId: string) => void;
   addItem: (product: ProductSummary) => void;
+  duplicateLine: (tabId: string, lineId: string) => void;
   updateQuantity: (tabId: string, lineId: string, quantity: number) => void;
   updateLinePrice: (tabId: string, lineId: string, unitPrice: number) => void;
   setLineDiscount: (tabId: string, lineId: string, discountType: LineDiscountType, discountValue: number) => void;
@@ -129,6 +130,26 @@ export const usePosStore = create<PosState>()(
               name: product.name,
               imageUrl: product.imageUrl,
               unitPrice: product.sellPrice,
+              quantity: 1,
+              discountType: "AMOUNT",
+              discountValue: 0,
+            };
+            return { ...tab, items: [...tab.items, newLine] };
+          }),
+        })),
+
+      // Adds a fresh line for the same product instead of bumping an existing
+      // line's quantity — used by the cart row's "+" button, since each unit
+      // may need its own price/discount (e.g. per-lens prescriptions).
+      duplicateLine: (tabId, lineId) =>
+        set((state) => ({
+          tabs: state.tabs.map((tab) => {
+            if (tab.id !== tabId) return tab;
+            const source = tab.items.find((line) => line.lineId === lineId);
+            if (!source) return tab;
+            const newLine: CartLine = {
+              ...source,
+              lineId: crypto.randomUUID(),
               quantity: 1,
               discountType: "AMOUNT",
               discountValue: 0,
