@@ -1,13 +1,15 @@
 import { useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Ban } from "lucide-react";
+import { Ban, Search, SlidersHorizontal } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DatePicker } from "@/components/shared/date-picker";
+import { useSearchDropdown } from "@/hooks/use-search-dropdown";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
 import { PERIOD_PRESET_OPTIONS, formatPeriodLabel, getPeriodRange, type PeriodPreset } from "@/lib/period-presets";
 import { useAuthStore } from "@/stores/auth-store";
@@ -29,6 +31,12 @@ export function OrdersPage() {
   const [showCancelled, setShowCancelled] = useState(true);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [confirmingVoid, setConfirmingVoid] = useState(false);
+  const [codeQuery, setCodeQuery] = useState("");
+  const [productQuery, setProductQuery] = useState("");
+  const [customerQuery, setCustomerQuery] = useState("");
+  const [appliedQuery, setAppliedQuery] = useState({ code: "", product: "", customer: "" });
+  const { open: searchOpen, openNow: openSearch, closeSoon: closeSearchSoon, closeNow: closeSearchNow } =
+    useSearchDropdown();
 
   const range = useMemo(
     () => getPeriodRange(preset, { from: customFrom, to: customTo }),
@@ -44,14 +52,43 @@ export function OrdersPage() {
     to: range.to.toISOString(),
   });
 
-  const filteredInvoices = useMemo(
-    () =>
-      (invoices ?? []).filter(
-        (inv) =>
-          (inv.status === "COMPLETED" && showCompleted) || (inv.status === "CANCELLED" && showCancelled),
-      ),
-    [invoices, showCompleted, showCancelled],
-  );
+  const filteredInvoices = useMemo(() => {
+    const codeQ = appliedQuery.code.trim().toLowerCase();
+    const productQ = appliedQuery.product.trim().toLowerCase();
+    const customerQ = appliedQuery.customer.trim().toLowerCase();
+
+    return (invoices ?? []).filter((inv) => {
+      if (!((inv.status === "COMPLETED" && showCompleted) || (inv.status === "CANCELLED" && showCancelled))) {
+        return false;
+      }
+      if (codeQ && !inv.code.toLowerCase().includes(codeQ)) return false;
+      if (
+        productQ &&
+        !inv.items.some(
+          (item) =>
+            item.product.name.toLowerCase().includes(productQ) ||
+            item.product.sku.toLowerCase().includes(productQ),
+        )
+      ) {
+        return false;
+      }
+      if (customerQ) {
+        const c = inv.customer;
+        const matches =
+          !!c &&
+          (c.name.toLowerCase().includes(customerQ) ||
+            c.code.toLowerCase().includes(customerQ) ||
+            (c.phone ?? "").includes(customerQ));
+        if (!matches) return false;
+      }
+      return true;
+    });
+  }, [invoices, showCompleted, showCancelled, appliedQuery]);
+
+  function applySearch() {
+    setAppliedQuery({ code: codeQuery, product: productQuery, customer: customerQuery });
+    closeSearchNow();
+  }
 
   const total = useMemo(
     () => filteredInvoices.reduce((sum, inv) => sum + inv.totalAmount, 0),
@@ -211,6 +248,64 @@ export function OrdersPage() {
         </Card>
 
         <div className="space-y-3">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={codeQuery}
+              onChange={(e) => setCodeQuery(e.target.value)}
+              onFocus={openSearch}
+              onBlur={() => closeSearchSoon()}
+              onKeyDown={(e) => e.key === "Enter" && applySearch()}
+              placeholder="Theo mã hóa đơn"
+              className="h-10 pl-9 pr-10"
+            />
+            <button
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => (searchOpen ? closeSearchNow() : openSearch())}
+              className="absolute right-2.5 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded text-muted-foreground hover:bg-accent"
+            >
+              <SlidersHorizontal className="h-4 w-4" />
+            </button>
+
+            {searchOpen && (
+              <div className="absolute left-0 top-full z-30 mt-1 w-full min-w-[320px] space-y-2 rounded-md border bg-popover p-3 shadow-lg">
+                <Input
+                  value={codeQuery}
+                  onChange={(e) => setCodeQuery(e.target.value)}
+                  onFocus={openSearch}
+                  onBlur={() => closeSearchSoon()}
+                  onKeyDown={(e) => e.key === "Enter" && applySearch()}
+                  placeholder="Theo mã hóa đơn"
+                />
+                <Input
+                  value={productQuery}
+                  onChange={(e) => setProductQuery(e.target.value)}
+                  onFocus={openSearch}
+                  onBlur={() => closeSearchSoon()}
+                  onKeyDown={(e) => e.key === "Enter" && applySearch()}
+                  placeholder="Theo mã, tên hàng"
+                />
+                <Input
+                  value={customerQuery}
+                  onChange={(e) => setCustomerQuery(e.target.value)}
+                  onFocus={openSearch}
+                  onBlur={() => closeSearchSoon()}
+                  onKeyDown={(e) => e.key === "Enter" && applySearch()}
+                  placeholder="Theo mã, tên, số điện thoại khách hàng"
+                />
+                <div className="flex justify-end gap-2 pt-1">
+                  <Button variant="outline" size="sm" onMouseDown={(e) => e.preventDefault()} onClick={closeSearchNow}>
+                    Mở rộng
+                  </Button>
+                  <Button size="sm" onMouseDown={(e) => e.preventDefault()} onClick={applySearch}>
+                    Tìm kiếm
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+
           <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
             <span>{periodLabel}</span>
             <div className="flex items-center gap-3">

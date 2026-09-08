@@ -21,7 +21,8 @@ export async function voidInvoice(id: string): Promise<InvoiceSummary> {
   return data;
 }
 
-export interface InvoiceListItem extends InvoiceSummary {
+export interface InvoiceListItem extends Omit<InvoiceSummary, "items"> {
+  items: { productId: string; product: { name: string; sku: string } }[];
   createdByName: string;
   customer: { code: string; name: string; phone: string | null } | null;
 }
