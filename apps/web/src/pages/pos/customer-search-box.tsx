@@ -4,6 +4,7 @@ import type { CustomerSummary } from "@smartpos/shared";
 import { useCustomerSearch } from "@/features/customers/hooks";
 import { useSearchDropdown } from "@/hooks/use-search-dropdown";
 import { Input } from "@/components/ui/input";
+import { CustomerDetailDialog } from "@/components/shared/customer-detail-dialog";
 
 interface CustomerSearchBoxProps {
   customer?: CustomerSummary;
@@ -16,19 +17,29 @@ export const CustomerSearchBox = forwardRef<HTMLInputElement, CustomerSearchBoxP
   ref,
 ) {
   const [search, setSearch] = useState("");
+  const [detailOpen, setDetailOpen] = useState(false);
   const { open, openNow, closeSoon, closeNow } = useSearchDropdown();
   const { data: results } = useCustomerSearch(search);
 
   if (customer) {
     return (
       <div className="flex items-center justify-between rounded-md border bg-accent/40 px-3 py-2 text-sm">
-        <div>
-          <p className="font-medium">{customer.name}</p>
+        <button
+          type="button"
+          onClick={() => setDetailOpen(true)}
+          className="text-left hover:underline"
+          title="Xem thông tin khách hàng"
+        >
+          <p className="font-medium text-primary">{customer.name}</p>
           <p className="text-xs text-muted-foreground">{customer.phone}</p>
-        </div>
+        </button>
         <button onClick={() => onSelect(undefined)} className="text-muted-foreground hover:text-foreground">
           <X className="h-4 w-4" />
         </button>
+        <CustomerDetailDialog
+          customerId={detailOpen ? customer.id : null}
+          onOpenChange={(o) => setDetailOpen(o)}
+        />
       </div>
     );
   }
