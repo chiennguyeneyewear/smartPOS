@@ -1,38 +1,68 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import type { ColumnDef } from "@tanstack/react-table";
-import { Plus, Search } from "lucide-react";
+import { ChevronDown, ImageOff, Search, SlidersHorizontal, Star, Upload } from "lucide-react";
 import { productSchema, type ProductInput, type ProductSummary } from "@smartpos/shared";
 import { PageHeader } from "@/components/shared/page-header";
-import { DataTable } from "@/components/shared/data-table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { formatCurrency } from "@/lib/utils";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
+import { toast } from "@/stores/toast-store";
+import { useAuthStore } from "@/stores/auth-store";
 import { useCategories, useCreateProduct, useProducts, useUnits } from "@/features/products/hooks";
 
-const columns: ColumnDef<ProductSummary, any>[] = [
-  { accessorKey: "sku", header: "Mã hàng" },
-  {
-    accessorKey: "name",
-    header: "Tên sản phẩm",
-    cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
-  },
-  { accessorFn: (row) => row.unit?.name, header: "ĐVT" },
-  { accessorKey: "costPrice", header: "Giá vốn", cell: ({ getValue }) => formatCurrency(getValue() as number) },
-  { accessorKey: "sellPrice", header: "Giá bán", cell: ({ getValue }) => formatCurrency(getValue() as number) },
-];
+function formatNumber(value: number): string {
+  return value.toLocaleString("en-US");
+}
 
 export function ProductsPage() {
+  const activeBranchId = useAuthStore((s) => s.activeBranchId);
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
-  const { data, isLoading } = useProducts({ search, page: 1, pageSize: 50 });
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
+  const { data, isLoading } = useProducts({ search, branchId: activeBranchId ?? undefined, page: 1, pageSize: 50 });
   const { data: categories } = useCategories();
   const { data: units } = useUnits();
   const createProduct = useCreateProduct();
+
+  const products = data?.data ?? [];
+  const totalStockValue = useMemo(
+    () => products.reduce((sum, p) => sum + p.costPrice * (p.stockQuantity ?? 0), 0),
+    [products],
+  );
+  const allSelected = products.length > 0 && products.every((p) => selectedIds.has(p.id));
+
+  function toggleAll() {
+    setSelectedIds(allSelected ? new Set() : new Set(products.map((p) => p.id)));
+  }
+
+  function toggleOne(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleFavorite(id: string) {
+    setFavoriteIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
 
   const {
     register,
@@ -53,27 +83,128 @@ export function ProductsPage() {
 
   return (
     <div>
-      <PageHeader
-        title="Hàng hóa"
-        description="Quản lý danh mục sản phẩm"
-        actions={
-          <Button onClick={() => setOpen(true)} className="gap-1.5">
-            <Plus className="h-4 w-4" /> Thêm sản phẩm
-          </Button>
-        }
-      />
+      <PageHeader title="Hàng hóa" description="Quản lý danh mục sản phẩm" />
 
-      <div className="relative mb-3 max-w-sm">
-        <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Tìm theo tên, mã hàng, mã vạch..."
-          className="pl-8"
-        />
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <div className="relative max-w-sm flex-1">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Theo mã, tên hàng"
+            className="pl-8 pr-9"
+          />
+          <SlidersHorizontal className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        </div>
+
+        <div className="flex items-center gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="gap-1.5 border-primary text-primary hover:bg-primary/5">
+                Tạo mới
+                <ChevronDown className="h-3.5 w-3.5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setOpen(true)}>Hàng hóa</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Button
+            variant="outline"
+            className="gap-1.5"
+            onClick={() => toast({ title: "Tính năng nhập hàng từ Excel đang được phát triển" })}
+          >
+            <Upload className="h-4 w-4" />
+            Import
+          </Button>
+        </div>
       </div>
 
-      <DataTable columns={columns} data={data?.data ?? []} isLoading={isLoading} emptyMessage="Chưa có sản phẩm" />
+      <div className="overflow-auto rounded-md border">
+        <table className="w-full text-sm">
+          <thead className="bg-muted/50">
+            <tr>
+              <th className="w-10 p-3">
+                <input type="checkbox" checked={allSelected} onChange={toggleAll} />
+              </th>
+              <th className="w-10 p-3" />
+              <th className="w-14 p-3" />
+              <th className="whitespace-nowrap p-3 text-left text-sm font-semibold text-muted-foreground">
+                Mã hàng
+              </th>
+              <th className="whitespace-nowrap p-3 text-left text-sm font-semibold text-muted-foreground">
+                Tên hàng
+              </th>
+              <th className="whitespace-nowrap p-3 text-right text-sm font-semibold text-muted-foreground">
+                Giá bán
+              </th>
+              <th className="whitespace-nowrap p-3 text-right text-sm font-semibold text-muted-foreground">
+                Giá vốn
+              </th>
+              <th className="whitespace-nowrap p-3 text-right text-sm font-semibold text-muted-foreground">
+                Tồn kho
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {!isLoading && products.length > 0 && (
+              <tr className="border-t bg-muted/20">
+                <td colSpan={6} />
+                <td colSpan={2} className="whitespace-nowrap p-3 text-right font-semibold">
+                  {formatNumber(totalStockValue)}
+                </td>
+              </tr>
+            )}
+            {isLoading && (
+              <tr>
+                <td colSpan={8} className="p-6 text-center text-sm text-muted-foreground">
+                  Đang tải dữ liệu...
+                </td>
+              </tr>
+            )}
+            {!isLoading && products.length === 0 && (
+              <tr>
+                <td colSpan={8} className="p-6 text-center text-sm text-muted-foreground">
+                  Chưa có sản phẩm
+                </td>
+              </tr>
+            )}
+            {!isLoading &&
+              products.map((p: ProductSummary) => (
+                <tr key={p.id} className="border-t hover:bg-accent/40">
+                  <td className="p-3">
+                    <input type="checkbox" checked={selectedIds.has(p.id)} onChange={() => toggleOne(p.id)} />
+                  </td>
+                  <td className="p-3">
+                    <button
+                      type="button"
+                      onClick={() => toggleFavorite(p.id)}
+                      className="text-muted-foreground hover:text-amber-400"
+                    >
+                      <Star className={cn("h-4 w-4", favoriteIds.has(p.id) && "fill-amber-400 text-amber-400")} />
+                    </button>
+                  </td>
+                  <td className="p-3">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded bg-muted">
+                      {p.imageUrl ? (
+                        <img src={p.imageUrl} alt="" className="h-full w-full object-cover" />
+                      ) : (
+                        <ImageOff className="h-4 w-4 text-muted-foreground" />
+                      )}
+                    </div>
+                  </td>
+                  <td className="whitespace-nowrap p-3">{p.sku}</td>
+                  <td className="min-w-[220px] p-3 font-medium">{p.name}</td>
+                  <td className="whitespace-nowrap p-3 text-right">{formatNumber(p.sellPrice)}</td>
+                  <td className="whitespace-nowrap p-3 text-right">{formatNumber(p.costPrice)}</td>
+                  <td className="whitespace-nowrap p-3 text-right">
+                    {typeof p.stockQuantity === "number" ? formatNumber(p.stockQuantity) : "—"}
+                  </td>
+                </tr>
+              ))}
+          </tbody>
+        </table>
+      </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
