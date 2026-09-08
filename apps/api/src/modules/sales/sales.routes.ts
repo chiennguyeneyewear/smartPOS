@@ -45,6 +45,19 @@ export function registerSalesRoutes(app: FastifyInstance) {
     },
   );
 
+  app.delete(
+    "/sales/invoices",
+    { preHandler: [authenticate, requirePermission(PERMISSIONS.SALES_VOID)] },
+    async (request, reply) => {
+      const { ids } = request.body as { ids: string[] };
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return reply.code(400).send({ message: "Danh sách hóa đơn cần xóa không hợp lệ" });
+      }
+      await salesService.deleteInvoices(ids);
+      return reply.code(204).send();
+    },
+  );
+
   app.get("/sales/invoices", { preHandler: [authenticate, branchScope] }, async (request) => {
     const query = request.query as {
       branchId?: string;

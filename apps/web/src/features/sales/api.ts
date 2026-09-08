@@ -37,3 +37,7 @@ export async function fetchInvoices(params: {
   const { data } = await apiClient.get<{ data: InvoiceListItem[] }>("/sales/invoices", { params });
   return data.data;
 }
+
+export async function deleteInvoices(ids: string[]): Promise<void> {
+  await apiClient.delete("/sales/invoices", { data: { ids } });
+}

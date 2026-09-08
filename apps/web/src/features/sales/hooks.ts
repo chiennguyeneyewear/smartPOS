@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { CheckoutInvoiceInput, SaveInvoiceInput } from "@smartpos/shared";
 import { toast } from "@/stores/toast-store";
-import { checkoutInvoice, createDraftInvoice, fetchInvoices, updateDraftInvoice, voidInvoice } from "./api";
+import { checkoutInvoice, createDraftInvoice, deleteInvoices, fetchInvoices, updateDraftInvoice, voidInvoice } from "./api";
 
 export function useInvoices(params: {
   branchId?: string;
@@ -52,6 +52,26 @@ export function useVoidInvoice() {
       queryClient.invalidateQueries({ queryKey: ["invoices"] });
       queryClient.invalidateQueries({ queryKey: ["inventory"] });
       toast({ title: "Đã hủy hóa đơn", variant: "success" });
+    },
+  });
+}
+
+export function useDeleteInvoices() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: deleteInvoices,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["invoices"] });
+      queryClient.invalidateQueries({ queryKey: ["inventory"] });
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
+      toast({ title: "Đã xóa hóa đơn", variant: "success" });
+    },
+    onError: (error: unknown) => {
+      const message =
+        error && typeof error === "object" && "response" in error
+          ? (error as { response?: { data?: { message?: string } } }).response?.data?.message
+          : undefined;
+      toast({ title: "Xóa hóa đơn thất bại", description: message, variant: "destructive" });
     },
   });
 }
