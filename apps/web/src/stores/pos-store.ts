@@ -16,6 +16,7 @@ export type { LineDiscountType };
 export interface CartLine {
   lineId: string;
   productId: string;
+  sku: string;
   name: string;
   imageUrl: string | null;
   unitPrice: number;
@@ -124,6 +125,7 @@ export const usePosStore = create<PosState>()(
             const newLine: CartLine = {
               lineId: crypto.randomUUID(),
               productId: product.id,
+              sku: product.sku,
               name: product.name,
               imageUrl: product.imageUrl,
               unitPrice: product.sellPrice,
