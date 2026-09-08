@@ -98,10 +98,24 @@ export async function updateDraftInvoice(id: string, input: SaveInvoiceInput) {
 // atomically record the invoice + payments, deduct stock, and update customer debt.
 export async function checkoutInvoice(id: string, input: CheckoutInvoiceInput, createdById: string) {
   return prisma.$transaction(async (tx) => {
-    const invoice = await tx.invoice.findUnique({ where: { id }, include: { items: true } });
+    const invoice = await tx.invoice.findUnique({
+      where: { id },
+      include: { items: { include: { product: true } } },
+    });
     if (!invoice) throw new SalesError("Không tìm thấy hóa đơn", 404);
     if (invoice.status !== InvoiceStatus.DRAFT) {
       throw new SalesError("Hóa đơn đã được xử lý trước đó");
+    }
+
+    const stockItems = await tx.stockItem.findMany({
+      where: { branchId: invoice.branchId, productId: { in: invoice.items.map((item) => item.productId) } },
+    });
+    const stockByProductId = new Map(stockItems.map((s) => [s.productId, Number(s.quantity)]));
+    for (const item of invoice.items) {
+      const available = stockByProductId.get(item.productId) ?? 0;
+      if (available < Number(item.quantity)) {
+        throw new SalesError(`Không đủ số lượng tồn kho cho sản phẩm ${item.product.name}`);
+      }
     }
 
     const paidAmount = input.payments.reduce((sum, p) => sum + p.amount, 0);
