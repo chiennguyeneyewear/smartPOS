@@ -12,7 +12,6 @@ import { InvoiceTabsBar } from "./invoice-tabs-bar";
 import { ProductQuickSearch } from "./product-quick-search";
 import { ProductGridPanel } from "./product-grid-panel";
 import { CartPanel } from "./cart-panel";
-import { SaleModeTabs } from "./sale-mode-tabs";
 import { CheckoutDialog } from "./checkout-dialog";
 import { CustomerFormDialog } from "@/components/shared/customer-form-dialog";
 
@@ -20,7 +19,6 @@ export function PosPage() {
   const activeBranchId = useAuthStore((s) => s.activeBranchId);
   const tabs = usePosStore((s) => s.tabs);
   const activeTabId = usePosStore((s) => s.activeTabId);
-  const setSaleMode = usePosStore((s) => s.setSaleMode);
   const setCustomer = usePosStore((s) => s.setCustomer);
   const resetTab = usePosStore((s) => s.resetTab);
 
@@ -124,7 +122,6 @@ export function PosPage() {
           onRequestQuickAddCustomer={() => setQuickAddOpen(true)}
         />
       </div>
-      <SaleModeTabs value={tab.saleMode} onChange={(mode) => setSaleMode(tab.id, mode)} />
 
       <CheckoutDialog
         open={checkoutOpen}

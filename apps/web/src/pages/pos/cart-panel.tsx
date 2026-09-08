@@ -14,7 +14,6 @@ interface CartPanelProps {
 export function CartPanel({ tab, onRequestCheckout }: CartPanelProps) {
   const updateQuantity = usePosStore((s) => s.updateQuantity);
   const removeItem = usePosStore((s) => s.removeItem);
-  const setNote = usePosStore((s) => s.setNote);
   const setDiscount = usePosStore((s) => s.setDiscount);
   const [openDiscountLineId, setOpenDiscountLineId] = useState<string | null>(null);
 
@@ -94,12 +93,6 @@ export function CartPanel({ tab, onRequestCheckout }: CartPanelProps) {
       </div>
 
       <div className="space-y-2.5 border-t p-4">
-        <Input
-          placeholder="Ghi chú đơn hàng"
-          value={tab.note}
-          onChange={(e) => setNote(tab.id, e.target.value)}
-          className="text-sm"
-        />
         <div className="flex items-center justify-between text-sm">
           <span className="text-muted-foreground">Giảm giá</span>
           <Input
