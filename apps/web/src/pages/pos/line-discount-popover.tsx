@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { usePosStore, getLineUnitDiscount, type CartLine, type LineDiscountType } from "@/stores/pos-store";
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 interface LineDiscountPopoverProps {
   tabId: string;
@@ -9,8 +9,19 @@ interface LineDiscountPopoverProps {
   onOpenChange: (open: boolean) => void;
 }
 
+// This popover matches the reference exactly: plain comma-grouped numbers
+// (no ₫ suffix, no vi-VN dot separator) in the app's primary blue, unlike
+// formatCurrency used everywhere else in the app.
+function formatNumber(value: number): string {
+  return value.toLocaleString("en-US");
+}
+
+function parseNumber(raw: string): number {
+  return Number(raw.replace(/[^\d]/g, "")) || 0;
+}
+
 const lineInputClass =
-  "w-28 shrink-0 rounded-none border-0 border-b border-input bg-transparent px-0 py-1 text-right text-sm text-foreground shadow-none outline-none focus-visible:border-primary";
+  "w-28 shrink-0 rounded-none border-0 border-b border-input bg-transparent px-0 py-1 text-right text-sm text-primary shadow-none outline-none focus-visible:border-primary";
 
 // Every field here writes straight to the store on change (no local draft +
 // commit-on-close step) so the cart total is always exactly what's in the
@@ -48,29 +59,28 @@ export function LineDiscountPopover({ tabId, line, open, onOpenChange }: LineDis
       className="absolute right-0 top-full z-30 mt-1 w-72 space-y-4 rounded-xl border bg-popover p-4 shadow-lg"
     >
       <div className="flex items-center justify-between gap-3">
-        <span className="text-sm text-muted-foreground">Đơn giá</span>
+        <span className="text-sm font-semibold text-foreground">Đơn giá</span>
         <input
-          type="number"
-          min={0}
-          value={line.unitPrice}
-          onChange={(e) => updateLinePrice(tabId, line.lineId, Math.max(0, Number(e.target.value)))}
+          type="text"
+          inputMode="numeric"
+          value={formatNumber(line.unitPrice)}
+          onChange={(e) => updateLinePrice(tabId, line.lineId, Math.max(0, parseNumber(e.target.value)))}
           className={cn(lineInputClass, "font-medium")}
         />
       </div>
       <div className="flex items-center justify-between gap-3">
-        <span className="text-sm text-muted-foreground">Giảm giá</span>
+        <span className="text-sm font-semibold text-foreground">Giảm giá</span>
         <div className="flex flex-1 items-center justify-end gap-2">
           <input
-            type="number"
-            min={0}
-            max={discountMax}
-            value={line.discountValue || ""}
+            type="text"
+            inputMode="numeric"
+            value={line.discountValue ? formatNumber(line.discountValue) : ""}
             onChange={(e) =>
               setLineDiscount(
                 tabId,
                 line.lineId,
                 line.discountType,
-                Math.min(Math.max(0, Number(e.target.value)), discountMax),
+                Math.min(Math.max(0, parseNumber(e.target.value)), discountMax),
               )
             }
             className={cn(lineInputClass, "text-left")}
@@ -104,10 +114,8 @@ export function LineDiscountPopover({ tabId, line, open, onOpenChange }: LineDis
         </div>
       </div>
       <div className="flex items-center justify-between gap-3">
-        <span className="text-sm text-muted-foreground">Giá bán</span>
-        <span className={cn(lineInputClass, "inline-block font-medium leading-6")}>
-          {formatCurrency(sellPrice)}
-        </span>
+        <span className="text-sm font-semibold text-foreground">Giá bán</span>
+        <span className={cn(lineInputClass, "inline-block font-medium leading-6")}>{formatNumber(sellPrice)}</span>
       </div>
     </div>
   );
