@@ -1,7 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { CheckoutInvoiceInput, SaveInvoiceInput } from "@smartpos/shared";
 import { toast } from "@/stores/toast-store";
-import { checkoutInvoice, createDraftInvoice, deleteInvoices, fetchInvoices, updateDraftInvoice, voidInvoice } from "./api";
+import {
+  checkoutInvoice,
+  createDraftInvoice,
+  fetchInvoices,
+  updateDraftInvoice,
+  voidInvoice,
+  voidInvoices,
+} from "./api";
 
 export function useInvoices(params: {
   branchId?: string;
@@ -56,22 +63,22 @@ export function useVoidInvoice() {
   });
 }
 
-export function useDeleteInvoices() {
+export function useVoidInvoices() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: deleteInvoices,
+    mutationFn: voidInvoices,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["invoices"] });
       queryClient.invalidateQueries({ queryKey: ["inventory"] });
       queryClient.invalidateQueries({ queryKey: ["customers"] });
-      toast({ title: "Đã xóa hóa đơn", variant: "success" });
+      toast({ title: "Đã hủy hóa đơn", variant: "success" });
     },
     onError: (error: unknown) => {
       const message =
         error && typeof error === "object" && "response" in error
           ? (error as { response?: { data?: { message?: string } } }).response?.data?.message
           : undefined;
-      toast({ title: "Xóa hóa đơn thất bại", description: message, variant: "destructive" });
+      toast({ title: "Hủy hóa đơn thất bại", description: message, variant: "destructive" });
     },
   });
 }

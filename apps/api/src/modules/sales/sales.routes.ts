@@ -45,15 +45,15 @@ export function registerSalesRoutes(app: FastifyInstance) {
     },
   );
 
-  app.delete(
-    "/sales/invoices",
+  app.post(
+    "/sales/invoices/void-bulk",
     { preHandler: [authenticate, requirePermission(PERMISSIONS.SALES_VOID)] },
     async (request, reply) => {
       const { ids } = request.body as { ids: string[] };
       if (!Array.isArray(ids) || ids.length === 0) {
-        return reply.code(400).send({ message: "Danh sách hóa đơn cần xóa không hợp lệ" });
+        return reply.code(400).send({ message: "Danh sách hóa đơn cần hủy không hợp lệ" });
       }
-      await salesService.deleteInvoices(ids);
+      await salesService.voidInvoices(ids, request.authUser!.id);
       return reply.code(204).send();
     },
   );

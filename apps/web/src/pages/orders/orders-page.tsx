@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Trash2 } from "lucide-react";
+import { Ban } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,7 +11,7 @@ import { DatePicker } from "@/components/shared/date-picker";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
 import { PERIOD_PRESET_OPTIONS, formatPeriodLabel, getPeriodRange, type PeriodPreset } from "@/lib/period-presets";
 import { useAuthStore } from "@/stores/auth-store";
-import { useDeleteInvoices, useInvoices } from "@/features/sales/hooks";
+import { useInvoices, useVoidInvoices } from "@/features/sales/hooks";
 import type { InvoiceListItem } from "@/features/sales/api";
 import { useUsers } from "@/features/users/hooks";
 
@@ -28,7 +28,7 @@ export function OrdersPage() {
   const [showCompleted, setShowCompleted] = useState(true);
   const [showCancelled, setShowCancelled] = useState(true);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [confirmingVoid, setConfirmingVoid] = useState(false);
 
   const range = useMemo(
     () => getPeriodRange(preset, { from: customFrom, to: customTo }),
@@ -76,13 +76,13 @@ export function OrdersPage() {
     });
   }
 
-  const deleteInvoices = useDeleteInvoices();
+  const voidInvoices = useVoidInvoices();
 
-  function confirmDelete() {
-    deleteInvoices.mutate([...selectedIds], {
+  function confirmVoid() {
+    voidInvoices.mutate([...selectedIds], {
       onSuccess: () => {
         setSelectedIds(new Set());
-        setConfirmingDelete(false);
+        setConfirmingVoid(false);
       },
     });
   }
@@ -215,9 +215,9 @@ export function OrdersPage() {
             <span>{periodLabel}</span>
             <div className="flex items-center gap-3">
               {selectedIds.size > 0 && (
-                <Button variant="destructive" size="sm" onClick={() => setConfirmingDelete(true)}>
-                  <Trash2 className="mr-1.5 h-4 w-4" />
-                  Xóa ({selectedIds.size})
+                <Button variant="destructive" size="sm" onClick={() => setConfirmingVoid(true)}>
+                  <Ban className="mr-1.5 h-4 w-4" />
+                  Hủy đơn ({selectedIds.size})
                 </Button>
               )}
               <span>
@@ -235,22 +235,22 @@ export function OrdersPage() {
         </div>
       </div>
 
-      <Dialog open={confirmingDelete} onOpenChange={setConfirmingDelete}>
+      <Dialog open={confirmingVoid} onOpenChange={setConfirmingVoid}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Xóa hóa đơn</DialogTitle>
+            <DialogTitle>Hủy hóa đơn</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            Bạn có chắc chắn muốn xóa <span className="font-medium text-foreground">{selectedIds.size}</span>{" "}
-            hóa đơn đã chọn? Hành động này không thể hoàn tác — tồn kho và công nợ liên quan (nếu có) sẽ được
-            hoàn trả tự động.
+            Bạn có chắc chắn muốn hủy <span className="font-medium text-foreground">{selectedIds.size}</span>{" "}
+            hóa đơn đã chọn? Hóa đơn sẽ chuyển sang trạng thái "Đã hủy" — tồn kho và công nợ liên quan (nếu
+            có) sẽ được hoàn trả tự động. Hành động này không thể hoàn tác.
           </p>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setConfirmingDelete(false)}>
-              Hủy
+            <Button variant="outline" onClick={() => setConfirmingVoid(false)}>
+              Đóng
             </Button>
-            <Button variant="destructive" onClick={confirmDelete} disabled={deleteInvoices.isPending}>
-              {deleteInvoices.isPending ? "Đang xóa..." : "Xóa hóa đơn"}
+            <Button variant="destructive" onClick={confirmVoid} disabled={voidInvoices.isPending}>
+              {voidInvoices.isPending ? "Đang hủy..." : "Hủy hóa đơn"}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -213,38 +213,19 @@ export async function voidInvoice(id: string, _voidedById: string) {
   });
 }
 
-// Permanently removes invoices (unlike voidInvoice, which only marks them CANCELLED).
-// Still safe to call on a COMPLETED invoice: stock and any debt it created are
-// reversed first, exactly as voidInvoice does, before the row itself is deleted.
-export async function deleteInvoices(ids: string[]) {
-  return prisma.$transaction(async (tx) => {
-    for (const id of ids) {
-      const invoice = await tx.invoice.findUnique({ where: { id }, include: { items: true, payments: true } });
-      if (!invoice) continue;
-
-      if (invoice.status === InvoiceStatus.COMPLETED) {
-        for (const item of invoice.items) {
-          await tx.stockItem.upsert({
-            where: { productId_branchId: { productId: item.productId, branchId: invoice.branchId } },
-            create: { productId: item.productId, branchId: invoice.branchId, quantity: item.quantity },
-            update: { quantity: { increment: item.quantity } },
-          });
-        }
-
-        const debtPayments = invoice.payments.filter((p) => p.method === PaymentMethod.DEBT);
-        if (debtPayments.length > 0 && invoice.customerId) {
-          const debtAmount = debtPayments.reduce((sum, p) => sum + Number(p.amount), 0);
-          await tx.customer.update({
-            where: { id: invoice.customerId },
-            data: { debtBalance: { decrement: debtAmount } },
-          });
-        }
-      }
-
-      await tx.debtLedgerEntry.deleteMany({ where: { invoiceId: id } });
-      await tx.invoice.delete({ where: { id } });
+// Bulk version of voidInvoice for the Orders page's multi-select "Hủy" action.
+// Each invoice gets its own transaction (reusing voidInvoice as-is) rather than
+// one big transaction, so a large selection can't blow past Neon's interactive
+// transaction timeout. Invoices that are already DRAFT/CANCELLED, or don't
+// exist, are silently skipped instead of failing the whole batch.
+export async function voidInvoices(ids: string[], voidedById: string) {
+  for (const id of ids) {
+    try {
+      await voidInvoice(id, voidedById);
+    } catch (err) {
+      if (!(err instanceof SalesError)) throw err;
     }
-  });
+  }
 }
 
 export async function listInvoices(filters: {

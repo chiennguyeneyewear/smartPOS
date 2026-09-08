@@ -38,6 +38,6 @@ export async function fetchInvoices(params: {
   return data.data;
 }
 
-export async function deleteInvoices(ids: string[]): Promise<void> {
-  await apiClient.delete("/sales/invoices", { data: { ids } });
+export async function voidInvoices(ids: string[]): Promise<void> {
+  await apiClient.post("/sales/invoices/void-bulk", { ids });
 }
