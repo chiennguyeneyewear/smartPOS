@@ -40,7 +40,7 @@ const historyColumns: ColumnDef<InvoiceListItem, any>[] = [
   },
 ];
 
-function CustomerInfoForm({ customerId }: { customerId: string }) {
+function CustomerInfoForm({ customerId, onSaved }: { customerId: string; onSaved?: () => void }) {
   const { data: customer } = useCustomer(customerId);
   const updateCustomer = useUpdateCustomer();
 
@@ -71,7 +71,7 @@ function CustomerInfoForm({ customerId }: { customerId: string }) {
 
   function onSubmit() {
     form.handleSubmit((values) => {
-      updateCustomer.mutate({ id: customerId, input: values });
+      updateCustomer.mutate({ id: customerId, input: values }, { onSuccess: () => onSaved?.() });
     })();
   }
 
@@ -86,7 +86,7 @@ function CustomerInfoForm({ customerId }: { customerId: string }) {
   );
 }
 
-export function CustomerDetailTabs({ customerId }: { customerId: string }) {
+export function CustomerDetailTabs({ customerId, onSaved }: { customerId: string; onSaved?: () => void }) {
   const { data: invoices, isLoading: invoicesLoading } = useInvoices({ customerId });
 
   return (
@@ -97,7 +97,7 @@ export function CustomerDetailTabs({ customerId }: { customerId: string }) {
       </TabsList>
 
       <TabsContent value="info" className="pt-2">
-        <CustomerInfoForm customerId={customerId} />
+        <CustomerInfoForm customerId={customerId} onSaved={onSaved} />
       </TabsContent>
 
       <TabsContent value="history">

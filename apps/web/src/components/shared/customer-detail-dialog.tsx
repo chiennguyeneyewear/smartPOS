@@ -18,7 +18,9 @@ export function CustomerDetailDialog({ customerId, onOpenChange }: CustomerDetai
             {customer ? `${customer.name} · ${customer.code}` : "Chi tiết khách hàng"}
           </DialogTitle>
         </DialogHeader>
-        {customerId && <CustomerDetailTabs customerId={customerId} />}
+        {customerId && (
+          <CustomerDetailTabs customerId={customerId} onSaved={() => onOpenChange(false)} />
+        )}
       </DialogContent>
     </Dialog>
   );
