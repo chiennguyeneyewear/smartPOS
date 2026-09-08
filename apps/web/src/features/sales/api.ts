@@ -23,7 +23,7 @@ export async function voidInvoice(id: string): Promise<InvoiceSummary> {
 
 export interface InvoiceListItem extends InvoiceSummary {
   createdByName: string;
-  customer: { name: string; phone: string | null } | null;
+  customer: { code: string; name: string; phone: string | null } | null;
 }
 
 export async function fetchInvoices(params: {

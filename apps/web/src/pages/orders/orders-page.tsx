@@ -24,6 +24,11 @@ const columns: ColumnDef<InvoiceListItem, any>[] = [
     cell: ({ row }) => formatDateTime(row.original.createdAt),
   },
   {
+    id: "customerCode",
+    header: "Mã khách hàng",
+    cell: ({ row }) => row.original.customer?.code ?? "",
+  },
+  {
     id: "customerName",
     header: "Khách hàng",
     cell: ({ row }) => row.original.customer?.name ?? "Khách lẻ",
