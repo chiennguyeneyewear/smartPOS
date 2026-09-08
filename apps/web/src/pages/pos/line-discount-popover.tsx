@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { usePosStore, getLineUnitDiscount, type CartLine, type LineDiscountType } from "@/stores/pos-store";
 import { cn, formatCurrency } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
@@ -10,45 +10,35 @@ interface LineDiscountPopoverProps {
   onOpenChange: (open: boolean) => void;
 }
 
+// Every field here writes straight to the store on change (no local draft +
+// commit-on-close step) so the cart total is always exactly what's in the
+// store, even if checkout is triggered without ever clicking outside this
+// popover first.
 export function LineDiscountPopover({ tabId, line, open, onOpenChange }: LineDiscountPopoverProps) {
   const updateLinePrice = usePosStore((s) => s.updateLinePrice);
   const setLineDiscount = usePosStore((s) => s.setLineDiscount);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const [unitPrice, setUnitPrice] = useState(line.unitPrice);
-  const [discountValue, setDiscountValue] = useState(line.discountValue);
-  const [discountType, setDiscountType] = useState<LineDiscountType>(line.discountType);
-
-  useEffect(() => {
-    if (open) {
-      setUnitPrice(line.unitPrice);
-      setDiscountValue(line.discountValue);
-      setDiscountType(line.discountType);
-    }
-  }, [open, line.unitPrice, line.discountValue, line.discountType]);
-
   useEffect(() => {
     if (!open) return;
     function handleClickOutside(e: MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        commit();
         onOpenChange(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, unitPrice, discountValue, discountType]);
-
-  function commit() {
-    updateLinePrice(tabId, line.lineId, unitPrice);
-    setLineDiscount(tabId, line.lineId, discountType, discountValue);
-  }
+  }, [open, onOpenChange]);
 
   if (!open) return null;
 
-  const previewLine = { ...line, unitPrice, discountType, discountValue };
-  const sellPrice = Math.max(0, unitPrice - getLineUnitDiscount(previewLine));
+  const discountMax = line.discountType === "PERCENT" ? 100 : line.unitPrice;
+  const sellPrice = line.unitPrice - getLineUnitDiscount(line);
+
+  function setDiscountType(discountType: LineDiscountType) {
+    const max = discountType === "PERCENT" ? 100 : line.unitPrice;
+    setLineDiscount(tabId, line.lineId, discountType, Math.min(line.discountValue, max));
+  }
 
   return (
     <div
@@ -60,8 +50,8 @@ export function LineDiscountPopover({ tabId, line, open, onOpenChange }: LineDis
         <Input
           type="number"
           min={0}
-          value={unitPrice}
-          onChange={(e) => setUnitPrice(Number(e.target.value))}
+          value={line.unitPrice}
+          onChange={(e) => updateLinePrice(tabId, line.lineId, Math.max(0, Number(e.target.value)))}
           className="h-8 w-32 text-right text-xs"
         />
       </div>
@@ -71,8 +61,16 @@ export function LineDiscountPopover({ tabId, line, open, onOpenChange }: LineDis
           <Input
             type="number"
             min={0}
-            value={discountValue}
-            onChange={(e) => setDiscountValue(Number(e.target.value))}
+            max={discountMax}
+            value={line.discountValue}
+            onChange={(e) =>
+              setLineDiscount(
+                tabId,
+                line.lineId,
+                line.discountType,
+                Math.min(Math.max(0, Number(e.target.value)), discountMax),
+              )
+            }
             className="h-8 w-20 text-right text-xs"
           />
           <div className="flex overflow-hidden rounded-md border">
@@ -81,7 +79,7 @@ export function LineDiscountPopover({ tabId, line, open, onOpenChange }: LineDis
               onClick={() => setDiscountType("AMOUNT")}
               className={cn(
                 "px-2 py-1.5 text-[11px] font-medium",
-                discountType === "AMOUNT" ? "bg-primary text-primary-foreground" : "bg-background",
+                line.discountType === "AMOUNT" ? "bg-primary text-primary-foreground" : "bg-background",
               )}
             >
               VND
@@ -91,7 +89,7 @@ export function LineDiscountPopover({ tabId, line, open, onOpenChange }: LineDis
               onClick={() => setDiscountType("PERCENT")}
               className={cn(
                 "px-2 py-1.5 text-[11px] font-medium",
-                discountType === "PERCENT" ? "bg-primary text-primary-foreground" : "bg-background",
+                line.discountType === "PERCENT" ? "bg-primary text-primary-foreground" : "bg-background",
               )}
             >
               %

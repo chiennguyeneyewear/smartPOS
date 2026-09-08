@@ -3,7 +3,7 @@ import { GENDER } from "../constants/enums.js";
 
 export const customerSchema = z.object({
   name: z.string().min(1, "Tên khách hàng không được để trống"),
-  phone: z.string().optional().nullable(),
+  phone: z.string().min(1, "Số điện thoại không được để trống"),
   address: z.string().optional().nullable(),
   province: z.string().optional().nullable(),
   ward: z.string().optional().nullable(),

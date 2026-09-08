@@ -2,6 +2,7 @@ import { forwardRef, useState } from "react";
 import { Plus, Search, X } from "lucide-react";
 import type { CustomerSummary } from "@smartpos/shared";
 import { useCustomerSearch } from "@/features/customers/hooks";
+import { useSearchDropdown } from "@/hooks/use-search-dropdown";
 import { Input } from "@/components/ui/input";
 
 interface CustomerSearchBoxProps {
@@ -15,7 +16,7 @@ export const CustomerSearchBox = forwardRef<HTMLInputElement, CustomerSearchBoxP
   ref,
 ) {
   const [search, setSearch] = useState("");
-  const [open, setOpen] = useState(false);
+  const { open, openNow, closeSoon, closeNow } = useSearchDropdown();
   const { data: results } = useCustomerSearch(search);
 
   if (customer) {
@@ -42,10 +43,10 @@ export const CustomerSearchBox = forwardRef<HTMLInputElement, CustomerSearchBoxP
             value={search}
             onChange={(e) => {
               setSearch(e.target.value);
-              setOpen(true);
+              openNow();
             }}
-            onFocus={() => setOpen(true)}
-            onBlur={() => setTimeout(() => setOpen(false), 150)}
+            onFocus={openNow}
+            onBlur={() => closeSoon()}
             placeholder="Tìm khách hàng (F4)"
             className="pl-8"
           />
@@ -67,7 +68,7 @@ export const CustomerSearchBox = forwardRef<HTMLInputElement, CustomerSearchBoxP
                 onMouseDown={() => {
                   onSelect(c);
                   setSearch("");
-                  setOpen(false);
+                  closeNow();
                 }}
                 className="flex w-full flex-col items-start px-3 py-2 text-left text-sm hover:bg-accent"
               >

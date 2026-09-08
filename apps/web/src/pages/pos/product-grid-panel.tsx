@@ -9,7 +9,7 @@ import { CustomerSearchBox } from "./customer-search-box";
 const PAGE_SIZE = 18;
 
 interface ProductGridPanelProps {
-  tab: { customer?: CustomerSummary };
+  customer: CustomerSummary | undefined;
   tabId: string;
   customerInputRef: React.Ref<HTMLInputElement>;
   onRequestQuickAddCustomer: () => void;
@@ -18,7 +18,12 @@ interface ProductGridPanelProps {
 // Always-populated quick-pick catalog (best sellers / manually arranged), matching
 // the right-hand panel of the real in-store POS — product lookup itself happens via
 // the global search bar in the top toolbar instead of a search box in this panel.
-export function ProductGridPanel({ tab, tabId, customerInputRef, onRequestQuickAddCustomer }: ProductGridPanelProps) {
+export function ProductGridPanel({
+  customer,
+  tabId,
+  customerInputRef,
+  onRequestQuickAddCustomer,
+}: ProductGridPanelProps) {
   const [page, setPage] = useState(1);
   const addItem = usePosStore((s) => s.addItem);
   const setCustomer = usePosStore((s) => s.setCustomer);
@@ -31,7 +36,7 @@ export function ProductGridPanel({ tab, tabId, customerInputRef, onRequestQuickA
       <div className="border-b p-2">
         <CustomerSearchBox
           ref={customerInputRef}
-          customer={tab.customer}
+          customer={customer}
           onSelect={(c) => setCustomer(tabId, c)}
           onRequestQuickAdd={onRequestQuickAddCustomer}
         />
@@ -39,6 +44,9 @@ export function ProductGridPanel({ tab, tabId, customerInputRef, onRequestQuickA
 
       <div className="flex-1 overflow-auto p-2">
         {isLoading && <p className="p-4 text-sm text-muted-foreground">Đang tải sản phẩm...</p>}
+        {!isLoading && data?.data.length === 0 && (
+          <p className="p-4 text-sm text-muted-foreground">Chưa có sản phẩm nào.</p>
+        )}
         <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
           {data?.data.map((product) => (
             <button

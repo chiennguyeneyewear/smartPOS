@@ -2,7 +2,9 @@ import { forwardRef, useImperativeHandle, useRef, useState } from "react";
 import { ScanLine, Search, ImageOff } from "lucide-react";
 import { useProducts } from "@/features/products/hooks";
 import { usePosStore } from "@/stores/pos-store";
-import { formatCurrency } from "@/lib/utils";
+import { useSearchDropdown } from "@/hooks/use-search-dropdown";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { formatCurrency, cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 
 // The global "type a code, hit Enter" quick-add bar in the POS top toolbar —
@@ -12,13 +14,14 @@ export const ProductQuickSearch = forwardRef<HTMLInputElement, { className?: str
   forwardedRef,
 ) {
   const [search, setSearch] = useState("");
-  const [open, setOpen] = useState(false);
+  const debouncedSearch = useDebouncedValue(search, 250);
+  const { open, openNow, closeSoon } = useSearchDropdown();
   const addItem = usePosStore((s) => s.addItem);
   const inputRef = useRef<HTMLInputElement>(null);
   useImperativeHandle(forwardedRef, () => inputRef.current!);
 
-  const hasSearch = search.trim().length > 0;
-  const { data } = useProducts({ search, page: 1, pageSize: 8 }, { enabled: hasSearch });
+  const hasSearch = debouncedSearch.trim().length > 0;
+  const { data } = useProducts({ search: debouncedSearch, page: 1, pageSize: 8 }, { enabled: hasSearch });
   const results = data?.data ?? [];
 
   function handleAdd(productId: string) {
@@ -26,12 +29,11 @@ export const ProductQuickSearch = forwardRef<HTMLInputElement, { className?: str
     if (!product) return;
     addItem(product);
     setSearch("");
-    setOpen(false);
     inputRef.current?.focus();
   }
 
   return (
-    <div className={`relative flex items-center gap-2 ${className ?? ""}`}>
+    <div className={cn("relative flex items-center gap-2", className)}>
       <div className="relative flex-1">
         <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
@@ -39,10 +41,10 @@ export const ProductQuickSearch = forwardRef<HTMLInputElement, { className?: str
           value={search}
           onChange={(e) => {
             setSearch(e.target.value);
-            setOpen(true);
+            openNow();
           }}
-          onFocus={() => setOpen(true)}
-          onBlur={() => setTimeout(() => setOpen(false), 150)}
+          onFocus={openNow}
+          onBlur={() => closeSoon()}
           onKeyDown={(e) => {
             if (e.key === "Enter" && results.length === 1) {
               e.preventDefault();

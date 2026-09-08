@@ -1,5 +1,5 @@
 import { InvoiceStatus, PaymentMethod } from "@prisma/client";
-import type { CheckoutInvoiceInput, SaveInvoiceInput } from "@smartpos/shared";
+import { clampFlatLineDiscount, type CheckoutInvoiceInput, type SaveInvoiceInput } from "@smartpos/shared";
 import { prisma } from "../../lib/prisma.js";
 import { generateInvoiceCode } from "../../lib/codes.js";
 
@@ -12,13 +12,20 @@ class SalesError extends Error {
   }
 }
 
+// Defense in depth: re-clamp the discount server-side even though the POS
+// client already clamps it, so a line's discount can never exceed its own
+// value and drag down the rest of the invoice.
 function computeLineTotal(item: { quantity: number; unitPrice: number; discount: number }) {
-  return item.quantity * item.unitPrice - item.discount;
+  const discount = clampFlatLineDiscount(item.discount, item.quantity, item.unitPrice);
+  return item.quantity * item.unitPrice - discount;
 }
 
 function computeTotals(input: SaveInvoiceInput) {
   const subTotal = input.items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
-  const itemDiscounts = input.items.reduce((sum, item) => sum + item.discount, 0);
+  const itemDiscounts = input.items.reduce(
+    (sum, item) => sum + clampFlatLineDiscount(item.discount, item.quantity, item.unitPrice),
+    0,
+  );
   const totalAmount = subTotal - itemDiscounts - input.discountAmount;
   return { subTotal, totalAmount: Math.max(0, totalAmount) };
 }
@@ -43,7 +50,7 @@ export async function createDraftInvoice(input: SaveInvoiceInput, createdById: s
           productId: item.productId,
           quantity: item.quantity,
           unitPrice: item.unitPrice,
-          discount: item.discount,
+          discount: clampFlatLineDiscount(item.discount, item.quantity, item.unitPrice),
           lineTotal: computeLineTotal(item),
         })),
       },

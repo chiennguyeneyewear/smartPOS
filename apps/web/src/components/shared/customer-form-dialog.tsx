@@ -123,6 +123,7 @@ export function CustomerFormDialog({ open, onOpenChange, onCreated }: CustomerFo
           <div className="space-y-1.5">
             <Label>Điện thoại</Label>
             <Input {...register("phone")} />
+            {errors.phone && <p className="text-xs text-destructive">{errors.phone.message}</p>}
           </div>
           <div className="space-y-1.5">
             <Label>Ngày sinh</Label>

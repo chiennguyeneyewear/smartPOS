@@ -1,21 +1,13 @@
 import { useRef, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { Link } from "react-router-dom";
-import { LayoutGrid, LogOut, User } from "lucide-react";
+import { LayoutGrid } from "lucide-react";
 import type { CustomerSummary, PaymentMethod } from "@smartpos/shared";
 import { useAuthStore } from "@/stores/auth-store";
-import { useLogout } from "@/features/auth/hooks";
 import { usePosStore, getActiveTab, getLineTotal, getLineUnitDiscount } from "@/stores/pos-store";
 import { useCreateDraftInvoice, useCheckoutInvoice } from "@/features/sales/hooks";
 import { toast } from "@/stores/toast-store";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { UserMenu } from "@/components/shared/user-menu";
 import { InvoiceTabsBar } from "./invoice-tabs-bar";
 import { ProductQuickSearch } from "./product-quick-search";
 import { ProductGridPanel } from "./product-grid-panel";
@@ -25,9 +17,7 @@ import { CheckoutDialog } from "./checkout-dialog";
 import { CustomerFormDialog } from "@/components/shared/customer-form-dialog";
 
 export function PosPage() {
-  const user = useAuthStore((s) => s.user);
   const activeBranchId = useAuthStore((s) => s.activeBranchId);
-  const logout = useLogout();
   const tabs = usePosStore((s) => s.tabs);
   const activeTabId = usePosStore((s) => s.activeTabId);
   const setSaleMode = usePosStore((s) => s.setSaleMode);
@@ -122,28 +112,13 @@ export function PosPage() {
         <ProductQuickSearch ref={productSearchRef} className="max-w-xs" />
         <InvoiceTabsBar />
         <div className="flex shrink-0 items-center gap-1.5">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className="flex h-8 items-center gap-1.5 rounded-md px-2.5 text-sm font-medium text-primary-foreground hover:bg-white/10">
-                <User className="h-4 w-4" />
-                {user?.fullName}
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>{user?.email}</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onSelect={() => logout.mutate()}>
-                <LogOut className="mr-2 h-4 w-4" />
-                Đăng xuất
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <UserMenu className="text-primary-foreground hover:bg-white/10 hover:text-primary-foreground" />
         </div>
       </div>
       <div className="flex flex-1 overflow-hidden">
-        <CartPanel tab={tab} onRequestCheckout={handleOpenCheckout} />
+        <CartPanel key={tab.id} tab={tab} onRequestCheckout={handleOpenCheckout} />
         <ProductGridPanel
-          tab={tab}
+          customer={tab.customer}
           tabId={tab.id}
           customerInputRef={customerSearchRef}
           onRequestQuickAddCustomer={() => setQuickAddOpen(true)}

@@ -1,8 +1,17 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import { SALE_MODE, type ProductSummary, type SaleMode, type CustomerSummary } from "@smartpos/shared";
+import {
+  SALE_MODE,
+  computeLineUnitDiscount,
+  computeLineSellPrice,
+  computeLineTotal,
+  type ProductSummary,
+  type SaleMode,
+  type CustomerSummary,
+  type LineDiscountType,
+} from "@smartpos/shared";
 
-export type LineDiscountType = "AMOUNT" | "PERCENT";
+export type { LineDiscountType };
 
 export interface CartLine {
   lineId: string;
@@ -16,20 +25,18 @@ export interface CartLine {
 }
 
 // Discount is entered either as a flat VND amount or a percentage of unitPrice,
-// matching the KiotViet-style per-line discount popover.
+// matching the KiotViet-style per-line discount popover. The actual math lives
+// in packages/shared so the backend computes the exact same numbers.
 export function getLineUnitDiscount(line: CartLine): number {
-  if (line.discountType === "PERCENT") {
-    return Math.round((line.unitPrice * line.discountValue) / 100);
-  }
-  return line.discountValue;
+  return computeLineUnitDiscount(line.unitPrice, line.discountType, line.discountValue);
 }
 
 export function getLineSellPrice(line: CartLine): number {
-  return Math.max(0, line.unitPrice - getLineUnitDiscount(line));
+  return computeLineSellPrice(line.unitPrice, line.discountType, line.discountValue);
 }
 
 export function getLineTotal(line: CartLine): number {
-  return getLineSellPrice(line) * line.quantity;
+  return computeLineTotal(line.unitPrice, line.quantity, line.discountType, line.discountValue);
 }
 
 export interface PosTab {
@@ -196,6 +203,24 @@ export const usePosStore = create<PosState>()(
     {
       name: "smartpos-pos-cart",
       storage: createJSONStorage(() => sessionStorage),
+      // v0 -> v1: CartLine's flat `discount` number was split into
+      // `discountType`/`discountValue`. Without this, a cart persisted before
+      // that change would rehydrate with `discountType: undefined` and every
+      // total downstream would compute to NaN.
+      version: 1,
+      migrate: (persistedState, version) => {
+        const state = persistedState as { tabs?: Array<{ items?: Array<Record<string, unknown>> }> };
+        if (version < 1 && state?.tabs) {
+          for (const tab of state.tabs) {
+            tab.items = tab.items?.map((line) =>
+              "discountType" in line
+                ? line
+                : { ...line, discountType: "AMOUNT" as const, discountValue: Number(line.discount ?? 0) },
+            );
+          }
+        }
+        return state as unknown as PosState;
+      },
     },
   ),
 );

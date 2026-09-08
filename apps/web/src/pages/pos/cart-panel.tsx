@@ -16,7 +16,6 @@ export function CartPanel({ tab, onRequestCheckout }: CartPanelProps) {
   const removeItem = usePosStore((s) => s.removeItem);
   const setNote = usePosStore((s) => s.setNote);
   const setDiscount = usePosStore((s) => s.setDiscount);
-  const [noteDraft, setNoteDraft] = useState(tab.note);
   const [openDiscountLineId, setOpenDiscountLineId] = useState<string | null>(null);
 
   const subTotal = useMemo(() => tab.items.reduce((sum, item) => sum + getLineTotal(item), 0), [tab.items]);
@@ -97,9 +96,8 @@ export function CartPanel({ tab, onRequestCheckout }: CartPanelProps) {
       <div className="space-y-2.5 border-t p-4">
         <Input
           placeholder="Ghi chú đơn hàng"
-          value={noteDraft}
-          onChange={(e) => setNoteDraft(e.target.value)}
-          onBlur={() => setNote(tab.id, noteDraft)}
+          value={tab.note}
+          onChange={(e) => setNote(tab.id, e.target.value)}
           className="text-sm"
         />
         <div className="flex items-center justify-between text-sm">
