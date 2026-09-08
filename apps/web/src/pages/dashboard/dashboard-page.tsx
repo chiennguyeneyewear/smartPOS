@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DatePicker } from "@/components/shared/date-picker";
-import { formatCurrency, formatDateTime } from "@/lib/utils";
+import { formatCurrency, formatRelativeTime } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth-store";
 import { useDashboardSummary, useRevenueReport } from "@/features/reports/hooks";
@@ -170,23 +170,27 @@ export function DashboardPage() {
             <CardHeader>
               <CardTitle>Hoạt động gần đây</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-4">
               {summary?.recentActivities.length ? (
                 summary.recentActivities.map((activity) => {
                   const isCancelled = activity.type === "CANCELLED";
                   const Icon = isCancelled ? RotateCcw : ReceiptText;
                   return (
-                    <div key={`${activity.type}-${activity.id}`} className="flex items-start gap-2 border-b pb-2 text-sm last:border-0 last:pb-0">
-                      <Icon className={cn("mt-0.5 h-4 w-4 shrink-0", isCancelled ? "text-destructive" : "text-muted-foreground")} />
+                    <div key={`${activity.type}-${activity.id}`} className="flex items-start gap-3 text-sm">
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted">
+                        <Icon className="h-4 w-4 text-muted-foreground" />
+                      </span>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate">
-                          <span className="font-medium">{activity.userName}</span>{" "}
-                          {isCancelled ? "vừa hủy đơn hàng" : "vừa bán đơn hàng"} của{" "}
-                          <span className="font-medium">{activity.customerName}</span> với giá trị{" "}
-                          <span className="font-medium">{formatCurrency(activity.totalAmount)}</span>
+                        <p className="leading-snug">
+                          <span className="font-semibold text-primary">{activity.userName}</span>{" "}
+                          <span className={cn("font-medium", isCancelled ? "text-destructive" : "text-success")}>
+                            {isCancelled ? "vừa hủy đơn hàng" : "vừa bán đơn hàng"}
+                          </span>{" "}
+                          với giá trị{" "}
+                          <span className="font-semibold">{formatCurrency(activity.totalAmount)}</span>
                         </p>
-                        <p className="text-xs text-muted-foreground">
-                          {activity.code} · {activity.at ? formatDateTime(activity.at) : ""}
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          {activity.at ? formatRelativeTime(activity.at) : ""}
                         </p>
                       </div>
                     </div>
