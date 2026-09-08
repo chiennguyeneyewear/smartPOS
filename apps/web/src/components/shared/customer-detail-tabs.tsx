@@ -50,7 +50,9 @@ function CustomerInfoForm({ customerId }: { customerId: string }) {
     if (!customer) return;
     form.reset({
       name: customer.name,
+      name2: customer.name2,
       phone: customer.phone ?? "",
+      phone2: customer.phone2,
       address: customer.address,
       province: customer.province,
       ward: customer.ward,
@@ -77,7 +79,6 @@ function CustomerInfoForm({ customerId }: { customerId: string }) {
     <CustomerForm
       form={form}
       code={customer.code}
-      avatarUrl={customer.avatarUrl}
       onSubmit={onSubmit}
       onCancel={() => form.reset()}
       submitting={updateCustomer.isPending}

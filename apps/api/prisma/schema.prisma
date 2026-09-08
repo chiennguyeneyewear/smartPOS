@@ -190,7 +190,9 @@ model Customer {
   id          String            @id @default(cuid())
   code        String            @unique
   name        String
+  name2       String?
   phone       String?
+  phone2      String?
   address     String?
   province    String?
   ward        String?

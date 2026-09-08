@@ -52,7 +52,9 @@ export interface CustomerSummary {
   id: string;
   code: string;
   name: string;
+  name2: string | null;
   phone: string | null;
+  phone2: string | null;
   address: string | null;
   province: string | null;
   ward: string | null;
