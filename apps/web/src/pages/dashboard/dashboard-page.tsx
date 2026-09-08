@@ -171,21 +171,27 @@ export function DashboardPage() {
               <CardTitle>Hoạt động gần đây</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {summary?.recentInvoices.length ? (
-                summary.recentInvoices.map((inv) => (
-                  <div key={inv.id} className="flex items-start gap-2 border-b pb-2 text-sm last:border-0 last:pb-0">
-                    <ReceiptText className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate">
-                        <span className="font-medium">{inv.customerName}</span> vừa bán đơn hàng với giá trị{" "}
-                        <span className="font-medium">{formatCurrency(inv.totalAmount)}</span>
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {inv.code} · {inv.completedAt ? formatDateTime(inv.completedAt) : ""}
-                      </p>
+              {summary?.recentActivities.length ? (
+                summary.recentActivities.map((activity) => {
+                  const isCancelled = activity.type === "CANCELLED";
+                  const Icon = isCancelled ? RotateCcw : ReceiptText;
+                  return (
+                    <div key={`${activity.type}-${activity.id}`} className="flex items-start gap-2 border-b pb-2 text-sm last:border-0 last:pb-0">
+                      <Icon className={cn("mt-0.5 h-4 w-4 shrink-0", isCancelled ? "text-destructive" : "text-muted-foreground")} />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate">
+                          <span className="font-medium">{activity.userName}</span>{" "}
+                          {isCancelled ? "vừa hủy đơn hàng" : "vừa bán đơn hàng"} của{" "}
+                          <span className="font-medium">{activity.customerName}</span> với giá trị{" "}
+                          <span className="font-medium">{formatCurrency(activity.totalAmount)}</span>
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {activity.code} · {activity.at ? formatDateTime(activity.at) : ""}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               ) : (
                 <p className="text-sm text-muted-foreground">Chưa có hoạt động nào</p>
               )}

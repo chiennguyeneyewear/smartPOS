@@ -11,12 +11,14 @@ export interface DashboardSummary {
   invoiceCount: number;
   cancelledCount: number;
   changeVsPreviousPct: number;
-  recentInvoices: {
+  recentActivities: {
     id: string;
+    type: "COMPLETED" | "CANCELLED";
     code: string;
+    userName: string;
     customerName: string;
     totalAmount: number;
-    completedAt: string | null;
+    at: string | null;
   }[];
   birthdaysToday: { id: string; name: string }[];
 }

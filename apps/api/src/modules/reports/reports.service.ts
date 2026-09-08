@@ -157,29 +157,36 @@ export async function getDashboardSummary(branchId: string | undefined, from: st
 
   const branchFilter = branchId ? { branchId } : {};
 
-  const [periodInvoices, previousInvoices, cancelledCount, recentInvoices, customersWithBirthday] = await Promise.all([
-    prisma.invoice.findMany({
-      where: { ...branchFilter, status: "COMPLETED", completedAt: { gte: rangeStart, lte: rangeEnd } },
-      select: { totalAmount: true },
-    }),
-    prisma.invoice.findMany({
-      where: { ...branchFilter, status: "COMPLETED", completedAt: { gte: previousStart, lte: previousEnd } },
-      select: { totalAmount: true },
-    }),
-    prisma.invoice.count({
-      where: { ...branchFilter, status: "CANCELLED", updatedAt: { gte: rangeStart, lte: rangeEnd } },
-    }),
-    prisma.invoice.findMany({
-      where: { ...branchFilter, status: "COMPLETED" },
-      orderBy: { completedAt: "desc" },
-      take: 6,
-      include: { customer: { select: { name: true } } },
-    }),
-    prisma.customer.findMany({
-      where: { deletedAt: null, birthday: { not: null } },
-      select: { id: true, name: true, birthday: true },
-    }),
-  ]);
+  const [periodInvoices, previousInvoices, cancelledCount, recentCompleted, recentCancelled, customersWithBirthday] =
+    await Promise.all([
+      prisma.invoice.findMany({
+        where: { ...branchFilter, status: "COMPLETED", completedAt: { gte: rangeStart, lte: rangeEnd } },
+        select: { totalAmount: true },
+      }),
+      prisma.invoice.findMany({
+        where: { ...branchFilter, status: "COMPLETED", completedAt: { gte: previousStart, lte: previousEnd } },
+        select: { totalAmount: true },
+      }),
+      prisma.invoice.count({
+        where: { ...branchFilter, status: "CANCELLED", updatedAt: { gte: rangeStart, lte: rangeEnd } },
+      }),
+      prisma.invoice.findMany({
+        where: { ...branchFilter, status: "COMPLETED" },
+        orderBy: { completedAt: "desc" },
+        take: 6,
+        include: { customer: { select: { name: true } } },
+      }),
+      prisma.invoice.findMany({
+        where: { ...branchFilter, status: "CANCELLED" },
+        orderBy: { updatedAt: "desc" },
+        take: 6,
+        include: { customer: { select: { name: true } } },
+      }),
+      prisma.customer.findMany({
+        where: { deletedAt: null, birthday: { not: null } },
+        select: { id: true, name: true, birthday: true },
+      }),
+    ]);
 
   const revenue = sumAmount(periodInvoices);
   const previousRevenue = sumAmount(previousInvoices);
@@ -188,18 +195,39 @@ export async function getDashboardSummary(branchId: string | undefined, from: st
     .filter((c) => c.birthday && c.birthday.getDate() === now.getDate() && c.birthday.getMonth() === now.getMonth())
     .map((c) => ({ id: c.id, name: c.name }));
 
+  const userIds = [...new Set([...recentCompleted, ...recentCancelled].map((inv) => inv.createdById))];
+  const users = await prisma.user.findMany({ where: { id: { in: userIds } }, select: { id: true, username: true } });
+  const userNameById = new Map(users.map((u) => [u.id, u.username]));
+
+  const recentActivities = [
+    ...recentCompleted.map((inv) => ({
+      id: inv.id,
+      type: "COMPLETED" as const,
+      code: inv.code,
+      userName: userNameById.get(inv.createdById) ?? "N/A",
+      customerName: inv.customer?.name ?? "Khách lẻ",
+      totalAmount: Number(inv.totalAmount),
+      at: inv.completedAt,
+    })),
+    ...recentCancelled.map((inv) => ({
+      id: inv.id,
+      type: "CANCELLED" as const,
+      code: inv.code,
+      userName: userNameById.get(inv.createdById) ?? "N/A",
+      customerName: inv.customer?.name ?? "Khách lẻ",
+      totalAmount: Number(inv.totalAmount),
+      at: inv.updatedAt,
+    })),
+  ]
+    .sort((a, b) => (b.at?.getTime() ?? 0) - (a.at?.getTime() ?? 0))
+    .slice(0, 6);
+
   return {
     revenue,
     invoiceCount: periodInvoices.length,
     cancelledCount,
     changeVsPreviousPct: pctChange(revenue, previousRevenue),
-    recentInvoices: recentInvoices.map((inv) => ({
-      id: inv.id,
-      code: inv.code,
-      customerName: inv.customer?.name ?? "Khách lẻ",
-      totalAmount: Number(inv.totalAmount),
-      completedAt: inv.completedAt,
-    })),
+    recentActivities,
     birthdaysToday,
   };
 }
