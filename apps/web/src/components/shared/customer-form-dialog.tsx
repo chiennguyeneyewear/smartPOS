@@ -34,7 +34,7 @@ export function CustomerFormDialog({ open, onOpenChange, onCreated }: CustomerFo
 
   return (
     <Dialog open={open} onOpenChange={(v) => (v ? onOpenChange(v) : handleClose())}>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="max-w-4xl">
         <DialogHeader>
           <DialogTitle>Thêm khách hàng mới</DialogTitle>
         </DialogHeader>

@@ -75,98 +75,73 @@ export function CustomerForm({
 
   return (
     <form
-      className="grid grid-cols-[112px_1fr_1fr] gap-x-6 gap-y-4"
+      className="space-y-4"
       onSubmit={(e) => {
         e.preventDefault();
         onSubmit();
       }}
     >
-      <div className="row-span-4 flex flex-col items-center gap-2">
-        <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full bg-muted">
-          {avatarPreview ? (
-            <img src={avatarPreview} alt="" className="h-full w-full object-cover" />
-          ) : (
-            <User className="h-10 w-10 text-muted-foreground" />
-          )}
+      <div className="flex gap-6">
+        <div className="flex shrink-0 flex-col items-center gap-2">
+          <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full bg-muted">
+            {avatarPreview ? (
+              <img src={avatarPreview} alt="" className="h-full w-full object-cover" />
+            ) : (
+              <User className="h-8 w-8 text-muted-foreground" />
+            )}
+          </div>
+          <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
+          <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
+            Chọn ảnh
+          </Button>
         </div>
-        <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
-        <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
-          Chọn ảnh
-        </Button>
-      </div>
 
-      <div className="space-y-1.5">
-        <Label>Tên khách hàng</Label>
-        <Input autoFocus {...register("name")} />
-        {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
-      </div>
-      <div className="space-y-1.5">
-        <Label>Nhóm khách hàng</Label>
-        <Input placeholder="Khách lẻ, VIP..." {...register("groupName")} />
-      </div>
-
-      <div className="space-y-1.5">
-        <Label>Mã khách hàng</Label>
-        <Input value={code ?? "Tự động"} disabled className="text-muted-foreground" />
-      </div>
-      <div className="space-y-1.5">
-        <Label>Ngày sinh</Label>
-        <div className="flex items-center gap-3">
-          <Input type="date" className="flex-1" {...register("birthday")} />
-          <label className="flex items-center gap-1 text-sm">
-            <input
-              type="radio"
-              checked={gender === GENDER.MALE}
-              onChange={() => setValue("gender", GENDER.MALE)}
-            />
-            Nam
-          </label>
-          <label className="flex items-center gap-1 text-sm">
-            <input
-              type="radio"
-              checked={gender === GENDER.FEMALE}
-              onChange={() => setValue("gender", GENDER.FEMALE)}
-            />
-            Nữ
-          </label>
+        <div className="grid flex-1 grid-cols-2 gap-4 sm:grid-cols-4">
+          <div className="space-y-1.5">
+            <Label>Tên khách hàng</Label>
+            <Input autoFocus {...register("name")} />
+            {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
+          </div>
+          <div className="space-y-1.5">
+            <Label>Mã khách hàng</Label>
+            <Input value={code ?? "Tự động"} disabled className="text-muted-foreground" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Điện thoại</Label>
+            <Input {...register("phone")} />
+            {errors.phone && <p className="text-xs text-destructive">{errors.phone.message}</p>}
+          </div>
+          <div className="space-y-1.5">
+            <Label>Ngày sinh</Label>
+            <div className="flex items-center gap-2">
+              <Input type="date" className="flex-1" {...register("birthday")} />
+              <label className="flex items-center gap-1 text-sm">
+                <input
+                  type="radio"
+                  checked={gender === GENDER.MALE}
+                  onChange={() => setValue("gender", GENDER.MALE)}
+                />
+                Nam
+              </label>
+              <label className="flex items-center gap-1 text-sm">
+                <input
+                  type="radio"
+                  checked={gender === GENDER.FEMALE}
+                  onChange={() => setValue("gender", GENDER.FEMALE)}
+                />
+                Nữ
+              </label>
+            </div>
+          </div>
         </div>
       </div>
 
       <div className="space-y-1.5">
-        <Label>Điện thoại</Label>
-        <Input {...register("phone")} />
-        {errors.phone && <p className="text-xs text-destructive">{errors.phone.message}</p>}
-      </div>
-      <div className="space-y-1.5">
-        <Label>Email</Label>
-        <Input type="email" {...register("email")} />
-        {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
-      </div>
-
-      <div className="space-y-1.5">
-        <Label>Địa chỉ</Label>
-        <Input placeholder="Số nhà, tòa nhà, ngõ, đường" {...register("address")} />
-      </div>
-      <div className="space-y-1.5">
-        <Label>Facebook</Label>
-        <Input {...register("facebook")} />
-      </div>
-
-      <div className="space-y-1.5">
-        <Label>Khu vực</Label>
-        <Input placeholder="Tỉnh/TP - Quận/Huyện" {...register("province")} />
-      </div>
-      <div className="row-span-2 space-y-1.5">
         <Label>Ghi chú</Label>
-        <Textarea rows={4} {...register("note")} />
+        <Textarea rows={3} {...register("note")} />
       </div>
 
-      <div className="space-y-1.5">
-        <Label>Phường xã</Label>
-        <Input placeholder="Chọn Phường/Xã" {...register("ward")} />
-      </div>
-
-      <DialogFooter className="col-span-3 mt-2">
+      <DialogFooter>
         <Button type="button" variant="outline" onClick={onCancel}>
           Bỏ qua
         </Button>
