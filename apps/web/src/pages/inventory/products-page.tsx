@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ChevronDown, ImageOff, Search, SlidersHorizontal, Star, Upload } from "lucide-react";
+import { ChevronDown, Search, SlidersHorizontal, Upload } from "lucide-react";
 import { productSchema, type ProductInput, type ProductSummary } from "@smartpos/shared";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { cn } from "@/lib/utils";
 import { toast } from "@/stores/toast-store";
 import { useAuthStore } from "@/stores/auth-store";
 import { useCategories, useCreateProduct, useProducts, useUnits } from "@/features/products/hooks";
@@ -29,7 +28,6 @@ export function ProductsPage() {
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
   const { data, isLoading } = useProducts({ search, branchId: activeBranchId ?? undefined, page: 1, pageSize: 50 });
   const { data: categories } = useCategories();
   const { data: units } = useUnits();
@@ -48,15 +46,6 @@ export function ProductsPage() {
 
   function toggleOne(id: string) {
     setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
-
-  function toggleFavorite(id: string) {
-    setFavoriteIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
@@ -127,8 +116,6 @@ export function ProductsPage() {
               <th className="w-10 p-3">
                 <input type="checkbox" checked={allSelected} onChange={toggleAll} />
               </th>
-              <th className="w-10 p-3" />
-              <th className="w-14 p-3" />
               <th className="whitespace-nowrap p-3 text-left text-sm font-semibold text-muted-foreground">
                 Mã hàng
               </th>
@@ -149,7 +136,7 @@ export function ProductsPage() {
           <tbody>
             {!isLoading && products.length > 0 && (
               <tr className="border-t bg-muted/20">
-                <td colSpan={6} />
+                <td colSpan={4} />
                 <td colSpan={2} className="whitespace-nowrap p-3 text-right font-semibold">
                   {formatNumber(totalStockValue)}
                 </td>
@@ -157,14 +144,14 @@ export function ProductsPage() {
             )}
             {isLoading && (
               <tr>
-                <td colSpan={8} className="p-6 text-center text-sm text-muted-foreground">
+                <td colSpan={6} className="p-6 text-center text-sm text-muted-foreground">
                   Đang tải dữ liệu...
                 </td>
               </tr>
             )}
             {!isLoading && products.length === 0 && (
               <tr>
-                <td colSpan={8} className="p-6 text-center text-sm text-muted-foreground">
+                <td colSpan={6} className="p-6 text-center text-sm text-muted-foreground">
                   Chưa có sản phẩm
                 </td>
               </tr>
@@ -174,24 +161,6 @@ export function ProductsPage() {
                 <tr key={p.id} className="border-t hover:bg-accent/40">
                   <td className="p-3">
                     <input type="checkbox" checked={selectedIds.has(p.id)} onChange={() => toggleOne(p.id)} />
-                  </td>
-                  <td className="p-3">
-                    <button
-                      type="button"
-                      onClick={() => toggleFavorite(p.id)}
-                      className="text-muted-foreground hover:text-amber-400"
-                    >
-                      <Star className={cn("h-4 w-4", favoriteIds.has(p.id) && "fill-amber-400 text-amber-400")} />
-                    </button>
-                  </td>
-                  <td className="p-3">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded bg-muted">
-                      {p.imageUrl ? (
-                        <img src={p.imageUrl} alt="" className="h-full w-full object-cover" />
-                      ) : (
-                        <ImageOff className="h-4 w-4 text-muted-foreground" />
-                      )}
-                    </div>
                   </td>
                   <td className="whitespace-nowrap p-3">{p.sku}</td>
                   <td className="min-w-[220px] p-3 font-medium">{p.name}</td>
