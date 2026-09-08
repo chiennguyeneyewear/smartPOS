@@ -42,7 +42,6 @@ export function getLineTotal(line: CartLine): number {
 export interface PosTab {
   id: string;
   invoiceId?: string;
-  label: string;
   saleMode: SaleMode;
   customer?: CustomerSummary;
   items: CartLine[];
@@ -50,10 +49,13 @@ export interface PosTab {
   discountAmount: number;
 }
 
-function createEmptyTab(index: number): PosTab {
+// Tabs are labeled "Hóa đơn N" by their position in the list (computed where
+// displayed, e.g. invoice-tabs-bar.tsx), not a number fixed at creation —
+// otherwise closing an earlier tab leaves the survivors permanently
+// mislabeled (e.g. "Hóa đơn 4" as the only tab left).
+function createEmptyTab(): PosTab {
   return {
     id: crypto.randomUUID(),
-    label: `Hóa đơn ${index}`,
     saleMode: SALE_MODE.NORMAL,
     items: [],
     note: "",
@@ -79,7 +81,7 @@ interface PosState {
   resetTab: (tabId: string) => void;
 }
 
-const initialTab = createEmptyTab(1);
+const initialTab = createEmptyTab();
 
 export const usePosStore = create<PosState>()(
   persist(
@@ -89,7 +91,7 @@ export const usePosStore = create<PosState>()(
 
       addTab: () =>
         set((state) => {
-          const tab = createEmptyTab(state.tabs.length + 1);
+          const tab = createEmptyTab();
           return { tabs: [...state.tabs, tab], activeTabId: tab.id };
         }),
 
@@ -97,7 +99,7 @@ export const usePosStore = create<PosState>()(
         set((state) => {
           const remaining = state.tabs.filter((t) => t.id !== tabId);
           if (remaining.length === 0) {
-            const fresh = createEmptyTab(1);
+            const fresh = createEmptyTab();
             return { tabs: [fresh], activeTabId: fresh.id };
           }
           const activeTabId = state.activeTabId === tabId ? remaining[0]!.id : state.activeTabId;
@@ -196,7 +198,7 @@ export const usePosStore = create<PosState>()(
       resetTab: (tabId) =>
         set((state) => ({
           tabs: state.tabs.map((tab) =>
-            tab.id !== tabId ? tab : { ...createEmptyTab(1), id: tab.id, label: tab.label },
+            tab.id !== tabId ? tab : { ...createEmptyTab(), id: tab.id },
           ),
         })),
     }),

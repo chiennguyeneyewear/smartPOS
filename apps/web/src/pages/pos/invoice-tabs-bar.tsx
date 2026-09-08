@@ -11,7 +11,7 @@ export function InvoiceTabsBar() {
 
   return (
     <div className="flex h-9 min-w-0 flex-1 items-center gap-1 overflow-x-auto">
-      {tabs.map((tab) => (
+      {tabs.map((tab, index) => (
         <button
           key={tab.id}
           onClick={() => setActiveTab(tab.id)}
@@ -22,7 +22,7 @@ export function InvoiceTabsBar() {
               : "text-primary-foreground/80 hover:bg-white/10 hover:text-primary-foreground",
           )}
         >
-          <span>{tab.label}</span>
+          <span>Hóa đơn {index + 1}</span>
           {tab.items.length > 0 && (
             <span
               className={cn(
