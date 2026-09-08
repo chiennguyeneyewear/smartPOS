@@ -5,6 +5,7 @@ export interface ProductQuery {
   search?: string;
   categoryId?: string;
   barcode?: string;
+  branchId?: string;
   page?: number;
   pageSize?: number;
 }

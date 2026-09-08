@@ -14,6 +14,7 @@ export function registerProductRoutes(app: FastifyInstance) {
       search?: string;
       categoryId?: string;
       barcode?: string;
+      branchId?: string;
       page?: string;
       pageSize?: string;
     };
@@ -39,7 +40,10 @@ export function registerProductRoutes(app: FastifyInstance) {
     const [data, total] = await Promise.all([
       prisma.product.findMany({
         where,
-        include: { unit: true },
+        include: {
+          unit: true,
+          stockItems: { where: { branchId: query.branchId ?? "" } },
+        },
         orderBy: { name: "asc" },
         skip: (page - 1) * pageSize,
         take: pageSize,
@@ -48,7 +52,12 @@ export function registerProductRoutes(app: FastifyInstance) {
     ]);
 
     return {
-      data: data.map((p) => ({ ...p, costPrice: Number(p.costPrice), sellPrice: Number(p.sellPrice) })),
+      data: data.map(({ stockItems, ...p }) => ({
+        ...p,
+        costPrice: Number(p.costPrice),
+        sellPrice: Number(p.sellPrice),
+        stockQuantity: query.branchId ? Number(stockItems?.[0]?.quantity ?? 0) : undefined,
+      })),
       meta: { total, page, pageSize },
     };
   });

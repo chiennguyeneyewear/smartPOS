@@ -40,6 +40,7 @@ export interface ProductSummary {
   costPrice: number;
   sellPrice: number;
   isActive: boolean;
+  stockQuantity?: number;
 }
 
 export interface StockItemSummary {

@@ -2,6 +2,7 @@ import { forwardRef, useImperativeHandle, useRef, useState } from "react";
 import { ScanLine, Search, ImageOff } from "lucide-react";
 import { useProducts } from "@/features/products/hooks";
 import { usePosStore } from "@/stores/pos-store";
+import { useAuthStore } from "@/stores/auth-store";
 import { useSearchDropdown } from "@/hooks/use-search-dropdown";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { formatCurrency, cn } from "@/lib/utils";
@@ -17,11 +18,15 @@ export const ProductQuickSearch = forwardRef<HTMLInputElement, { className?: str
   const debouncedSearch = useDebouncedValue(search, 250);
   const { open, openNow, closeSoon } = useSearchDropdown();
   const addItem = usePosStore((s) => s.addItem);
+  const activeBranchId = useAuthStore((s) => s.activeBranchId);
   const inputRef = useRef<HTMLInputElement>(null);
   useImperativeHandle(forwardedRef, () => inputRef.current!);
 
   const hasSearch = debouncedSearch.trim().length > 0;
-  const { data } = useProducts({ search: debouncedSearch, page: 1, pageSize: 8 }, { enabled: hasSearch });
+  const { data } = useProducts(
+    { search: debouncedSearch, branchId: activeBranchId ?? undefined, page: 1, pageSize: 8 },
+    { enabled: hasSearch },
+  );
   const results = data?.data ?? [];
 
   function handleAdd(productId: string) {
@@ -80,7 +85,18 @@ export const ProductQuickSearch = forwardRef<HTMLInputElement, { className?: str
                     <ImageOff className="h-4 w-4 text-muted-foreground" />
                   )}
                 </div>
-                <span className="flex-1 truncate">{product.name}</span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-medium">{product.name}</p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {product.sku}
+                    {typeof product.stockQuantity === "number" && (
+                      <span className={product.stockQuantity > 0 ? "" : "text-destructive"}>
+                        {" "}
+                        · Tồn: {product.stockQuantity}
+                      </span>
+                    )}
+                  </p>
+                </div>
                 <span className="shrink-0 text-xs font-medium text-primary">{formatCurrency(product.sellPrice)}</span>
               </button>
             ))
