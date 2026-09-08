@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import type { UseFormReturn } from "react-hook-form";
 import { User } from "lucide-react";
-import { GENDER, type CustomerInput } from "@smartpos/shared";
+import type { CustomerInput } from "@smartpos/shared";
 import { DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -57,13 +57,10 @@ export function CustomerForm({
   const {
     register,
     setValue,
-    watch,
     formState: { errors },
   } = form;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(avatarUrl ?? null);
-
-  const gender = watch("gender");
 
   async function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -81,64 +78,42 @@ export function CustomerForm({
         onSubmit();
       }}
     >
-      <div className="flex gap-6">
-        <div className="flex shrink-0 flex-col items-center gap-2">
-          <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full bg-muted">
-            {avatarPreview ? (
-              <img src={avatarPreview} alt="" className="h-full w-full object-cover" />
-            ) : (
-              <User className="h-8 w-8 text-muted-foreground" />
-            )}
+      <div className="grid grid-cols-2 gap-6">
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted">
+              {avatarPreview ? (
+                <img src={avatarPreview} alt="" className="h-full w-full object-cover" />
+              ) : (
+                <User className="h-7 w-7 text-muted-foreground" />
+              )}
+            </div>
+            <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
+            <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
+              Chọn ảnh
+            </Button>
           </div>
-          <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
-          <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
-            Chọn ảnh
-          </Button>
-        </div>
 
-        <div className="grid flex-1 grid-cols-2 gap-4 sm:grid-cols-4">
+          <div className="space-y-1.5">
+            <Label>Mã khách hàng</Label>
+            <Input value={code ?? "Tự động"} disabled className="text-muted-foreground" />
+          </div>
           <div className="space-y-1.5">
             <Label>Tên khách hàng</Label>
             <Input autoFocus {...register("name")} />
             {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
           </div>
           <div className="space-y-1.5">
-            <Label>Mã khách hàng</Label>
-            <Input value={code ?? "Tự động"} disabled className="text-muted-foreground" />
-          </div>
-          <div className="space-y-1.5">
             <Label>Điện thoại</Label>
             <Input {...register("phone")} />
             {errors.phone && <p className="text-xs text-destructive">{errors.phone.message}</p>}
           </div>
-          <div className="space-y-1.5">
-            <Label>Ngày sinh</Label>
-            <div className="flex items-center gap-2">
-              <Input type="date" className="flex-1" {...register("birthday")} />
-              <label className="flex items-center gap-1 text-sm">
-                <input
-                  type="radio"
-                  checked={gender === GENDER.MALE}
-                  onChange={() => setValue("gender", GENDER.MALE)}
-                />
-                Nam
-              </label>
-              <label className="flex items-center gap-1 text-sm">
-                <input
-                  type="radio"
-                  checked={gender === GENDER.FEMALE}
-                  onChange={() => setValue("gender", GENDER.FEMALE)}
-                />
-                Nữ
-              </label>
-            </div>
-          </div>
         </div>
-      </div>
 
-      <div className="space-y-1.5">
-        <Label>Ghi chú</Label>
-        <Textarea rows={3} {...register("note")} />
+        <div className="flex flex-col space-y-1.5">
+          <Label>Ghi chú</Label>
+          <Textarea {...register("note")} className="flex-1 resize-none" />
+        </div>
       </div>
 
       <DialogFooter>
