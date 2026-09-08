@@ -11,7 +11,6 @@ import { ProductsPage } from "@/pages/inventory/products-page";
 import { StockPage } from "@/pages/inventory/stock-page";
 import { MovementsPage } from "@/pages/inventory/movements-page";
 import { CustomersPage } from "@/pages/customers/customers-page";
-import { SuppliersPage } from "@/pages/suppliers/suppliers-page";
 import { ReportsPage } from "@/pages/reports/reports-page";
 import { UsersPage } from "@/pages/settings/users-page";
 
@@ -70,14 +69,6 @@ export default function App() {
             element={
               <MenuGuard menuKey={MENU_ITEMS.CUSTOMERS}>
                 <CustomersPage />
-              </MenuGuard>
-            }
-          />
-          <Route
-            path="/suppliers"
-            element={
-              <MenuGuard menuKey={MENU_ITEMS.SUPPLIERS}>
-                <SuppliersPage />
               </MenuGuard>
             }
           />
