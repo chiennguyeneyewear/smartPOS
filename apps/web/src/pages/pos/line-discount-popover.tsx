@@ -1,7 +1,6 @@
 import { useEffect, useRef } from "react";
 import { usePosStore, getLineUnitDiscount, type CartLine, type LineDiscountType } from "@/stores/pos-store";
 import { cn, formatCurrency } from "@/lib/utils";
-import { Input } from "@/components/ui/input";
 
 interface LineDiscountPopoverProps {
   tabId: string;
@@ -9,6 +8,9 @@ interface LineDiscountPopoverProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
+
+const lineInputClass =
+  "w-full rounded-none border-0 border-b border-input bg-transparent px-0 py-1 text-right text-sm shadow-none outline-none focus-visible:border-primary";
 
 // Every field here writes straight to the store on change (no local draft +
 // commit-on-close step) so the cart total is always exactly what's in the
@@ -43,26 +45,26 @@ export function LineDiscountPopover({ tabId, line, open, onOpenChange }: LineDis
   return (
     <div
       ref={containerRef}
-      className="absolute right-0 top-full z-30 mt-1 w-64 space-y-3 rounded-md border bg-popover p-3 shadow-lg"
+      className="absolute right-0 top-full z-30 mt-1 w-72 space-y-4 rounded-xl border bg-popover p-4 shadow-lg"
     >
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-xs text-muted-foreground">Đơn giá</span>
-        <Input
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-sm text-muted-foreground">Đơn giá</span>
+        <input
           type="number"
           min={0}
           value={line.unitPrice}
           onChange={(e) => updateLinePrice(tabId, line.lineId, Math.max(0, Number(e.target.value)))}
-          className="h-8 w-32 text-right text-xs"
+          className={cn(lineInputClass, "max-w-[140px] font-medium text-amber-600")}
         />
       </div>
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-xs text-muted-foreground">Giảm giá</span>
-        <div className="flex items-center gap-1">
-          <Input
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-sm text-muted-foreground">Giảm giá</span>
+        <div className="flex flex-1 items-center justify-end gap-2">
+          <input
             type="number"
             min={0}
             max={discountMax}
-            value={line.discountValue}
+            value={line.discountValue || ""}
             onChange={(e) =>
               setLineDiscount(
                 tabId,
@@ -71,15 +73,17 @@ export function LineDiscountPopover({ tabId, line, open, onOpenChange }: LineDis
                 Math.min(Math.max(0, Number(e.target.value)), discountMax),
               )
             }
-            className="h-8 w-20 text-right text-xs"
+            className={cn(lineInputClass, "max-w-[80px] text-left")}
           />
-          <div className="flex overflow-hidden rounded-md border">
+          <div className="flex shrink-0 items-center gap-1.5">
             <button
               type="button"
               onClick={() => setDiscountType("AMOUNT")}
               className={cn(
-                "px-2 py-1.5 text-[11px] font-medium",
-                line.discountType === "AMOUNT" ? "bg-primary text-primary-foreground" : "bg-background",
+                "rounded-full px-3 py-1 text-xs font-semibold transition-colors",
+                line.discountType === "AMOUNT"
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground",
               )}
             >
               VND
@@ -88,8 +92,10 @@ export function LineDiscountPopover({ tabId, line, open, onOpenChange }: LineDis
               type="button"
               onClick={() => setDiscountType("PERCENT")}
               className={cn(
-                "px-2 py-1.5 text-[11px] font-medium",
-                line.discountType === "PERCENT" ? "bg-primary text-primary-foreground" : "bg-background",
+                "rounded-full px-3 py-1 text-xs font-semibold transition-colors",
+                line.discountType === "PERCENT"
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground",
               )}
             >
               %
@@ -97,9 +103,11 @@ export function LineDiscountPopover({ tabId, line, open, onOpenChange }: LineDis
           </div>
         </div>
       </div>
-      <div className="flex items-center justify-between gap-2 border-t pt-2">
-        <span className="text-xs text-muted-foreground">Giá bán</span>
-        <span className="text-sm font-semibold">{formatCurrency(sellPrice)}</span>
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-sm text-muted-foreground">Giá bán</span>
+        <span className="border-b border-input pb-1 text-sm font-medium text-amber-600">
+          {formatCurrency(sellPrice)}
+        </span>
       </div>
     </div>
   );
