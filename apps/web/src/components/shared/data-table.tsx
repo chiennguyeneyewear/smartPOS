@@ -62,26 +62,33 @@ export function DataTable<TData>({
           )}
           {!isLoading &&
             table.getRowModel().rows.map((row) => {
-              const expanded = isRowSelected?.(row.original) && !!renderExpandedRow;
+              const selected = isRowSelected?.(row.original) ?? false;
+              const expanded = selected && !!renderExpandedRow;
               return (
                 <Fragment key={row.id}>
                   <tr
                     onClick={onRowClick ? () => onRowClick(row.original) : undefined}
                     className={cn(
-                      "border-t hover:bg-accent/40",
+                      "border-t transition-colors hover:bg-accent",
                       onRowClick && "cursor-pointer",
-                      isRowSelected?.(row.original) && "bg-accent/60",
+                      selected && "bg-primary/10",
                     )}
                   >
-                    {row.getVisibleCells().map((cell) => (
-                      <td key={cell.id} className="whitespace-nowrap p-3">
+                    {row.getVisibleCells().map((cell, i) => (
+                      <td
+                        key={cell.id}
+                        className={cn(
+                          "whitespace-nowrap p-3",
+                          i === 0 && selected && "border-l-[3px] border-l-primary pl-[9px]",
+                        )}
+                      >
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </td>
                     ))}
                   </tr>
                   {expanded && (
-                    <tr className="border-t bg-muted/20">
-                      <td colSpan={columns.length} className="p-4">
+                    <tr className="border-t bg-primary/5">
+                      <td colSpan={columns.length} className="border-l-[3px] border-l-primary p-4">
                         {renderExpandedRow!(row.original)}
                       </td>
                     </tr>
