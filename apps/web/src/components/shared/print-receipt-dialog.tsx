@@ -1,21 +1,14 @@
-import { useState } from "react";
 import { Printer } from "lucide-react";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { cn, formatCurrency } from "@/lib/utils";
 import { usePrintReceiptStore, type ReceiptData, type ReceiptFormat } from "@/stores/print-receipt-store";
+import { usePrintSettingsStore } from "@/stores/print-settings-store";
 
 const FORMAT_OPTIONS: { value: ReceiptFormat; label: string }[] = [
   { value: "thermal80", label: "Khổ 80mm" },
   { value: "a5", label: "Khổ A5" },
 ];
-
-const LAST_FORMAT_KEY = "smartpos-last-receipt-format";
-
-function loadLastFormat(): ReceiptFormat {
-  const stored = localStorage.getItem(LAST_FORMAT_KEY);
-  return stored === "a5" ? "a5" : "thermal80";
-}
 
 interface PrintReceiptDialogProps {
   open: boolean;
@@ -32,12 +25,12 @@ export function PrintReceiptDialog({
   title = "In hóa đơn",
   description,
 }: PrintReceiptDialogProps) {
-  const [format, setFormat] = useState<ReceiptFormat>(loadLastFormat);
+  const format = usePrintSettingsStore((s) => s.format);
+  const setFormat = usePrintSettingsStore((s) => s.setFormat);
   const printReceipt = usePrintReceiptStore((s) => s.print);
 
   function handlePrint() {
     if (!data) return;
-    localStorage.setItem(LAST_FORMAT_KEY, format);
     printReceipt(data, format);
   }
 

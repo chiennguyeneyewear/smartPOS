@@ -1,22 +1,25 @@
 import { useRef, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { Link } from "react-router-dom";
-import { LayoutGrid } from "lucide-react";
+import { LayoutGrid, Printer } from "lucide-react";
 import type { CustomerSummary, PaymentMethod } from "@smartpos/shared";
 import { useAuthStore } from "@/stores/auth-store";
 import { usePosStore, getActiveTab, getLineTotal, getLineUnitDiscount } from "@/stores/pos-store";
 import { useCreateDraftInvoice, useCheckoutInvoice } from "@/features/sales/hooks";
 import { useBranches } from "@/features/branches/hooks";
 import { toast } from "@/stores/toast-store";
+import { cn } from "@/lib/utils";
 import { UserMenu } from "@/components/shared/user-menu";
 import { PrintReceiptDialog } from "@/components/shared/print-receipt-dialog";
-import type { ReceiptData } from "@/stores/print-receipt-store";
+import { usePrintReceiptStore, mergeSameProductItems, type ReceiptData } from "@/stores/print-receipt-store";
+import { usePrintSettingsStore } from "@/stores/print-settings-store";
 import { InvoiceTabsBar } from "./invoice-tabs-bar";
 import { ProductQuickSearch } from "./product-quick-search";
 import { ProductGridPanel } from "./product-grid-panel";
 import { CartPanel } from "./cart-panel";
 import { CheckoutDialog } from "./checkout-dialog";
 import { CustomerFormDialog } from "@/components/shared/customer-form-dialog";
+import { PrintSettingsPopover } from "./print-settings-popover";
 
 export function PosPage() {
   const activeBranchId = useAuthStore((s) => s.activeBranchId);
@@ -33,6 +36,7 @@ export function PosPage() {
   const [pendingInvoiceId, setPendingInvoiceId] = useState<string | null>(null);
   const [receiptOpen, setReceiptOpen] = useState(false);
   const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
+  const [printSettingsOpen, setPrintSettingsOpen] = useState(false);
 
   const productSearchRef = useRef<HTMLInputElement>(null);
   const customerSearchRef = useRef<HTMLInputElement>(null);
@@ -41,6 +45,8 @@ export function PosPage() {
   const checkout = useCheckoutInvoice();
   const { data: branches } = useBranches();
   const branchName = branches?.find((b) => b.id === activeBranchId)?.name ?? "";
+  const printReceipt = usePrintReceiptStore((s) => s.print);
+  const { autoPrint, mergeSameItems, format: printFormat } = usePrintSettingsStore();
 
   useHotkeys("f3", (e) => {
     e.preventDefault();
@@ -95,29 +101,39 @@ export function PosPage() {
       { id: pendingInvoiceId, input: { payments } },
       {
         onSuccess: (invoice) => {
-          setReceiptData({
+          let items = tab.items.map((line) => ({
+            productId: line.productId,
+            name: line.name,
+            quantity: line.quantity,
+            unitPrice: line.unitPrice,
+            discount: getLineUnitDiscount(line) * line.quantity,
+            lineTotal: getLineTotal(line),
+          }));
+          if (mergeSameItems) items = mergeSameProductItems(items);
+
+          const receipt: ReceiptData = {
             storeName: branchName || "SmartPOS",
             code: invoice.code,
             date: invoice.completedAt ?? new Date().toISOString(),
             cashierName: username,
             customerName: tab.customer?.name,
             customerPhone: tab.customer?.phone,
-            items: tab.items.map((line) => ({
-              name: line.name,
-              quantity: line.quantity,
-              unitPrice: line.unitPrice,
-              discount: getLineUnitDiscount(line) * line.quantity,
-              lineTotal: getLineTotal(line),
-            })),
+            items,
             subTotal: tab.items.reduce((sum, line) => sum + line.unitPrice * line.quantity, 0),
             discountAmount: tab.discountAmount,
             totalAmount: total,
             payments,
-          });
+          };
           setCheckoutOpen(false);
           setPendingInvoiceId(null);
           resetTab(tab.id);
-          setReceiptOpen(true);
+          if (autoPrint) {
+            printReceipt(receipt, printFormat);
+            toast({ title: "Thanh toán thành công", description: "Đã in hóa đơn tự động", variant: "success" });
+          } else {
+            setReceiptData(receipt);
+            setReceiptOpen(true);
+          }
         },
       },
     );
@@ -138,6 +154,26 @@ export function PosPage() {
         <ProductQuickSearch ref={productSearchRef} className="max-w-xs" />
         <InvoiceTabsBar />
         <div className="flex shrink-0 items-center gap-1.5">
+          <div className="relative">
+            <button
+              type="button"
+              title="Thiết lập in"
+              onClick={() => setPrintSettingsOpen((v) => !v)}
+              className="relative flex h-9 w-9 items-center justify-center rounded-md text-primary-foreground/80 hover:bg-white/10 hover:text-primary-foreground"
+            >
+              <Printer className="h-5 w-5" />
+              {autoPrint && (
+                <span
+                  className={cn(
+                    "absolute -right-0.5 -top-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-destructive text-[9px] font-bold text-destructive-foreground",
+                  )}
+                >
+                  A
+                </span>
+              )}
+            </button>
+            <PrintSettingsPopover open={printSettingsOpen} onOpenChange={setPrintSettingsOpen} />
+          </div>
           <UserMenu className="text-primary-foreground hover:bg-white/10 hover:text-primary-foreground" />
         </div>
       </div>

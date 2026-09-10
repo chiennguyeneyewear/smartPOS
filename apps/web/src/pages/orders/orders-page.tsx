@@ -14,7 +14,8 @@ import { useSearchDropdown } from "@/hooks/use-search-dropdown";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
 import { PERIOD_PRESET_OPTIONS, formatPeriodLabel, getPeriodRange, type PeriodPreset } from "@/lib/period-presets";
 import { useAuthStore } from "@/stores/auth-store";
-import type { ReceiptData } from "@/stores/print-receipt-store";
+import { mergeSameProductItems, type ReceiptData } from "@/stores/print-receipt-store";
+import { usePrintSettingsStore } from "@/stores/print-settings-store";
 import { useInvoices, useVoidInvoices } from "@/features/sales/hooks";
 import type { InvoiceListItem } from "@/features/sales/api";
 import { useUsers } from "@/features/users/hooks";
@@ -26,6 +27,7 @@ function toDateInputValue(d: Date) {
 
 export function OrdersPage() {
   const activeBranchId = useAuthStore((s) => s.activeBranchId);
+  const mergeSameItems = usePrintSettingsStore((s) => s.mergeSameItems);
   const [preset, setPreset] = useState<PeriodPreset>("this_month");
   const [customFrom, setCustomFrom] = useState(() => toDateInputValue(new Date()));
   const [customTo, setCustomTo] = useState(() => toDateInputValue(new Date()));
@@ -119,6 +121,16 @@ export function OrdersPage() {
   }
 
   function buildReceiptData(inv: InvoiceListItem): ReceiptData {
+    let items = inv.items.map((item) => ({
+      productId: item.productId,
+      name: item.product.name,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      discount: item.discount,
+      lineTotal: item.lineTotal,
+    }));
+    if (mergeSameItems) items = mergeSameProductItems(items);
+
     return {
       storeName: branches?.find((b) => b.id === inv.branchId)?.name ?? "SmartPOS",
       code: inv.code,
@@ -126,13 +138,7 @@ export function OrdersPage() {
       cashierName: inv.createdByName,
       customerName: inv.customer?.name,
       customerPhone: inv.customer?.phone,
-      items: inv.items.map((item) => ({
-        name: item.product.name,
-        quantity: item.quantity,
-        unitPrice: item.unitPrice,
-        discount: item.discount,
-        lineTotal: item.lineTotal,
-      })),
+      items,
       subTotal: inv.subTotal,
       discountAmount: inv.discountAmount,
       totalAmount: inv.totalAmount,
