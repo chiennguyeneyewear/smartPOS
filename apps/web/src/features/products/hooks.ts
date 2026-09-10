@@ -1,16 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { ProductImportRow, ProductInput } from "@smartpos/shared";
+import type { ProductInput } from "@smartpos/shared";
 import { toast } from "@/stores/toast-store";
-import {
-  createProduct,
-  deleteProduct,
-  fetchCategories,
-  fetchProducts,
-  fetchUnits,
-  importProducts,
-  updateProduct,
-  type ProductQuery,
-} from "./api";
+import { createProduct, deleteProduct, fetchCategories, fetchProducts, fetchUnits, updateProduct, type ProductQuery } from "./api";
 
 export function useProducts(query: ProductQuery, options: { enabled?: boolean } = {}) {
   return useQuery({
@@ -57,25 +48,6 @@ export function useDeleteProduct() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
       toast({ title: "Đã xóa sản phẩm", variant: "success" });
-    },
-  });
-}
-
-export function useImportProducts() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ rows, branchId }: { rows: ProductImportRow[]; branchId?: string }) =>
-      importProducts(rows, branchId),
-    onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: ["products"] });
-      queryClient.invalidateQueries({ queryKey: ["categories"] });
-      queryClient.invalidateQueries({ queryKey: ["units"] });
-      const errorNote = result.errors.length > 0 ? `, ${result.errors.length} lỗi` : "";
-      toast({
-        title: "Import hoàn tất",
-        description: `${result.created} sản phẩm mới, ${result.updated} cập nhật${errorNote}`,
-        variant: result.errors.length > 0 ? "default" : "success",
-      });
     },
   });
 }

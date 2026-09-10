@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { CustomerImportRow, CustomerInput } from "@smartpos/shared";
+import type { CustomerInput } from "@smartpos/shared";
 import { toast } from "@/stores/toast-store";
-import { createCustomer, fetchCustomer, fetchDebtHistory, importCustomers, searchCustomers, updateCustomer } from "./api";
+import { createCustomer, fetchCustomer, fetchDebtHistory, searchCustomers, updateCustomer } from "./api";
 
 export function useCustomerSearch(search: string) {
   return useQuery({
@@ -31,22 +31,6 @@ export function useUpdateCustomer() {
       queryClient.invalidateQueries({ queryKey: ["customers"] });
       queryClient.invalidateQueries({ queryKey: ["customers", id] });
       toast({ title: "Đã lưu thông tin khách hàng", variant: "success" });
-    },
-  });
-}
-
-export function useImportCustomers() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (rows: CustomerImportRow[]) => importCustomers(rows),
-    onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: ["customers"] });
-      const errorNote = result.errors.length > 0 ? `, ${result.errors.length} lỗi` : "";
-      toast({
-        title: "Import hoàn tất",
-        description: `${result.created} khách hàng mới, ${result.updated} cập nhật${errorNote}`,
-        variant: result.errors.length > 0 ? "default" : "success",
-      });
     },
   });
 }
