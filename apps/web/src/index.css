@@ -103,4 +103,16 @@
     top: 0;
     width: 100%;
   }
+  .printBox table {
+    page-break-inside: auto;
+    border-collapse: collapse;
+  }
+  .printBox tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+  .printBox img {
+    max-width: 100%;
+    height: auto;
+  }
 }

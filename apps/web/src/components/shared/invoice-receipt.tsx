@@ -1,99 +1,190 @@
-import type { PaymentMethod } from "@smartpos/shared";
-import { formatCurrency, formatDateTime } from "@/lib/utils";
+import { Fragment } from "react";
+import { formatCurrency } from "@/lib/utils";
 import type { ReceiptData } from "@/stores/print-receipt-store";
 
-const METHOD_LABELS: Record<PaymentMethod, string> = {
-  CASH: "Tiền mặt",
-  BANK_TRANSFER: "Chuyển khoản",
-  CARD: "Quẹt thẻ",
-  DEBT: "Ghi nợ",
-};
-
-// Khổ giấy và máy in đích do người dùng chọn ngay trong hộp thoại in của
-// trình duyệt/hệ điều hành (Ctrl+P) — layout ở đây không ép cứng kích thước
-// giấy, chỉ co giãn theo chiều rộng khổ giấy được chọn ở đó.
+// Mẫu hóa đơn thật của cửa hàng (mắt kính) — sao chép y chang bố cục/nội
+// dung tĩnh (Lời dặn, Quý khách lưu ý, Đặt cọc/Còn, Hẹn giao kính...) từ
+// file mẫu in gốc, chỉ thay các {biến} bằng dữ liệu hóa đơn thật.
 export function InvoiceReceipt({ data }: { data: ReceiptData }) {
-  const paid = data.payments.reduce((sum, p) => sum + p.amount, 0);
-  const change = paid - data.totalAmount;
+  const date = new Date(data.date);
+  const gio = String(date.getHours()).padStart(2, "0");
+  const phut = String(date.getMinutes()).padStart(2, "0");
+  const ngay = date.getDate();
+  const thang = date.getMonth() + 1;
+  const nam = date.getFullYear();
 
   return (
-    <div className="bg-white text-black" style={{ fontSize: "13px", fontFamily: "Arial, sans-serif" }}>
-      <div style={{ textAlign: "center", marginBottom: "4mm" }}>
-        <div style={{ fontSize: "18px", fontWeight: 700 }}>{data.storeName}</div>
-        {data.storeAddress && <div>{data.storeAddress}</div>}
-        {data.storePhone && <div>ĐT: {data.storePhone}</div>}
-        <div style={{ fontSize: "15px", fontWeight: 700, marginTop: "3mm" }}>HÓA ĐƠN BÁN HÀNG</div>
-      </div>
-
-      <div style={{ marginBottom: "3mm" }}>
-        <div>
-          Mã hóa đơn: <strong>{data.code}</strong>
-        </div>
-        <div>Thời gian: {formatDateTime(data.date)}</div>
-        <div>Thu ngân: {data.cashierName}</div>
-        {data.customerName && (
-          <div>
-            Khách hàng: {data.customerName}
-            {data.customerPhone ? ` - ${data.customerPhone}` : ""}
-          </div>
-        )}
-      </div>
-
-      <table style={{ width: "100%", borderCollapse: "collapse" }}>
-        <thead>
-          <tr style={{ borderTop: "1px dashed #000", borderBottom: "1px dashed #000" }}>
-            <th style={{ textAlign: "left", padding: "1mm 0" }}>Tên hàng</th>
-            <th style={{ textAlign: "center", padding: "1mm 0" }}>SL</th>
-            <th style={{ textAlign: "right", padding: "1mm 0" }}>Đơn giá</th>
-            <th style={{ textAlign: "right", padding: "1mm 0" }}>Giảm giá</th>
-            <th style={{ textAlign: "right", padding: "1mm 0" }}>Thành tiền</th>
-          </tr>
-        </thead>
+    <div className="printBox bg-white text-black" style={{ fontFamily: "Arial, sans-serif", fontSize: "11px" }}>
+      <table style={{ width: "100%" }}>
         <tbody>
-          {data.items.map((item, i) => (
-            <tr key={i}>
-              <td style={{ textAlign: "left", padding: "1mm 0" }}>{item.name}</td>
-              <td style={{ textAlign: "center", padding: "1mm 0" }}>{item.quantity}</td>
-              <td style={{ textAlign: "right", padding: "1mm 0" }}>{formatCurrency(item.unitPrice)}</td>
-              <td style={{ textAlign: "right", padding: "1mm 0" }}>
-                {item.discount > 0 ? formatCurrency(item.discount) : "-"}
+          <tr>
+            <td style={{ fontSize: "11px", textAlign: "center" }}>
+              <span style={{ fontSize: "14px", fontWeight: "bold" }}>{data.storeName}</span>
+            </td>
+          </tr>
+          {data.storeAddress && (
+            <tr>
+              <td style={{ fontSize: "11px", textAlign: "center" }}>
+                <span style={{ fontSize: "9px", fontWeight: "bold" }}>Đc: {data.storeAddress}</span>
               </td>
-              <td style={{ textAlign: "right", padding: "1mm 0" }}>{formatCurrency(item.lineTotal)}</td>
             </tr>
+          )}
+          {data.storePhone && (
+            <tr>
+              <td style={{ fontSize: "11px", textAlign: "center" }}>
+                <span style={{ fontSize: "10px", fontWeight: "bold" }}>PHẢN HỒI CHẤT LƯỢNG DỊCH VỤ {data.storePhone}</span>
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+
+      <div style={{ padding: "10px 0 0", textAlign: "center" }}>
+        <strong style={{ fontSize: "12px" }}>HÓA ĐƠN BÁN HÀNG</strong>
+      </div>
+
+      <table style={{ width: "100%" }}>
+        <tbody>
+          <tr>
+            <td style={{ fontSize: "11px", textAlign: "center" }}>
+              {gio}Giờ:{phut}phút - Ngày {ngay} tháng {thang} năm {nam}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <table style={{ margin: "10px 0 15px", width: "100%" }}>
+        <tbody>
+          <tr>
+            <td style={{ fontSize: "11px" }}>
+              Khách hàng: <span style={{ fontSize: "16px" }}>{data.customerName || "Khách lẻ"}</span>
+            </td>
+          </tr>
+          <tr>
+            <td style={{ fontSize: "11px" }}>
+              SĐT: <strong style={{ fontSize: "20px" }}>{data.customerPhone ?? ""}</strong>
+            </td>
+          </tr>
+          <tr>
+            <td style={{ fontSize: "11px" }}>Số nhà :</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <table cellPadding={3} style={{ width: "98%" }}>
+        <tbody>
+          <tr>
+            <td style={{ borderBottom: "1px solid black", borderTop: "1px solid black", width: "35%" }}>
+              <strong style={{ fontSize: "11px" }}>Đơn giá</strong>
+            </td>
+            <td style={{ borderBottom: "1px solid black", borderTop: "1px solid black", textAlign: "right", width: "30%" }}>
+              <strong style={{ fontSize: "11px" }}>SL</strong>
+            </td>
+            <td style={{ borderBottom: "1px solid black", borderTop: "1px solid black", textAlign: "right" }}>
+              <strong style={{ fontSize: "11px" }}>Thành tiền</strong>
+            </td>
+          </tr>
+          {data.items.map((item, i) => (
+            <Fragment key={i}>
+              <tr>
+                <td colSpan={3} style={{ paddingTop: "3px" }}>
+                  <span style={{ fontSize: "12px" }}>{item.name}</span>
+                </td>
+              </tr>
+              <tr>
+                <td style={{ borderBottom: "1px dashed black" }}>
+                  <span style={{ fontSize: "11px" }}>{item.discount > 0 ? formatCurrency(item.discount) : "0"}</span>
+                </td>
+                <td style={{ borderBottom: "1px dashed black", textAlign: "right" }}>
+                  <span style={{ fontSize: "11px" }}>{item.quantity}</span>
+                </td>
+                <td style={{ borderBottom: "1px dashed black", textAlign: "right" }}>
+                  <span style={{ fontSize: "11px" }}>{formatCurrency(item.lineTotal)}</span>
+                </td>
+              </tr>
+            </Fragment>
           ))}
         </tbody>
       </table>
 
-      <div style={{ borderTop: "1px dashed #000", marginTop: "1.5mm", paddingTop: "1.5mm" }}>
-        <div style={{ display: "flex", justifyContent: "space-between" }}>
-          <span>Tổng tiền hàng</span>
-          <span>{formatCurrency(data.subTotal)}</span>
-        </div>
-        {data.discountAmount > 0 && (
-          <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <span>Giảm giá hóa đơn</span>
-            <span>{formatCurrency(data.discountAmount)}</span>
-          </div>
-        )}
-        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "16px", fontWeight: 700, marginTop: "1mm" }}>
-          <span>Tổng cộng</span>
-          <span>{formatCurrency(data.totalAmount)}</span>
-        </div>
-        {data.payments.map((p, i) => (
-          <div key={i} style={{ display: "flex", justifyContent: "space-between" }}>
-            <span>{METHOD_LABELS[p.method]}</span>
-            <span>{formatCurrency(p.amount)}</span>
-          </div>
-        ))}
-        {change > 0 && (
-          <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <span>Tiền thừa trả khách</span>
-            <span>{formatCurrency(change)}</span>
-          </div>
-        )}
-      </div>
+      <table cellPadding={3} style={{ borderCollapse: "collapse", marginTop: "20px", width: "98%" }}>
+        <tfoot>
+          <tr>
+            <td style={{ fontSize: "11px", fontWeight: "bold", textAlign: "right", whiteSpace: "nowrap" }}>
+              Tổng thanh toán:
+            </td>
+            <td style={{ fontSize: "11px", fontWeight: "bold", textAlign: "right" }}>
+              <strong style={{ fontSize: "16px" }}>{formatCurrency(data.totalAmount)}</strong>
+            </td>
+          </tr>
+        </tfoot>
+      </table>
 
-      <div style={{ textAlign: "center", marginTop: "6mm" }}>Cảm ơn quý khách, hẹn gặp lại!</div>
+      <table cellPadding={1} cellSpacing={1} style={{ width: "100%" }}>
+        <tbody>
+          <tr>
+            <td>
+              <strong style={{ fontSize: "12px" }}>LỜI DẶN</strong>
+            </td>
+            <td>
+              <span style={{ fontSize: "12px" }}>+ Tập thích nghi độ kính mới từ 5 đến 10 ngày đầu</span>
+            </td>
+          </tr>
+          <tr>
+            <td>&nbsp;</td>
+            <td>
+              <span style={{ fontSize: "12px" }}>+ Đeo kính và lấy kính ra bằng 2 tay</span>
+            </td>
+          </tr>
+          <tr>
+            <td>&nbsp;</td>
+            <td>
+              <span style={{ fontSize: "12px" }}>
+                + Lau kính bằng khăn và nước chuyên dụng ,<br />
+                &nbsp;&nbsp;không lau bằng quần áo
+              </span>
+            </td>
+          </tr>
+          <tr>
+            <td>&nbsp;</td>
+            <td>
+              <span style={{ fontSize: "12px" }}>+ Đo mắt định kỳ sau </span>
+              <span style={{ fontSize: "22px" }}>6 tháng</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p style={{ textAlign: "center" }}>
+        <strong>QÚY KHÁCH LƯU Ý</strong>
+      </p>
+
+      <p>
+        - Các sản phẩm đã mua và đặt cọc sẽ không được hoàn trả tiền ,có thể đổi sang mẫu mã khác trong vòng 3 ngày kế
+        từ khi mua và BẮT BUỘC mang theo hóa đơn khi đổi hàng,sản phẩm đổi cần bằng hoặc hơn giá trị đã mua, không
+        trầy xước móp méo.
+      </p>
+
+      <p>
+        - Bảo hành: Tròng kính khi mắt không thích nghi được theo số độ chỉ định của kỹ thuật viên trong vòng 10 ngày
+        và xúc ốc, ve, gãy lò xo - vệ sinh kính hoàn toàn miễn phí.
+      </p>
+
+      <p>
+        <strong>Đặt cọc&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Còn</strong>
+      </p>
+
+      <p>
+        <span style={{ fontSize: "9px" }}>
+          <strong>Hẹn ngày giao kính với khách</strong>
+        </span>
+      </p>
+
+      <p>
+        <span style={{ fontSize: "9px" }}>
+          <strong>NV.................đã gọi điện khách tới nhận kính</strong>
+        </span>
+      </p>
     </div>
   );
 }
