@@ -183,12 +183,14 @@ export function PosPage() {
         </div>
       </div>
       <div className="flex flex-1 overflow-hidden">
-        <CartPanel key={tab.id} tab={tab} onRequestCheckout={handleOpenCheckout} />
+        <CartPanel key={tab.id} tab={tab} />
         <ProductGridPanel
           customer={tab.customer}
           tabId={tab.id}
           customerInputRef={customerSearchRef}
           onRequestQuickAddCustomer={() => setQuickAddOpen(true)}
+          onRequestCheckout={handleOpenCheckout}
+          checkoutDisabled={tab.items.length === 0}
         />
       </div>
 

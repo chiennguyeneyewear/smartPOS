@@ -4,6 +4,7 @@ import type { CustomerSummary } from "@smartpos/shared";
 import { useProducts } from "@/features/products/hooks";
 import { usePosStore } from "@/stores/pos-store";
 import { formatCurrency, cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import { CustomerSearchBox } from "./customer-search-box";
 
 const PAGE_SIZE = 18;
@@ -13,6 +14,8 @@ interface ProductGridPanelProps {
   tabId: string;
   customerInputRef: React.Ref<HTMLInputElement>;
   onRequestQuickAddCustomer: () => void;
+  onRequestCheckout: () => void;
+  checkoutDisabled: boolean;
 }
 
 // Always-populated quick-pick catalog (best sellers / manually arranged), matching
@@ -23,6 +26,8 @@ export function ProductGridPanel({
   tabId,
   customerInputRef,
   onRequestQuickAddCustomer,
+  onRequestCheckout,
+  checkoutDisabled,
 }: ProductGridPanelProps) {
   const [page, setPage] = useState(1);
   const addItem = usePosStore((s) => s.addItem);
@@ -86,6 +91,12 @@ export function ProductGridPanel({
         >
           <ChevronRight className="h-4 w-4" />
         </button>
+      </div>
+
+      <div className="p-2 pt-0">
+        <Button size="lg" className="w-full text-base" disabled={checkoutDisabled} onClick={onRequestCheckout}>
+          THANH TOÁN
+        </Button>
       </div>
     </div>
   );

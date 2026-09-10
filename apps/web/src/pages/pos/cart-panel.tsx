@@ -2,15 +2,13 @@ import { useMemo, useState } from "react";
 import { Minus, MoreVertical, Plus, Trash2 } from "lucide-react";
 import { usePosStore, getLineTotal, getLineUnitDiscount, type PosTab } from "@/stores/pos-store";
 import { formatCurrency } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 import { LineDiscountPopover } from "./line-discount-popover";
 
 interface CartPanelProps {
   tab: PosTab;
-  onRequestCheckout: () => void;
 }
 
-export function CartPanel({ tab, onRequestCheckout }: CartPanelProps) {
+export function CartPanel({ tab }: CartPanelProps) {
   const updateQuantity = usePosStore((s) => s.updateQuantity);
   const removeItem = usePosStore((s) => s.removeItem);
   const duplicateLine = usePosStore((s) => s.duplicateLine);
@@ -119,14 +117,6 @@ export function CartPanel({ tab, onRequestCheckout }: CartPanelProps) {
           <span className="text-base font-medium text-muted-foreground">Tổng tiền hàng</span>
           <span className="text-xl font-bold text-primary">{formatCurrency(total)}</span>
         </div>
-        <Button
-          size="lg"
-          className="w-full text-base"
-          disabled={tab.items.length === 0}
-          onClick={onRequestCheckout}
-        >
-          THANH TOÁN
-        </Button>
       </div>
     </div>
   );
