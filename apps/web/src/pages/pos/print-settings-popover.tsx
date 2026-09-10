@@ -1,12 +1,10 @@
 import { useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { usePrintSettingsStore } from "@/stores/print-settings-store";
-import type { ReceiptFormat } from "@/stores/print-receipt-store";
+import { useAuthStore } from "@/stores/auth-store";
+import { useBranches } from "@/features/branches/hooks";
 
-const TEMPLATE_OPTIONS: { value: ReceiptFormat; letter: string; label: string }[] = [
-  { value: "thermal80", letter: "A", label: "Mẫu in hóa đơn khổ 80mm" },
-  { value: "a5", letter: "B", label: "Mẫu in hóa đơn khổ A5" },
-];
+const LETTERS = "ABCDEFGHIJ";
 
 interface PrintSettingsPopoverProps {
   open: boolean;
@@ -34,8 +32,11 @@ function ToggleSwitch({ checked, onChange }: { checked: boolean; onChange: (valu
 
 export function PrintSettingsPopover({ open, onOpenChange }: PrintSettingsPopoverProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const { autoPrint, mergeSameItems, copies, format, setAutoPrint, setMergeSameItems, setCopies, setFormat } =
+  const { autoPrint, mergeSameItems, copies, receiptBranchId, setAutoPrint, setMergeSameItems, setCopies, setReceiptBranchId } =
     usePrintSettingsStore();
+  const activeBranchId = useAuthStore((s) => s.activeBranchId);
+  const { data: branches } = useBranches();
+  const effectiveBranchId = receiptBranchId ?? activeBranchId;
 
   useEffect(() => {
     if (!open) return;
@@ -80,19 +81,19 @@ export function PrintSettingsPopover({ open, onOpenChange }: PrintSettingsPopove
       <div className="space-y-2">
         <p className="text-sm font-medium">Chọn mẫu in</p>
         <div className="space-y-2">
-          {TEMPLATE_OPTIONS.map((option) => (
+          {branches?.map((branch, i) => (
             <button
               type="button"
-              key={option.value}
-              onClick={() => setFormat(option.value)}
+              key={branch.id}
+              onClick={() => setReceiptBranchId(branch.id)}
               className={cn(
                 "w-full rounded-full border px-4 py-2 text-left text-sm transition-colors",
-                format === option.value
+                effectiveBranchId === branch.id
                   ? "border-primary bg-primary text-primary-foreground"
                   : "border-input text-foreground hover:bg-accent",
               )}
             >
-              {option.letter}. {option.label}
+              {LETTERS[i] ?? i + 1}. Mẫu in hóa đơn CS{i + 1}
             </button>
           ))}
         </div>

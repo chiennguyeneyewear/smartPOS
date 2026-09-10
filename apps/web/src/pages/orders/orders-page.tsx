@@ -131,8 +131,12 @@ export function OrdersPage() {
     }));
     if (mergeSameItems) items = mergeSameProductItems(items);
 
+    const branch = branches?.find((b) => b.id === inv.branchId);
+
     return {
-      storeName: branches?.find((b) => b.id === inv.branchId)?.name ?? "SmartPOS",
+      storeName: branch?.name ?? "SmartPOS",
+      storeAddress: branch?.address,
+      storePhone: branch?.phone,
       code: inv.code,
       date: inv.completedAt ?? inv.createdAt,
       cashierName: inv.createdByName,

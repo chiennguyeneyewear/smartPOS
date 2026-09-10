@@ -44,9 +44,12 @@ export function PosPage() {
   const createDraft = useCreateDraftInvoice();
   const checkout = useCheckoutInvoice();
   const { data: branches } = useBranches();
-  const branchName = branches?.find((b) => b.id === activeBranchId)?.name ?? "";
   const printReceipt = usePrintReceiptStore((s) => s.print);
-  const { autoPrint, mergeSameItems, format: printFormat } = usePrintSettingsStore();
+  const { autoPrint, mergeSameItems, format: printFormat, receiptBranchId } = usePrintSettingsStore();
+  // The invoice itself always posts against activeBranchId (stock, reporting);
+  // receiptBranchId only controls whose name/address/phone print on the
+  // receipt, for a shared till that serves 3 physical stores.
+  const printBranch = branches?.find((b) => b.id === (receiptBranchId ?? activeBranchId));
 
   useHotkeys("f3", (e) => {
     e.preventDefault();
@@ -112,7 +115,9 @@ export function PosPage() {
           if (mergeSameItems) items = mergeSameProductItems(items);
 
           const receipt: ReceiptData = {
-            storeName: branchName || "SmartPOS",
+            storeName: printBranch?.name || "SmartPOS",
+            storeAddress: printBranch?.address,
+            storePhone: printBranch?.phone,
             code: invoice.code,
             date: invoice.completedAt ?? new Date().toISOString(),
             cashierName: username,

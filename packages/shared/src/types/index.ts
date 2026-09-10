@@ -15,6 +15,8 @@ export interface BranchSummary {
   id: string;
   name: string;
   code: string;
+  address: string | null;
+  phone: string | null;
 }
 
 export interface UnitSummary {
