@@ -1,4 +1,4 @@
-import type { CustomerInput, CustomerSummary } from "@smartpos/shared";
+import type { CustomerImportResult, CustomerImportRow, CustomerInput, CustomerSummary } from "@smartpos/shared";
 import { apiClient } from "@/lib/api-client";
 
 export async function searchCustomers(search: string): Promise<CustomerSummary[]> {
@@ -22,6 +22,11 @@ export interface CustomerDetail extends CustomerSummary {
 
 export async function fetchCustomer(id: string): Promise<CustomerDetail> {
   const { data } = await apiClient.get<CustomerDetail>(`/customers/${id}`);
+  return data;
+}
+
+export async function importCustomers(rows: CustomerImportRow[]): Promise<CustomerImportResult> {
+  const { data } = await apiClient.post<CustomerImportResult>("/customers/import", { rows });
   return data;
 }
 

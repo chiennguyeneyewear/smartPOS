@@ -1,11 +1,12 @@
 import { useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, Upload } from "lucide-react";
 import type { CustomerSummary } from "@smartpos/shared";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
 import { CustomerFormDialog } from "@/components/shared/customer-form-dialog";
 import { CustomerDetailTabs } from "@/components/shared/customer-detail-tabs";
+import { CustomerImportDialog } from "./customer-import-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -32,6 +33,7 @@ const columns: ColumnDef<CustomerSummary, any>[] = [
 export function CustomersPage() {
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const { data, isLoading } = useCustomerList(search);
 
@@ -41,9 +43,14 @@ export function CustomersPage() {
         title="Khách hàng"
         description="Quản lý danh sách khách hàng &amp; công nợ"
         actions={
-          <Button onClick={() => setOpen(true)} className="gap-1.5">
-            <Plus className="h-4 w-4" /> Thêm khách hàng
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={() => setImportOpen(true)} className="gap-1.5">
+              <Upload className="h-4 w-4" /> Import
+            </Button>
+            <Button onClick={() => setOpen(true)} className="gap-1.5">
+              <Plus className="h-4 w-4" /> Thêm khách hàng
+            </Button>
+          </div>
         }
       />
       <div className="relative max-w-sm">
@@ -68,6 +75,7 @@ export function CustomersPage() {
       )}
 
       <CustomerFormDialog open={open} onOpenChange={setOpen} />
+      <CustomerImportDialog open={importOpen} onOpenChange={setImportOpen} />
     </div>
   );
 }

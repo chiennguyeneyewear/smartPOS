@@ -1,9 +1,10 @@
 import type { FastifyInstance } from "fastify";
-import { PERMISSIONS, customerSchema, type CustomerInput } from "@smartpos/shared";
+import { PERMISSIONS, customerSchema, customerImportInputSchema, type CustomerInput } from "@smartpos/shared";
 import { authenticate } from "../../middleware/authenticate.js";
 import { requirePermission } from "../../middleware/require-permission.js";
 import { prisma } from "../../lib/prisma.js";
 import { generateCustomerCode } from "../../lib/codes.js";
+import { importCustomers } from "./customers.service.js";
 
 function toDto(customer: { debtBalance: unknown; birthday: Date | null; [key: string]: unknown }) {
   return {
@@ -47,6 +48,15 @@ export function registerCustomerRoutes(app: FastifyInstance) {
     });
     return reply.code(201).send(toDto(customer));
   });
+
+  app.post(
+    "/customers/import",
+    { preHandler: [authenticate, requirePermission(PERMISSIONS.CUSTOMERS_MANAGE)] },
+    async (request) => {
+      const input = customerImportInputSchema.parse(request.body);
+      return importCustomers(input.rows, request.authUser!.id);
+    },
+  );
 
   app.get("/customers/:id", { preHandler: authenticate }, async (request, reply) => {
     const { id } = request.params as { id: string };
