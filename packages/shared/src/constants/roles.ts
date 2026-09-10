@@ -71,7 +71,7 @@ export const MENU_ITEM_LABELS: Record<MenuKey, string> = {
   [MENU_ITEMS.PRODUCTS]: "Hàng hóa",
   [MENU_ITEMS.CUSTOMERS]: "Khách hàng",
   [MENU_ITEMS.ORDERS]: "Đơn hàng",
-  [MENU_ITEMS.REPORTS]: "Báo cáo",
+  [MENU_ITEMS.REPORTS]: "Phân tích",
   [MENU_ITEMS.USERS]: "Quản lý người dùng",
 };
 

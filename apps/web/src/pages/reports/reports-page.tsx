@@ -21,7 +21,7 @@ export function ReportsPage() {
 
   return (
     <div className="space-y-4">
-      <PageHeader title="Báo cáo" description="Doanh thu, lợi nhuận &amp; hiệu suất bán hàng" />
+      <PageHeader title="Phân tích" description="Doanh thu, lợi nhuận &amp; hiệu suất bán hàng" />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <Card>
