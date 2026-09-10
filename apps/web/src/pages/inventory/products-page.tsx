@@ -15,9 +15,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { toast } from "@/stores/toast-store";
 import { useAuthStore } from "@/stores/auth-store";
 import { useCategories, useCreateProduct, useProducts, useUnits } from "@/features/products/hooks";
+import { ProductImportDialog } from "./product-import-dialog";
 
 function formatNumber(value: number): string {
   return value.toLocaleString("en-US");
@@ -27,6 +27,7 @@ export function ProductsPage() {
   const activeBranchId = useAuthStore((s) => s.activeBranchId);
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const { data, isLoading } = useProducts({ search, branchId: activeBranchId ?? undefined, page: 1, pageSize: 50 });
   const { data: categories } = useCategories();
@@ -101,7 +102,7 @@ export function ProductsPage() {
           <Button
             variant="outline"
             className="gap-1.5"
-            onClick={() => toast({ title: "Tính năng nhập hàng từ Excel đang được phát triển" })}
+            onClick={() => setImportOpen(true)}
           >
             <Upload className="h-4 w-4" />
             Import
@@ -241,6 +242,8 @@ export function ProductsPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <ProductImportDialog open={importOpen} onOpenChange={setImportOpen} />
     </div>
   );
 }

@@ -1,4 +1,12 @@
-import type { CategorySummary, PagedResult, ProductInput, ProductSummary, UnitSummary } from "@smartpos/shared";
+import type {
+  CategorySummary,
+  PagedResult,
+  ProductImportRow,
+  ProductImportResult,
+  ProductInput,
+  ProductSummary,
+  UnitSummary,
+} from "@smartpos/shared";
 import { apiClient } from "@/lib/api-client";
 
 export interface ProductQuery {
@@ -37,4 +45,9 @@ export async function fetchCategories(): Promise<CategorySummary[]> {
 export async function fetchUnits(): Promise<UnitSummary[]> {
   const { data } = await apiClient.get<{ data: UnitSummary[] }>("/units");
   return data.data;
+}
+
+export async function importProducts(rows: ProductImportRow[], branchId?: string): Promise<ProductImportResult> {
+  const { data } = await apiClient.post<ProductImportResult>("/products/import", { rows, branchId });
+  return data;
 }

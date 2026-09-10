@@ -1,9 +1,10 @@
 import type { FastifyInstance } from "fastify";
-import { PERMISSIONS, productSchema, categorySchema, unitSchema } from "@smartpos/shared";
+import { PERMISSIONS, productSchema, categorySchema, unitSchema, productImportInputSchema } from "@smartpos/shared";
 import { authenticate } from "../../middleware/authenticate.js";
 import { requirePermission } from "../../middleware/require-permission.js";
 import { prisma } from "../../lib/prisma.js";
 import { Prisma } from "@prisma/client";
+import { importProducts } from "./products.service.js";
 
 const PAGE_SIZE_DEFAULT = 24;
 
@@ -89,6 +90,15 @@ export function registerProductRoutes(app: FastifyInstance) {
       const { id } = request.params as { id: string };
       await prisma.product.update({ where: { id }, data: { deletedAt: new Date(), isActive: false } });
       return { success: true };
+    },
+  );
+
+  app.post(
+    "/products/import",
+    { preHandler: [authenticate, requirePermission(PERMISSIONS.PRODUCTS_MANAGE)] },
+    async (request) => {
+      const input = productImportInputSchema.parse(request.body);
+      return importProducts(input.rows, input.branchId);
     },
   );
 
