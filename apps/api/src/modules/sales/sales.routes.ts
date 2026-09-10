@@ -58,6 +58,22 @@ export function registerSalesRoutes(app: FastifyInstance) {
     },
   );
 
+  // TEMPORARY: lets a seeding script spread demo invoices' dates across a
+  // window instead of every one landing at "now". Admin-gated + requires an
+  // explicit confirm token. Remove once used — not meant to ship.
+  app.patch(
+    "/sales/invoices/:id/backdate",
+    { preHandler: [authenticate, requirePermission(PERMISSIONS.SALES_VOID)] },
+    async (request) => {
+      const { id } = request.params as { id: string };
+      const body = request.body as { date?: string; confirm?: string };
+      if (body.confirm !== "BACKDATE_SEED" || !body.date) {
+        return { error: "Thiếu xác nhận hoặc ngày" };
+      }
+      return salesService.backdateInvoice(id, new Date(body.date));
+    },
+  );
+
   app.get("/sales/invoices", { preHandler: [authenticate, branchScope] }, async (request) => {
     const query = request.query as {
       branchId?: string;

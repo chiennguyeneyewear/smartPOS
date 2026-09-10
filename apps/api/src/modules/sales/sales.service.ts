@@ -296,4 +296,11 @@ export async function listInvoices(filters: {
   }));
 }
 
+// Seeding helper: sets both createdAt and completedAt so a demo invoice
+// shows up on the right day everywhere (dashboard activity feed, Orders
+// list, reports), not just in one of the two date fields.
+export async function backdateInvoice(id: string, date: Date) {
+  return prisma.invoice.update({ where: { id }, data: { createdAt: date, completedAt: date } });
+}
+
 export { SalesError };
