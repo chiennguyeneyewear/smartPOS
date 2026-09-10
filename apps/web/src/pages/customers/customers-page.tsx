@@ -10,7 +10,6 @@ import { CustomerImportDialog } from "./customer-import-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils";
 import { useCustomerList } from "@/features/customers/hooks";
 
@@ -64,15 +63,8 @@ export function CustomersPage() {
         emptyMessage="Chưa có khách hàng"
         onRowClick={(row) => setSelectedCustomerId(row.id === selectedCustomerId ? null : row.id)}
         isRowSelected={(row) => row.id === selectedCustomerId}
+        renderExpandedRow={(row) => <CustomerDetailTabs customerId={row.id} />}
       />
-
-      {selectedCustomerId && (
-        <Card>
-          <CardContent className="pt-4">
-            <CustomerDetailTabs customerId={selectedCustomerId} />
-          </CardContent>
-        </Card>
-      )}
 
       <CustomerFormDialog open={open} onOpenChange={setOpen} />
       <CustomerImportDialog open={importOpen} onOpenChange={setImportOpen} />

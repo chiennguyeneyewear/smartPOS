@@ -1,3 +1,4 @@
+import { Fragment, type ReactNode } from "react";
 import {
   type ColumnDef,
   flexRender,
@@ -13,6 +14,10 @@ interface DataTableProps<TData> {
   emptyMessage?: string;
   onRowClick?: (row: TData) => void;
   isRowSelected?: (row: TData) => boolean;
+  // Renders extra content in its own full-width row directly under a
+  // selected row (e.g. the customer detail panel), instead of after the
+  // whole table — matching KiotViet's inline row-expansion behavior.
+  renderExpandedRow?: (row: TData) => ReactNode;
 }
 
 export function DataTable<TData>({
@@ -22,6 +27,7 @@ export function DataTable<TData>({
   emptyMessage,
   onRowClick,
   isRowSelected,
+  renderExpandedRow,
 }: DataTableProps<TData>) {
   const table = useReactTable({ data, columns, getCoreRowModel: getCoreRowModel() });
 
@@ -55,23 +61,34 @@ export function DataTable<TData>({
             </tr>
           )}
           {!isLoading &&
-            table.getRowModel().rows.map((row) => (
-              <tr
-                key={row.id}
-                onClick={onRowClick ? () => onRowClick(row.original) : undefined}
-                className={cn(
-                  "border-t hover:bg-accent/40",
-                  onRowClick && "cursor-pointer",
-                  isRowSelected?.(row.original) && "bg-accent/60",
-                )}
-              >
-                {row.getVisibleCells().map((cell) => (
-                  <td key={cell.id} className="whitespace-nowrap p-3">
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </td>
-                ))}
-              </tr>
-            ))}
+            table.getRowModel().rows.map((row) => {
+              const expanded = isRowSelected?.(row.original) && !!renderExpandedRow;
+              return (
+                <Fragment key={row.id}>
+                  <tr
+                    onClick={onRowClick ? () => onRowClick(row.original) : undefined}
+                    className={cn(
+                      "border-t hover:bg-accent/40",
+                      onRowClick && "cursor-pointer",
+                      isRowSelected?.(row.original) && "bg-accent/60",
+                    )}
+                  >
+                    {row.getVisibleCells().map((cell) => (
+                      <td key={cell.id} className="whitespace-nowrap p-3">
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </td>
+                    ))}
+                  </tr>
+                  {expanded && (
+                    <tr className="border-t bg-muted/20">
+                      <td colSpan={columns.length} className="p-4">
+                        {renderExpandedRow!(row.original)}
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              );
+            })}
         </tbody>
       </table>
     </div>
