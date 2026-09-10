@@ -1,4 +1,4 @@
-import type { CheckoutInvoiceInput, InvoiceSummary, SaveInvoiceInput } from "@smartpos/shared";
+import type { CheckoutInvoiceInput, InvoiceSummary, PaymentMethod, SaveInvoiceInput } from "@smartpos/shared";
 import { apiClient } from "@/lib/api-client";
 
 export async function createDraftInvoice(input: SaveInvoiceInput): Promise<InvoiceSummary> {
@@ -22,7 +22,15 @@ export async function voidInvoice(id: string): Promise<InvoiceSummary> {
 }
 
 export interface InvoiceListItem extends Omit<InvoiceSummary, "items"> {
-  items: { productId: string; product: { name: string; sku: string } }[];
+  items: {
+    productId: string;
+    quantity: number;
+    unitPrice: number;
+    discount: number;
+    lineTotal: number;
+    product: { name: string; sku: string };
+  }[];
+  payments: { method: PaymentMethod; amount: number }[];
   createdByName: string;
   customer: { code: string; name: string; phone: string | null } | null;
 }

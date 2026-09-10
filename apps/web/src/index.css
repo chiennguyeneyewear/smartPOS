@@ -88,3 +88,19 @@
     scrollbar-width: thin;
   }
 }
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #print-receipt-root,
+  #print-receipt-root * {
+    visibility: visible;
+  }
+  #print-receipt-root {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+}

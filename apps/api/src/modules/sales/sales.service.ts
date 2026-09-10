@@ -285,6 +285,14 @@ export async function listInvoices(filters: {
     totalAmount: Number(inv.totalAmount),
     paidAmount: Number(inv.paidAmount),
     createdByName: userNameById.get(inv.createdById) ?? "N/A",
+    items: inv.items.map((item) => ({
+      ...item,
+      quantity: Number(item.quantity),
+      unitPrice: Number(item.unitPrice),
+      discount: Number(item.discount),
+      lineTotal: Number(item.lineTotal),
+    })),
+    payments: inv.payments.map((p) => ({ ...p, amount: Number(p.amount) })),
   }));
 }
 

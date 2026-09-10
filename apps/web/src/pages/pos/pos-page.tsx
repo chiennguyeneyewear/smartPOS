@@ -6,8 +6,11 @@ import type { CustomerSummary, PaymentMethod } from "@smartpos/shared";
 import { useAuthStore } from "@/stores/auth-store";
 import { usePosStore, getActiveTab, getLineTotal, getLineUnitDiscount } from "@/stores/pos-store";
 import { useCreateDraftInvoice, useCheckoutInvoice } from "@/features/sales/hooks";
+import { useBranches } from "@/features/branches/hooks";
 import { toast } from "@/stores/toast-store";
 import { UserMenu } from "@/components/shared/user-menu";
+import { PrintReceiptDialog } from "@/components/shared/print-receipt-dialog";
+import type { ReceiptData } from "@/stores/print-receipt-store";
 import { InvoiceTabsBar } from "./invoice-tabs-bar";
 import { ProductQuickSearch } from "./product-quick-search";
 import { ProductGridPanel } from "./product-grid-panel";
@@ -17,6 +20,7 @@ import { CustomerFormDialog } from "@/components/shared/customer-form-dialog";
 
 export function PosPage() {
   const activeBranchId = useAuthStore((s) => s.activeBranchId);
+  const username = useAuthStore((s) => s.user?.username) ?? "";
   const tabs = usePosStore((s) => s.tabs);
   const activeTabId = usePosStore((s) => s.activeTabId);
   const setCustomer = usePosStore((s) => s.setCustomer);
@@ -27,12 +31,16 @@ export function PosPage() {
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [pendingInvoiceId, setPendingInvoiceId] = useState<string | null>(null);
+  const [receiptOpen, setReceiptOpen] = useState(false);
+  const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
 
   const productSearchRef = useRef<HTMLInputElement>(null);
   const customerSearchRef = useRef<HTMLInputElement>(null);
 
   const createDraft = useCreateDraftInvoice();
   const checkout = useCheckoutInvoice();
+  const { data: branches } = useBranches();
+  const branchName = branches?.find((b) => b.id === activeBranchId)?.name ?? "";
 
   useHotkeys("f3", (e) => {
     e.preventDefault();
@@ -86,10 +94,30 @@ export function PosPage() {
     checkout.mutate(
       { id: pendingInvoiceId, input: { payments } },
       {
-        onSuccess: () => {
+        onSuccess: (invoice) => {
+          setReceiptData({
+            storeName: branchName || "SmartPOS",
+            code: invoice.code,
+            date: invoice.completedAt ?? new Date().toISOString(),
+            cashierName: username,
+            customerName: tab.customer?.name,
+            customerPhone: tab.customer?.phone,
+            items: tab.items.map((line) => ({
+              name: line.name,
+              quantity: line.quantity,
+              unitPrice: line.unitPrice,
+              discount: getLineUnitDiscount(line) * line.quantity,
+              lineTotal: getLineTotal(line),
+            })),
+            subTotal: tab.items.reduce((sum, line) => sum + line.unitPrice * line.quantity, 0),
+            discountAmount: tab.discountAmount,
+            totalAmount: total,
+            payments,
+          });
           setCheckoutOpen(false);
           setPendingInvoiceId(null);
           resetTab(tab.id);
+          setReceiptOpen(true);
         },
       },
     );
@@ -136,6 +164,14 @@ export function PosPage() {
         open={quickAddOpen}
         onOpenChange={setQuickAddOpen}
         onCreated={(customer: CustomerSummary) => setCustomer(tab.id, customer)}
+      />
+
+      <PrintReceiptDialog
+        open={receiptOpen}
+        onOpenChange={setReceiptOpen}
+        data={receiptData}
+        title="Thanh toán thành công"
+        description="Chọn khổ giấy rồi in hóa đơn cho khách."
       />
     </div>
   );

@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Ban, Search, SlidersHorizontal } from "lucide-react";
+import { Ban, Printer, Search, SlidersHorizontal } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,13 +9,16 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DatePicker } from "@/components/shared/date-picker";
+import { PrintReceiptDialog } from "@/components/shared/print-receipt-dialog";
 import { useSearchDropdown } from "@/hooks/use-search-dropdown";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
 import { PERIOD_PRESET_OPTIONS, formatPeriodLabel, getPeriodRange, type PeriodPreset } from "@/lib/period-presets";
 import { useAuthStore } from "@/stores/auth-store";
+import type { ReceiptData } from "@/stores/print-receipt-store";
 import { useInvoices, useVoidInvoices } from "@/features/sales/hooks";
 import type { InvoiceListItem } from "@/features/sales/api";
 import { useUsers } from "@/features/users/hooks";
+import { useBranches } from "@/features/branches/hooks";
 
 function toDateInputValue(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -31,6 +34,7 @@ export function OrdersPage() {
   const [showCancelled, setShowCancelled] = useState(true);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [confirmingVoid, setConfirmingVoid] = useState(false);
+  const [printInvoice, setPrintInvoice] = useState<InvoiceListItem | null>(null);
   const [codeQuery, setCodeQuery] = useState("");
   const [productQuery, setProductQuery] = useState("");
   const [customerQuery, setCustomerQuery] = useState("");
@@ -45,6 +49,7 @@ export function OrdersPage() {
   const periodLabel = formatPeriodLabel(preset, range);
 
   const { data: sellers } = useUsers();
+  const { data: branches } = useBranches();
   const { data: invoices, isLoading } = useInvoices({
     branchId: activeBranchId ?? undefined,
     createdById: sellerId === "all" ? undefined : sellerId,
@@ -113,6 +118,28 @@ export function OrdersPage() {
     });
   }
 
+  function buildReceiptData(inv: InvoiceListItem): ReceiptData {
+    return {
+      storeName: branches?.find((b) => b.id === inv.branchId)?.name ?? "SmartPOS",
+      code: inv.code,
+      date: inv.completedAt ?? inv.createdAt,
+      cashierName: inv.createdByName,
+      customerName: inv.customer?.name,
+      customerPhone: inv.customer?.phone,
+      items: inv.items.map((item) => ({
+        name: item.product.name,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        discount: item.discount,
+        lineTotal: item.lineTotal,
+      })),
+      subTotal: inv.subTotal,
+      discountAmount: inv.discountAmount,
+      totalAmount: inv.totalAmount,
+      payments: inv.payments,
+    };
+  }
+
   const voidInvoices = useVoidInvoices();
 
   function confirmVoid() {
@@ -176,6 +203,16 @@ export function OrdersPage() {
       id: "totalAmount",
       header: "Tổng tiền hàng",
       cell: ({ row }) => <span className="font-medium">{formatCurrency(row.original.totalAmount)}</span>,
+    },
+    {
+      id: "actions",
+      header: "",
+      cell: ({ row }) =>
+        row.original.status === "COMPLETED" && (
+          <Button variant="ghost" size="sm" className="gap-1.5" onClick={() => setPrintInvoice(row.original)}>
+            <Printer className="h-3.5 w-3.5" /> In hóa đơn
+          </Button>
+        ),
     },
   ];
 
@@ -350,6 +387,12 @@ export function OrdersPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <PrintReceiptDialog
+        open={!!printInvoice}
+        onOpenChange={(o) => !o && setPrintInvoice(null)}
+        data={printInvoice ? buildReceiptData(printInvoice) : null}
+      />
     </div>
   );
 }
