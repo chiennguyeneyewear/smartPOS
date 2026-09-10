@@ -1,14 +1,8 @@
 import { Printer } from "lucide-react";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { cn, formatCurrency } from "@/lib/utils";
-import { usePrintReceiptStore, type ReceiptData, type ReceiptFormat } from "@/stores/print-receipt-store";
-import { usePrintSettingsStore } from "@/stores/print-settings-store";
-
-const FORMAT_OPTIONS: { value: ReceiptFormat; label: string }[] = [
-  { value: "thermal80", label: "Khổ 80mm" },
-  { value: "a5", label: "Khổ A5" },
-];
+import { formatCurrency } from "@/lib/utils";
+import { usePrintReceiptStore, type ReceiptData } from "@/stores/print-receipt-store";
 
 interface PrintReceiptDialogProps {
   open: boolean;
@@ -25,13 +19,11 @@ export function PrintReceiptDialog({
   title = "In hóa đơn",
   description,
 }: PrintReceiptDialogProps) {
-  const format = usePrintSettingsStore((s) => s.format);
-  const setFormat = usePrintSettingsStore((s) => s.setFormat);
   const printReceipt = usePrintReceiptStore((s) => s.print);
 
   function handlePrint() {
     if (!data) return;
-    printReceipt(data, format);
+    printReceipt(data);
   }
 
   return (
@@ -49,27 +41,6 @@ export function PrintReceiptDialog({
             <p className="text-2xl font-bold text-primary">{formatCurrency(data.totalAmount)}</p>
           </div>
         )}
-
-        <div className="space-y-1.5">
-          <p className="text-sm font-medium">Khổ giấy</p>
-          <div className="flex gap-2">
-            {FORMAT_OPTIONS.map((option) => (
-              <button
-                type="button"
-                key={option.value}
-                onClick={() => setFormat(option.value)}
-                className={cn(
-                  "flex-1 rounded-md border px-3 py-2 text-sm",
-                  format === option.value
-                    ? "border-primary bg-primary text-primary-foreground"
-                    : "text-muted-foreground",
-                )}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
-        </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>

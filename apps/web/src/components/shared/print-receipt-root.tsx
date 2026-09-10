@@ -7,7 +7,7 @@ import { InvoiceReceipt } from "./invoice-receipt";
 // rules hide everything else on the page so the printed output is just the
 // receipt, regardless of which page (POS, Orders...) triggered it.
 export function PrintReceiptRoot() {
-  const { data, format, requestId } = usePrintReceiptStore();
+  const { data, requestId } = usePrintReceiptStore();
   const copies = usePrintSettingsStore((s) => s.copies);
 
   useEffect(() => {
@@ -21,12 +21,13 @@ export function PrintReceiptRoot() {
 
   return (
     <div id="print-receipt-root" className="hidden print:block">
-      <style>{format === "thermal80" ? "@page { size: 80mm auto; margin: 0; }" : "@page { size: A5; margin: 10mm; }"}</style>
+      {/* Không ép khổ giấy (@page) ở đây nữa — người dùng chọn khổ giấy và
+          máy in ngay trong hộp thoại in của trình duyệt/hệ điều hành. */}
       {/* "Số bản in (Liên)" from print settings: each copy is forced onto its
           own page so a thermal cutter/A5 tray separates them correctly. */}
       {Array.from({ length: copies }, (_, i) => (
         <div key={i} style={i < copies - 1 ? { breakAfter: "page" } : undefined}>
-          <InvoiceReceipt data={data} format={format} />
+          <InvoiceReceipt data={data} />
         </div>
       ))}
     </div>

@@ -45,7 +45,7 @@ export function PosPage() {
   const checkout = useCheckoutInvoice();
   const { data: branches } = useBranches();
   const printReceipt = usePrintReceiptStore((s) => s.print);
-  const { autoPrint, mergeSameItems, format: printFormat, receiptBranchId } = usePrintSettingsStore();
+  const { autoPrint, mergeSameItems, receiptBranchId } = usePrintSettingsStore();
   // The invoice itself always posts against activeBranchId (stock, reporting);
   // receiptBranchId only controls whose name/address/phone print on the
   // receipt, for a shared till that serves 3 physical stores.
@@ -133,7 +133,7 @@ export function PosPage() {
           setPendingInvoiceId(null);
           resetTab(tab.id);
           if (autoPrint) {
-            printReceipt(receipt, printFormat);
+            printReceipt(receipt);
             toast({ title: "Thanh toán thành công", description: "Đã in hóa đơn tự động", variant: "success" });
           } else {
             setReceiptData(receipt);
@@ -212,7 +212,7 @@ export function PosPage() {
         onOpenChange={setReceiptOpen}
         data={receiptData}
         title="Thanh toán thành công"
-        description="Chọn khổ giấy rồi in hóa đơn cho khách."
+        description="In hóa đơn cho khách. Chọn khổ giấy/máy in trong hộp thoại in."
       />
     </div>
   );

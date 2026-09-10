@@ -1,8 +1,6 @@
 import { create } from "zustand";
 import type { PaymentMethod } from "@smartpos/shared";
 
-export type ReceiptFormat = "thermal80" | "a5";
-
 export interface ReceiptItem {
   productId: string;
   name: string;
@@ -53,14 +51,12 @@ export interface ReceiptData {
 
 interface PrintReceiptState {
   data: ReceiptData | null;
-  format: ReceiptFormat;
   requestId: number;
-  print: (data: ReceiptData, format: ReceiptFormat) => void;
+  print: (data: ReceiptData) => void;
 }
 
 export const usePrintReceiptStore = create<PrintReceiptState>((set) => ({
   data: null,
-  format: "thermal80",
   requestId: 0,
-  print: (data, format) => set((s) => ({ data, format, requestId: s.requestId + 1 })),
+  print: (data) => set((s) => ({ data, requestId: s.requestId + 1 })),
 }));
