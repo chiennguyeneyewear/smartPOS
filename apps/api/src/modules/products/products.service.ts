@@ -91,26 +91,3 @@ export async function importProducts(rows: ProductImportRow[], branchId?: string
 
   return result;
 }
-
-export interface PurgeProductsResult {
-  invoicesDeleted: number;
-  stockMovementsDeleted: number;
-  stockItemsDeleted: number;
-  productsDeleted: number;
-}
-
-// Hard-deletes every product and everything that references one — invoices
-// (cascades to their items/payments), stock movements (cascades to their
-// lines), and stock items — then zeroes out customer debt balances left
-// stale by the deleted debt ledger entries. One-time cleanup before a real
-// product import; not exposed as a standing route.
-export async function purgeAllProducts(): Promise<PurgeProductsResult> {
-  await prisma.debtLedgerEntry.deleteMany({});
-  const { count: invoicesDeleted } = await prisma.invoice.deleteMany({});
-  const { count: stockMovementsDeleted } = await prisma.stockMovement.deleteMany({});
-  const { count: stockItemsDeleted } = await prisma.stockItem.deleteMany({});
-  const { count: productsDeleted } = await prisma.product.deleteMany({});
-  await prisma.customer.updateMany({ data: { debtBalance: 0 } });
-
-  return { invoicesDeleted, stockMovementsDeleted, stockItemsDeleted, productsDeleted };
-}
