@@ -4,7 +4,7 @@ import { authenticate } from "../../middleware/authenticate.js";
 import { requirePermission } from "../../middleware/require-permission.js";
 import { prisma } from "../../lib/prisma.js";
 import { Prisma } from "@prisma/client";
-import { importProducts } from "./products.service.js";
+import { importProducts, purgeAllProducts } from "./products.service.js";
 
 const PAGE_SIZE_DEFAULT = 24;
 
@@ -99,6 +99,22 @@ export function registerProductRoutes(app: FastifyInstance) {
     async (request) => {
       const input = productImportInputSchema.parse(request.body);
       return importProducts(input.rows, input.branchId);
+    },
+  );
+
+  // TEMPORARY: one-time cleanup before importing the user's real catalog.
+  // Hard-deletes every product plus everything that references one
+  // (invoices, payments, stock movements, stock items). Remove this route
+  // once used — it is not meant to ship.
+  app.post(
+    "/products/purge-all",
+    { preHandler: [authenticate, requirePermission(PERMISSIONS.PRODUCTS_MANAGE)] },
+    async (request) => {
+      const body = request.body as { confirm?: string };
+      if (body.confirm !== "XOA_HET_SAN_PHAM") {
+        return { error: "Thiếu xác nhận" };
+      }
+      return purgeAllProducts();
     },
   );
 
