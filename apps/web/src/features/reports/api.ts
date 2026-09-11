@@ -70,3 +70,16 @@ export async function fetchDashboardSummary(params: { branchId?: string; from: s
   const { data } = await apiClient.get<DashboardSummary>("/reports/dashboard-summary", { params });
   return data;
 }
+
+export interface EndOfDayReport {
+  date: string;
+  revenue: number;
+  invoiceCount: number;
+  cancelledCount: number;
+  paymentBreakdown: { method: string; amount: number }[];
+}
+
+export async function fetchEndOfDay(params: { branchId?: string; date: string }) {
+  const { data } = await apiClient.get<EndOfDayReport>("/reports/end-of-day", { params });
+  return data;
+}

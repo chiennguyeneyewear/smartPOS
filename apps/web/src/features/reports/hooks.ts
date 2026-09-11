@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   fetchBranchComparison,
   fetchDashboardSummary,
+  fetchEndOfDay,
   fetchProfit,
   fetchRevenue,
   fetchStockValue,
@@ -40,4 +41,8 @@ export function useBranchComparisonReport(params: { from?: string; to?: string }
 
 export function useProfitReport(params: ReportRange) {
   return useQuery({ queryKey: ["reports", "profit", params], queryFn: () => fetchProfit(params) });
+}
+
+export function useEndOfDayReport(params: { branchId?: string; date: string }) {
+  return useQuery({ queryKey: ["reports", "end-of-day", params], queryFn: () => fetchEndOfDay(params) });
 }

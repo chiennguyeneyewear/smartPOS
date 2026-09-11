@@ -255,6 +255,41 @@ export async function getDashboardSummary(branchId: string | undefined, from: st
   };
 }
 
+// "Báo cáo > Cuối ngày": a cashier-style close-out for one calendar day —
+// revenue/invoice counts plus how much came in through each payment method,
+// so it can be checked against the physical cash drawer at closing time.
+export async function getEndOfDay(date: string, branchId?: string) {
+  const day = new Date(date);
+  const start = new Date(day.getFullYear(), day.getMonth(), day.getDate());
+  const end = new Date(day.getFullYear(), day.getMonth(), day.getDate(), 23, 59, 59, 999);
+  const branchFilter = branchId ? { branchId } : {};
+
+  const [completed, cancelledCount, payments] = await Promise.all([
+    prisma.invoice.findMany({
+      where: { ...branchFilter, status: "COMPLETED", completedAt: { gte: start, lte: end } },
+      select: { totalAmount: true },
+    }),
+    prisma.invoice.count({
+      where: { ...branchFilter, status: "CANCELLED", updatedAt: { gte: start, lte: end } },
+    }),
+    prisma.payment.findMany({
+      where: { invoice: { ...branchFilter, status: "COMPLETED", completedAt: { gte: start, lte: end } } },
+      select: { method: true, amount: true },
+    }),
+  ]);
+
+  const byMethod = new Map<string, number>();
+  for (const p of payments) byMethod.set(p.method, (byMethod.get(p.method) ?? 0) + Number(p.amount));
+
+  return {
+    date,
+    revenue: completed.reduce((sum, inv) => sum + Number(inv.totalAmount), 0),
+    invoiceCount: completed.length,
+    cancelledCount,
+    paymentBreakdown: Array.from(byMethod.entries()).map(([method, amount]) => ({ method, amount })),
+  };
+}
+
 export async function getProfit(range: DateRange) {
   const items = await prisma.invoiceItem.findMany({
     where: { invoice: dateFilter(range) },

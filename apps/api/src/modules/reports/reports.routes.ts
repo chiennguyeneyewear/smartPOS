@@ -59,6 +59,12 @@ export function registerReportRoutes(app: FastifyInstance) {
     },
   );
 
+  app.get("/reports/end-of-day", { preHandler: guard }, async (request) => {
+    const query = request.query as { branchId?: string; date?: string };
+    const date = query.date ?? new Date().toISOString().slice(0, 10);
+    return reportsService.getEndOfDay(date, query.branchId);
+  });
+
   app.get("/reports/profit", { preHandler: guard }, async (request) => {
     const query = request.query as { branchId?: string; from?: string; to?: string };
     return reportsService.getProfit(query);

@@ -13,6 +13,11 @@ import { MovementsPage } from "@/pages/inventory/movements-page";
 import { CustomersPage } from "@/pages/customers/customers-page";
 import { OrdersPage } from "@/pages/orders/orders-page";
 import { ReportsPage } from "@/pages/reports/reports-page";
+import { EndOfDayReportPage } from "@/pages/reports/end-of-day-report-page";
+import { SalesReportPage } from "@/pages/reports/sales-report-page";
+import { OrdersReportPage } from "@/pages/reports/orders-report-page";
+import { ProductsReportPage } from "@/pages/reports/products-report-page";
+import { CustomersReportPage } from "@/pages/reports/customers-report-page";
 import { UsersPage } from "@/pages/settings/users-page";
 
 export default function App() {
@@ -86,6 +91,46 @@ export default function App() {
             element={
               <MenuGuard menuKey={MENU_ITEMS.REPORTS}>
                 <ReportsPage />
+              </MenuGuard>
+            }
+          />
+          <Route
+            path="/reports/end-of-day"
+            element={
+              <MenuGuard menuKey={MENU_ITEMS.REPORTS}>
+                <EndOfDayReportPage />
+              </MenuGuard>
+            }
+          />
+          <Route
+            path="/reports/sales"
+            element={
+              <MenuGuard menuKey={MENU_ITEMS.REPORTS}>
+                <SalesReportPage />
+              </MenuGuard>
+            }
+          />
+          <Route
+            path="/reports/orders"
+            element={
+              <MenuGuard menuKey={MENU_ITEMS.REPORTS}>
+                <OrdersReportPage />
+              </MenuGuard>
+            }
+          />
+          <Route
+            path="/reports/products"
+            element={
+              <MenuGuard menuKey={MENU_ITEMS.REPORTS}>
+                <ProductsReportPage />
+              </MenuGuard>
+            }
+          />
+          <Route
+            path="/reports/customers"
+            element={
+              <MenuGuard menuKey={MENU_ITEMS.REPORTS}>
+                <CustomersReportPage />
               </MenuGuard>
             }
           />
