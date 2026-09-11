@@ -35,6 +35,7 @@ export interface UpdateUserInput {
   password?: string;
   menuAccess?: string[];
   branchIds?: string[];
+  defaultBranchId?: string;
 }
 
 export async function fetchUsers(): Promise<UserRow[]> {

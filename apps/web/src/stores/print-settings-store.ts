@@ -14,6 +14,7 @@ interface PrintSettingsState {
   setMergeSameItems: (value: boolean) => void;
   setCopies: (value: number) => void;
   setReceiptBranchId: (value: string) => void;
+  resetReceiptBranchId: () => void;
 }
 
 export const usePrintSettingsStore = create<PrintSettingsState>()(
@@ -27,6 +28,7 @@ export const usePrintSettingsStore = create<PrintSettingsState>()(
       setMergeSameItems: (mergeSameItems) => set({ mergeSameItems }),
       setCopies: (copies) => set({ copies: Math.min(9, Math.max(1, Math.round(copies) || 1)) }),
       setReceiptBranchId: (receiptBranchId) => set({ receiptBranchId }),
+      resetReceiptBranchId: () => set({ receiptBranchId: null }),
     }),
     { name: "smartpos-print-settings", version: 1 },
   ),

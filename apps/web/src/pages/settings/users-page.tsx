@@ -41,6 +41,7 @@ export function UsersPage() {
   const [deletingUser, setDeletingUser] = useState<UserRow | null>(null);
   const [selectedMenu, setSelectedMenu] = useState<string[]>([]);
   const [isActive, setIsActive] = useState(true);
+  const [branchId, setBranchId] = useState("");
 
   const currentUserId = useAuthStore((s) => s.user?.id);
   const { data: users, isLoading } = useUsers();
@@ -93,6 +94,7 @@ export function UsersPage() {
     reset({ username: user.username, password: "", roleId: user.roleId });
     setSelectedMenu(user.menuAccess);
     setIsActive(user.isActive);
+    setBranchId(user.defaultBranchId ?? user.branches[0]?.id ?? "");
     setOpen(true);
   }
 
@@ -106,6 +108,7 @@ export function UsersPage() {
             roleId: values.roleId,
             isActive,
             menuAccess: selectedMenu,
+            ...(branchId ? { branchIds: [branchId], defaultBranchId: branchId } : {}),
             ...(values.password ? { password: values.password } : {}),
           },
         },
@@ -140,6 +143,14 @@ export function UsersPage() {
       header: "Menu được xem",
       cell: ({ row }) =>
         row.original.menuAccess.map((key) => MENU_ITEM_LABELS[key as keyof typeof MENU_ITEM_LABELS] ?? key).join(", "),
+    },
+    {
+      id: "branch",
+      header: "Chi nhánh phụ trách",
+      cell: ({ row }) => {
+        const branch = row.original.branches.find((b) => b.id === row.original.defaultBranchId) ?? row.original.branches[0];
+        return branch ? branch.name : "Tất cả chi nhánh";
+      },
     },
     {
       accessorKey: "isActive",
@@ -214,6 +225,27 @@ export function UsersPage() {
                 </SelectContent>
               </Select>
             </div>
+            {isEditing && (
+              <div className="space-y-1.5">
+                <Label>Chi nhánh phụ trách</Label>
+                <Select value={branchId} onValueChange={setBranchId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Chọn chi nhánh" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {branches?.map((b) => (
+                      <SelectItem key={b.id} value={b.id}>
+                        {b.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Chi nhánh này sẽ được dùng để bán hàng và in tên/địa chỉ/SĐT trên hóa đơn khi tài khoản này đăng
+                  nhập.
+                </p>
+              </div>
+            )}
             <div className="space-y-1.5">
               <Label>Menu được phép xem</Label>
               <div className="flex flex-wrap gap-2">
