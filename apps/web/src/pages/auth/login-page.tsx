@@ -41,9 +41,6 @@ export function LoginPage() {
               {login.isPending ? "Đang đăng nhập..." : "Đăng nhập"}
             </Button>
           </form>
-          <p className="mt-4 text-center text-xs text-muted-foreground">
-            Demo: admin / Admin@123
-          </p>
         </CardContent>
       </Card>
     </div>
