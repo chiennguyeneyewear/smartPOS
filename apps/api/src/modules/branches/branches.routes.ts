@@ -9,7 +9,7 @@ export function registerBranchRoutes(app: FastifyInstance) {
     const isAdmin = request.authUser!.role === "admin";
     const branches = await prisma.branch.findMany({
       where: isAdmin ? {} : { id: { in: request.authUser!.branchIds } },
-      orderBy: { name: "asc" },
+      orderBy: [{ name: "asc" }, { code: "asc" }],
     });
     return { data: branches };
   });

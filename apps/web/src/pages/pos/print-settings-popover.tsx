@@ -93,7 +93,7 @@ export function PrintSettingsPopover({ open, onOpenChange }: PrintSettingsPopove
                   : "border-input text-foreground hover:bg-accent",
               )}
             >
-              {LETTERS[i] ?? i + 1}. Mẫu in hóa đơn CS{i + 1}
+              {LETTERS[i] ?? i + 1}. {branch.name} ({branch.code})
             </button>
           ))}
         </div>

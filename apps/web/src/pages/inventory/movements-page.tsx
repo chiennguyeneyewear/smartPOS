@@ -131,7 +131,7 @@ export function MovementsPage() {
                   <SelectContent>
                     {branches?.filter((b) => b.id !== activeBranchId).map((b) => (
                       <SelectItem key={b.id} value={b.id}>
-                        {b.name}
+                        {b.name} ({b.code})
                       </SelectItem>
                     ))}
                   </SelectContent>

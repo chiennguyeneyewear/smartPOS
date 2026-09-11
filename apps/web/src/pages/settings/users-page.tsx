@@ -149,7 +149,7 @@ export function UsersPage() {
       header: "Chi nhánh phụ trách",
       cell: ({ row }) => {
         const branch = row.original.branches.find((b) => b.id === row.original.defaultBranchId) ?? row.original.branches[0];
-        return branch ? branch.name : "Tất cả chi nhánh";
+        return branch ? `${branch.name} (${branch.code})` : "Tất cả chi nhánh";
       },
     },
     {
@@ -235,7 +235,7 @@ export function UsersPage() {
                   <SelectContent>
                     {branches?.map((b) => (
                       <SelectItem key={b.id} value={b.id}>
-                        {b.name}
+                        {b.name} ({b.code})
                       </SelectItem>
                     ))}
                   </SelectContent>
