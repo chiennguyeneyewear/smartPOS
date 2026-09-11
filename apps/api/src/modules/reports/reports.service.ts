@@ -290,6 +290,88 @@ export async function getEndOfDay(date: string, branchId?: string) {
   };
 }
 
+// "Phân tích > Hàng hóa": revenue/profit grouped by category, so slow or
+// unprofitable categories show up next to the ones carrying the business.
+export async function getCategoryPerformance(range: DateRange) {
+  const items = await prisma.invoiceItem.findMany({
+    where: { invoice: dateFilter(range) },
+    include: { product: { include: { category: true } } },
+  });
+
+  const totals = new Map<string, { categoryId: string; name: string; quantity: number; revenue: number; cost: number }>();
+  for (const item of items) {
+    const categoryId = item.product.categoryId ?? "none";
+    const name = item.product.category?.name ?? "Chưa phân loại";
+    const existing = totals.get(categoryId) ?? { categoryId, name, quantity: 0, revenue: 0, cost: 0 };
+    existing.quantity += Number(item.quantity);
+    existing.revenue += Number(item.lineTotal);
+    existing.cost += Number(item.quantity) * Number(item.product.costPrice);
+    totals.set(categoryId, existing);
+  }
+
+  return Array.from(totals.values())
+    .map((c) => ({ ...c, profit: c.revenue - c.cost }))
+    .sort((a, b) => b.revenue - a.revenue);
+}
+
+// "Phân tích > Khách hàng": how many people are actually buying, how much
+// each one spends on average, and how much debt is outstanding overall —
+// distinct from Báo cáo's "top spenders" list.
+export async function getCustomerInsights(range: DateRange) {
+  const [invoices, totalCustomers, debtCustomers] = await Promise.all([
+    prisma.invoice.findMany({
+      where: dateFilter(range),
+      select: { customerId: true, totalAmount: true },
+    }),
+    prisma.customer.count({ where: { deletedAt: null } }),
+    prisma.customer.findMany({
+      where: { deletedAt: null, debtBalance: { gt: 0 } },
+      select: { debtBalance: true },
+    }),
+  ]);
+
+  const revenue = invoices.reduce((sum, inv) => sum + Number(inv.totalAmount), 0);
+  const buyingCustomerIds = new Set(invoices.map((inv) => inv.customerId).filter((id): id is string => !!id));
+  const walkInRevenue = invoices
+    .filter((inv) => !inv.customerId)
+    .reduce((sum, inv) => sum + Number(inv.totalAmount), 0);
+
+  return {
+    totalCustomers,
+    buyingCustomers: buyingCustomerIds.size,
+    avgRevenuePerCustomer: buyingCustomerIds.size > 0 ? (revenue - walkInRevenue) / buyingCustomerIds.size : 0,
+    debtCustomerCount: debtCustomers.length,
+    totalDebt: debtCustomers.reduce((sum, c) => sum + Number(c.debtBalance), 0),
+  };
+}
+
+// "Phân tích > Hiệu quả": revenue per seller (cashier), for comparing staff
+// performance over a period.
+export async function getSellerPerformance(range: DateRange) {
+  const invoices = await prisma.invoice.findMany({
+    where: dateFilter(range),
+    select: { createdById: true, totalAmount: true },
+  });
+
+  const totals = new Map<string, { userId: string; revenue: number; invoiceCount: number }>();
+  for (const inv of invoices) {
+    const existing = totals.get(inv.createdById) ?? { userId: inv.createdById, revenue: 0, invoiceCount: 0 };
+    existing.revenue += Number(inv.totalAmount);
+    existing.invoiceCount += 1;
+    totals.set(inv.createdById, existing);
+  }
+
+  const users = await prisma.user.findMany({
+    where: { id: { in: [...totals.keys()] } },
+    select: { id: true, username: true },
+  });
+  const usernameById = new Map(users.map((u) => [u.id, u.username]));
+
+  return Array.from(totals.values())
+    .map((t) => ({ ...t, username: usernameById.get(t.userId) ?? "N/A" }))
+    .sort((a, b) => b.revenue - a.revenue);
+}
+
 export async function getProfit(range: DateRange) {
   const items = await prisma.invoiceItem.findMany({
     where: { invoice: dateFilter(range) },

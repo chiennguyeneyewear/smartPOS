@@ -13,6 +13,9 @@ import { MovementsPage } from "@/pages/inventory/movements-page";
 import { CustomersPage } from "@/pages/customers/customers-page";
 import { OrdersPage } from "@/pages/orders/orders-page";
 import { ReportsPage } from "@/pages/reports/reports-page";
+import { AnalyticsProductsPage } from "@/pages/reports/analytics-products-page";
+import { AnalyticsCustomersPage } from "@/pages/reports/analytics-customers-page";
+import { AnalyticsPerformancePage } from "@/pages/reports/analytics-performance-page";
 import { EndOfDayReportPage } from "@/pages/reports/end-of-day-report-page";
 import { SalesReportPage } from "@/pages/reports/sales-report-page";
 import { OrdersReportPage } from "@/pages/reports/orders-report-page";
@@ -91,6 +94,30 @@ export default function App() {
             element={
               <MenuGuard menuKey={MENU_ITEMS.REPORTS}>
                 <ReportsPage />
+              </MenuGuard>
+            }
+          />
+          <Route
+            path="/reports/category-performance"
+            element={
+              <MenuGuard menuKey={MENU_ITEMS.REPORTS}>
+                <AnalyticsProductsPage />
+              </MenuGuard>
+            }
+          />
+          <Route
+            path="/reports/customer-insights"
+            element={
+              <MenuGuard menuKey={MENU_ITEMS.REPORTS}>
+                <AnalyticsCustomersPage />
+              </MenuGuard>
+            }
+          />
+          <Route
+            path="/reports/seller-performance"
+            element={
+              <MenuGuard menuKey={MENU_ITEMS.REPORTS}>
+                <AnalyticsPerformancePage />
               </MenuGuard>
             }
           />
