@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ChevronDown, Search, SlidersHorizontal, Upload } from "lucide-react";
+import { ChevronDown, Pencil, Search, SlidersHorizontal, Trash2, Upload } from "lucide-react";
 import { productSchema, type ProductInput, type ProductSummary } from "@smartpos/shared";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
@@ -16,11 +16,31 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuthStore } from "@/stores/auth-store";
-import { useCategories, useCreateProduct, useProducts, useUnits } from "@/features/products/hooks";
+import {
+  useCategories,
+  useCreateProduct,
+  useDeleteProduct,
+  useProducts,
+  useUnits,
+  useUpdateProduct,
+} from "@/features/products/hooks";
 import { ProductImportDialog } from "./product-import-dialog";
 
 function formatNumber(value: number): string {
   return value.toLocaleString("en-US");
+}
+
+function emptyForm(): ProductInput {
+  return {
+    sku: "",
+    barcode: "",
+    name: "",
+    categoryId: undefined,
+    unitId: "",
+    costPrice: 0,
+    sellPrice: 0,
+    isActive: true,
+  };
 }
 
 export function ProductsPage() {
@@ -29,10 +49,15 @@ export function ProductsPage() {
   const [open, setOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [editingProduct, setEditingProduct] = useState<ProductSummary | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ ids: string[]; label: string } | null>(null);
   const { data, isLoading } = useProducts({ search, branchId: activeBranchId ?? undefined, page: 1, pageSize: 50 });
   const { data: categories } = useCategories();
   const { data: units } = useUnits();
   const createProduct = useCreateProduct();
+  const updateProduct = useUpdateProduct();
+  const deleteProduct = useDeleteProduct();
 
   const products = data?.data ?? [];
   const totalStockValue = useMemo(
@@ -40,6 +65,7 @@ export function ProductsPage() {
     [products],
   );
   const allSelected = products.length > 0 && products.every((p) => selectedIds.has(p.id));
+  const isEditing = !!editingProduct;
 
   function toggleAll() {
     setSelectedIds(allSelected ? new Set() : new Set(products.map((p) => p.id)));
@@ -54,22 +80,75 @@ export function ProductsPage() {
     });
   }
 
+  function toggleExpanded(id: string) {
+    setExpandedId((prev) => (prev === id ? null : id));
+  }
+
   const {
     register,
     handleSubmit,
     reset,
     setValue,
+    watch,
     formState: { errors },
-  } = useForm<ProductInput>({ resolver: zodResolver(productSchema) });
+  } = useForm<ProductInput>({ resolver: zodResolver(productSchema), defaultValues: emptyForm() });
+
+  const categoryId = watch("categoryId");
+  const unitId = watch("unitId");
+
+  function openCreateDialog() {
+    setEditingProduct(null);
+    reset(emptyForm());
+    setOpen(true);
+  }
+
+  function openEditDialog(p: ProductSummary) {
+    setEditingProduct(p);
+    reset({
+      sku: p.sku,
+      barcode: p.barcode ?? "",
+      name: p.name,
+      categoryId: p.categoryId ?? undefined,
+      unitId: p.unitId,
+      costPrice: p.costPrice,
+      sellPrice: p.sellPrice,
+      isActive: p.isActive,
+    });
+    setOpen(true);
+  }
 
   const onSubmit = handleSubmit((values) => {
+    if (editingProduct) {
+      updateProduct.mutate(
+        { id: editingProduct.id, input: values },
+        {
+          onSuccess: () => {
+            setOpen(false);
+            setEditingProduct(null);
+          },
+        },
+      );
+      return;
+    }
     createProduct.mutate(values, {
       onSuccess: () => {
-        reset();
+        reset(emptyForm());
         setOpen(false);
       },
     });
   });
+
+  async function confirmDelete() {
+    if (!deleteTarget) return;
+    await Promise.all(deleteTarget.ids.map((id) => deleteProduct.mutateAsync(id)));
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      deleteTarget.ids.forEach((id) => next.delete(id));
+      return next;
+    });
+    if (deleteTarget.ids.includes(expandedId ?? "")) setExpandedId(null);
+    setDeleteTarget(null);
+  }
 
   return (
     <div>
@@ -88,6 +167,18 @@ export function ProductsPage() {
         </div>
 
         <div className="flex items-center gap-2">
+          {selectedIds.size > 0 && (
+            <Button
+              variant="outline"
+              className="gap-1.5 border-destructive text-destructive hover:bg-destructive/5"
+              onClick={() =>
+                setDeleteTarget({ ids: Array.from(selectedIds), label: `${selectedIds.size} sản phẩm đã chọn` })
+              }
+            >
+              <Trash2 className="h-4 w-4" />
+              Xóa ({selectedIds.size})
+            </Button>
+          )}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="gap-1.5 border-primary text-primary hover:bg-primary/5">
@@ -96,7 +187,7 @@ export function ProductsPage() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => setOpen(true)}>Hàng hóa</DropdownMenuItem>
+              <DropdownMenuItem onClick={openCreateDialog}>Hàng hóa</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
           <Button
@@ -158,20 +249,96 @@ export function ProductsPage() {
               </tr>
             )}
             {!isLoading &&
-              products.map((p: ProductSummary) => (
-                <tr key={p.id} className="border-t hover:bg-accent/40">
-                  <td className="p-3">
-                    <input type="checkbox" checked={selectedIds.has(p.id)} onChange={() => toggleOne(p.id)} />
-                  </td>
-                  <td className="whitespace-nowrap p-3">{p.sku}</td>
-                  <td className="min-w-[220px] p-3 font-medium">{p.name}</td>
-                  <td className="whitespace-nowrap p-3 text-right">{formatNumber(p.sellPrice)}</td>
-                  <td className="whitespace-nowrap p-3 text-right">{formatNumber(p.costPrice)}</td>
-                  <td className="whitespace-nowrap p-3 text-right">
-                    {typeof p.stockQuantity === "number" ? formatNumber(p.stockQuantity) : "—"}
-                  </td>
-                </tr>
-              ))}
+              products.map((p: ProductSummary) => {
+                const isExpanded = expandedId === p.id;
+                const category = categories?.find((c) => c.id === p.categoryId);
+                return (
+                  <>
+                    <tr
+                      key={p.id}
+                      onClick={() => toggleExpanded(p.id)}
+                      className={
+                        isExpanded
+                          ? "cursor-pointer border-l-[3px] border-l-primary border-t bg-primary/10 hover:bg-primary/10"
+                          : "cursor-pointer border-t hover:bg-accent"
+                      }
+                    >
+                      <td className="p-3" onClick={(e) => e.stopPropagation()}>
+                        <input type="checkbox" checked={selectedIds.has(p.id)} onChange={() => toggleOne(p.id)} />
+                      </td>
+                      <td className="whitespace-nowrap p-3">{p.sku}</td>
+                      <td className="min-w-[220px] p-3 font-medium">{p.name}</td>
+                      <td className="whitespace-nowrap p-3 text-right">{formatNumber(p.sellPrice)}</td>
+                      <td className="whitespace-nowrap p-3 text-right">{formatNumber(p.costPrice)}</td>
+                      <td className="whitespace-nowrap p-3 text-right">
+                        {typeof p.stockQuantity === "number" ? formatNumber(p.stockQuantity) : "—"}
+                      </td>
+                    </tr>
+                    {isExpanded && (
+                      <tr className="border-l-[3px] border-l-primary bg-primary/5">
+                        <td colSpan={6} className="p-4">
+                          <div className="flex flex-wrap items-start justify-between gap-4">
+                            <div className="grid flex-1 grid-cols-2 gap-x-8 gap-y-2 text-sm sm:grid-cols-4">
+                              <div>
+                                <p className="text-xs text-muted-foreground">Mã hàng</p>
+                                <p className="font-medium">{p.sku}</p>
+                              </div>
+                              <div>
+                                <p className="text-xs text-muted-foreground">Mã vạch</p>
+                                <p className="font-medium">{p.barcode || "Chưa có"}</p>
+                              </div>
+                              <div>
+                                <p className="text-xs text-muted-foreground">Nhóm hàng</p>
+                                <p className="font-medium">{category?.name ?? "Chưa phân loại"}</p>
+                              </div>
+                              <div>
+                                <p className="text-xs text-muted-foreground">Đơn vị tính</p>
+                                <p className="font-medium">{p.unit.name}</p>
+                              </div>
+                              <div>
+                                <p className="text-xs text-muted-foreground">Giá vốn</p>
+                                <p className="font-medium">{formatNumber(p.costPrice)}</p>
+                              </div>
+                              <div>
+                                <p className="text-xs text-muted-foreground">Giá bán</p>
+                                <p className="font-medium">{formatNumber(p.sellPrice)}</p>
+                              </div>
+                              <div>
+                                <p className="text-xs text-muted-foreground">Tồn kho</p>
+                                <p className="font-medium">
+                                  {typeof p.stockQuantity === "number" ? formatNumber(p.stockQuantity) : "—"}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-xs text-muted-foreground">Trạng thái</p>
+                                <p className="font-medium">{p.isActive ? "Đang bán" : "Ngừng bán"}</p>
+                              </div>
+                            </div>
+                            <div className="flex shrink-0 items-center gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="gap-1.5"
+                                onClick={() => openEditDialog(p)}
+                              >
+                                <Pencil className="h-3.5 w-3.5" /> Chỉnh sửa
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="gap-1.5 border-destructive text-destructive hover:bg-destructive/5"
+                                onClick={() => setDeleteTarget({ ids: [p.id], label: p.name })}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" /> Xóa
+                              </Button>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </>
+                );
+              })}
           </tbody>
         </table>
       </div>
@@ -179,7 +346,7 @@ export function ProductsPage() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Thêm sản phẩm</DialogTitle>
+            <DialogTitle>{isEditing ? `Sửa sản phẩm — ${editingProduct?.name}` : "Thêm sản phẩm"}</DialogTitle>
           </DialogHeader>
           <form className="grid grid-cols-2 gap-4" onSubmit={onSubmit}>
             <div className="space-y-1.5">
@@ -198,7 +365,7 @@ export function ProductsPage() {
             </div>
             <div className="space-y-1.5">
               <Label>Đơn vị tính</Label>
-              <Select onValueChange={(v) => setValue("unitId", v)}>
+              <Select value={unitId} onValueChange={(v) => setValue("unitId", v)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Chọn đơn vị" />
                 </SelectTrigger>
@@ -213,7 +380,7 @@ export function ProductsPage() {
             </div>
             <div className="space-y-1.5">
               <Label>Danh mục</Label>
-              <Select onValueChange={(v) => setValue("categoryId", v)}>
+              <Select value={categoryId ?? undefined} onValueChange={(v) => setValue("categoryId", v)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Chọn danh mục" />
                 </SelectTrigger>
@@ -235,11 +402,31 @@ export function ProductsPage() {
               <Input type="number" {...register("sellPrice")} />
             </div>
             <DialogFooter className="col-span-2">
-              <Button type="submit" disabled={createProduct.isPending}>
-                {createProduct.isPending ? "Đang lưu..." : "Lưu sản phẩm"}
+              <Button type="submit" disabled={createProduct.isPending || updateProduct.isPending}>
+                {createProduct.isPending || updateProduct.isPending ? "Đang lưu..." : "Lưu sản phẩm"}
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Xóa sản phẩm</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Bạn có chắc chắn muốn xóa <span className="font-medium text-foreground">{deleteTarget?.label}</span>?
+            Hành động này không thể hoàn tác.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>
+              Hủy
+            </Button>
+            <Button variant="destructive" onClick={confirmDelete} disabled={deleteProduct.isPending}>
+              {deleteProduct.isPending ? "Đang xóa..." : "Xóa"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
