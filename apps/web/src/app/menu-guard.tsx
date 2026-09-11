@@ -14,6 +14,7 @@ const MENU_ORDER: MenuKey[] = [
   MENU_ITEMS.ORDERS,
   MENU_ITEMS.REPORTS,
   MENU_ITEMS.USERS,
+  MENU_ITEMS.BRANCHES,
 ];
 
 const MENU_ROUTES: Record<MenuKey, string> = {
@@ -24,6 +25,7 @@ const MENU_ROUTES: Record<MenuKey, string> = {
   [MENU_ITEMS.ORDERS]: "/orders",
   [MENU_ITEMS.REPORTS]: "/reports",
   [MENU_ITEMS.USERS]: "/settings/users",
+  [MENU_ITEMS.BRANCHES]: "/settings/branches",
 };
 
 export function MenuGuard({ menuKey, children }: { menuKey: MenuKey; children: ReactNode }) {

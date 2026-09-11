@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ChevronDown, Pencil, Search, SlidersHorizontal, Trash2, Upload } from "lucide-react";
@@ -253,9 +253,8 @@ export function ProductsPage() {
                 const isExpanded = expandedId === p.id;
                 const category = categories?.find((c) => c.id === p.categoryId);
                 return (
-                  <>
+                  <Fragment key={p.id}>
                     <tr
-                      key={p.id}
                       onClick={() => toggleExpanded(p.id)}
                       className={
                         isExpanded
@@ -336,7 +335,7 @@ export function ProductsPage() {
                         </td>
                       </tr>
                     )}
-                  </>
+                  </Fragment>
                 );
               })}
           </tbody>

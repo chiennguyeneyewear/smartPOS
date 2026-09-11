@@ -22,6 +22,7 @@ import { OrdersReportPage } from "@/pages/reports/orders-report-page";
 import { ProductsReportPage } from "@/pages/reports/products-report-page";
 import { CustomersReportPage } from "@/pages/reports/customers-report-page";
 import { UsersPage } from "@/pages/settings/users-page";
+import { BranchesPage } from "@/pages/settings/branches-page";
 
 export default function App() {
   return (
@@ -166,6 +167,14 @@ export default function App() {
             element={
               <MenuGuard menuKey={MENU_ITEMS.USERS}>
                 <UsersPage />
+              </MenuGuard>
+            }
+          />
+          <Route
+            path="/settings/branches"
+            element={
+              <MenuGuard menuKey={MENU_ITEMS.BRANCHES}>
+                <BranchesPage />
               </MenuGuard>
             }
           />

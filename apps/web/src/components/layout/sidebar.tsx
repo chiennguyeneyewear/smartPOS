@@ -9,6 +9,7 @@ import {
   BarChart3,
   FileBarChart,
   UserCog,
+  Store,
   ChevronDown,
 } from "lucide-react";
 import { MENU_ITEMS } from "@smartpos/shared";
@@ -45,6 +46,7 @@ const NAV_ITEMS = [
     ],
   },
   { to: "/settings/users", label: "Quản lý người dùng", icon: UserCog, menuKey: MENU_ITEMS.USERS },
+  { to: "/settings/branches", label: "Cửa hàng", icon: Store, menuKey: MENU_ITEMS.BRANCHES },
 ] as const;
 
 const linkClass = ({ isActive }: { isActive: boolean }) =>

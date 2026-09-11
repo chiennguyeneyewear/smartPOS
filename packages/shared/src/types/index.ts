@@ -17,6 +17,7 @@ export interface BranchSummary {
   code: string;
   address: string | null;
   phone: string | null;
+  isActive: boolean;
 }
 
 export interface UnitSummary {

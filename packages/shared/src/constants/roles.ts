@@ -61,6 +61,7 @@ export const MENU_ITEMS = {
   ORDERS: "orders",
   REPORTS: "reports",
   USERS: "users",
+  BRANCHES: "branches",
 } as const;
 
 export type MenuKey = (typeof MENU_ITEMS)[keyof typeof MENU_ITEMS];
@@ -73,6 +74,7 @@ export const MENU_ITEM_LABELS: Record<MenuKey, string> = {
   [MENU_ITEMS.ORDERS]: "Đơn hàng",
   [MENU_ITEMS.REPORTS]: "Phân tích",
   [MENU_ITEMS.USERS]: "Quản lý người dùng",
+  [MENU_ITEMS.BRANCHES]: "Cửa hàng",
 };
 
 export const DEFAULT_MENU_ACCESS: Record<RoleName, MenuKey[]> = {
