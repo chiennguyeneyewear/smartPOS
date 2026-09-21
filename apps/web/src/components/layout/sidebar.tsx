@@ -6,8 +6,6 @@ import {
   Package,
   Users,
   ClipboardList,
-  BarChart3,
-  FileBarChart,
   UserCog,
   Store,
   ChevronDown,
@@ -22,29 +20,6 @@ const NAV_ITEMS = [
   { to: "/inventory/products", label: "Hàng hóa", icon: Package, menuKey: MENU_ITEMS.PRODUCTS },
   { to: "/customers", label: "Khách hàng", icon: Users, menuKey: MENU_ITEMS.CUSTOMERS },
   { to: "/orders", label: "Đơn hàng", icon: ClipboardList, menuKey: MENU_ITEMS.ORDERS },
-  {
-    label: "Phân tích",
-    icon: BarChart3,
-    menuKey: MENU_ITEMS.REPORTS,
-    children: [
-      { to: "/reports", label: "Kinh doanh" },
-      { to: "/reports/category-performance", label: "Hàng hóa" },
-      { to: "/reports/customer-insights", label: "Khách hàng" },
-      { to: "/reports/seller-performance", label: "Hiệu quả" },
-    ],
-  },
-  {
-    label: "Báo cáo",
-    icon: FileBarChart,
-    menuKey: MENU_ITEMS.REPORTS,
-    children: [
-      { to: "/reports/end-of-day", label: "Cuối ngày" },
-      { to: "/reports/sales", label: "Bán hàng" },
-      { to: "/reports/orders", label: "Đặt hàng" },
-      { to: "/reports/products", label: "Hàng hóa" },
-      { to: "/reports/customers", label: "Khách hàng" },
-    ],
-  },
   { to: "/settings/users", label: "Quản lý người dùng", icon: UserCog, menuKey: MENU_ITEMS.USERS },
   { to: "/settings/branches", label: "Cửa hàng", icon: Store, menuKey: MENU_ITEMS.BRANCHES },
 ] as const;
