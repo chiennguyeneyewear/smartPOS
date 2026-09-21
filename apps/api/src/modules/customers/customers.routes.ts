@@ -23,20 +23,36 @@ function toPrismaData<T extends Partial<CustomerInput>>(input: T) {
 }
 
 export function registerCustomerRoutes(app: FastifyInstance) {
-  // Used by the POS customer search field (F4)
+  // Used by the POS customer search field (F4) and the back-office customer list.
+  // page/pageSize default to the old fixed take:50 behavior when omitted, so the
+  // POS quick-search callers (which never pass them) are unaffected.
   app.get("/customers", { preHandler: authenticate }, async (request) => {
-    const { search } = request.query as { search?: string };
-    const customers = await prisma.customer.findMany({
-      where: {
-        deletedAt: null,
-        ...(search
-          ? { OR: [{ name: { contains: search, mode: "insensitive" } }, { phone: { contains: search } }] }
-          : {}),
-      },
-      orderBy: { name: "asc" },
-      take: 50,
-    });
-    return { data: customers.map(toDto) };
+    const { search, page: pageRaw, pageSize: pageSizeRaw } = request.query as {
+      search?: string;
+      page?: string;
+      pageSize?: string;
+    };
+    const page = Math.max(1, Number(pageRaw ?? 1));
+    const pageSize = Math.min(100, Math.max(1, Number(pageSizeRaw ?? 50)));
+
+    const where = {
+      deletedAt: null,
+      ...(search
+        ? { OR: [{ name: { contains: search, mode: "insensitive" as const } }, { phone: { contains: search } }] }
+        : {}),
+    };
+
+    const [customers, total] = await Promise.all([
+      prisma.customer.findMany({
+        where,
+        orderBy: { name: "asc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      prisma.customer.count({ where }),
+    ]);
+
+    return { data: customers.map(toDto), meta: { total, page, pageSize } };
   });
 
   // Used both by the back-office "Thêm khách hàng" page and the POS "+" quick-add dialog

@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { CustomerInput } from "@smartpos/shared";
 import { toast } from "@/stores/toast-store";
-import { createCustomer, fetchCustomer, fetchDebtHistory, searchCustomers, updateCustomer } from "./api";
+import { createCustomer, fetchCustomer, fetchCustomers, fetchDebtHistory, searchCustomers, updateCustomer } from "./api";
 
 export function useCustomerSearch(search: string) {
   return useQuery({
@@ -11,8 +11,11 @@ export function useCustomerSearch(search: string) {
   });
 }
 
-export function useCustomerList(search = "") {
-  return useQuery({ queryKey: ["customers", "list", search], queryFn: () => searchCustomers(search) });
+export function useCustomerList(search = "", page = 1, pageSize = 50) {
+  return useQuery({
+    queryKey: ["customers", "list", search, page, pageSize],
+    queryFn: () => fetchCustomers({ search, page, pageSize }),
+  });
 }
 
 export function useCreateCustomer() {

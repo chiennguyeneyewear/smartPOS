@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Plus, Search, Upload } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Search, Upload } from "lucide-react";
 import type { CustomerSummary } from "@smartpos/shared";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
@@ -29,12 +29,26 @@ const columns: ColumnDef<CustomerSummary, any>[] = [
   },
 ];
 
+function formatNumber(value: number): string {
+  return value.toLocaleString("en-US");
+}
+
 export function CustomersPage() {
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const pageSize = 50;
   const [open, setOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
-  const { data, isLoading } = useCustomerList(search);
+  const { data, isLoading } = useCustomerList(search, page, pageSize);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search]);
+
+  const customers = data?.data ?? [];
+  const total = data?.meta.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   return (
     <div className="space-y-4">
@@ -58,13 +72,44 @@ export function CustomersPage() {
       </div>
       <DataTable
         columns={columns}
-        data={data ?? []}
+        data={customers}
         isLoading={isLoading}
         emptyMessage="Chưa có khách hàng"
         onRowClick={(row) => setSelectedCustomerId(row.id === selectedCustomerId ? null : row.id)}
         isRowSelected={(row) => row.id === selectedCustomerId}
         renderExpandedRow={(row) => <CustomerDetailTabs customerId={row.id} />}
       />
+
+      {!isLoading && total > 0 && (
+        <div className="flex items-center justify-between text-sm text-muted-foreground">
+          <span>
+            {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, total)} / {formatNumber(total)} khách hàng
+          </span>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1"
+              disabled={page <= 1}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+            >
+              <ChevronLeft className="h-4 w-4" /> Trước
+            </Button>
+            <span>
+              Trang {page}/{totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1"
+              disabled={page >= totalPages}
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            >
+              Sau <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )}
 
       <CustomerFormDialog open={open} onOpenChange={setOpen} />
       <CustomerImportDialog open={importOpen} onOpenChange={setImportOpen} />
