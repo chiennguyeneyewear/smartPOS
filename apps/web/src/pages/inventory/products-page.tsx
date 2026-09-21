@@ -66,9 +66,9 @@ export function ProductsPage() {
   }, [search]);
 
   const products = data?.data ?? [];
-  const total = data?.meta.total ?? 0;
+  const total = data?.meta?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  const totalStockValue = data?.meta.totalStockValue ?? 0;
+  const totalStockValue = data?.meta?.totalStockValue ?? 0;
   const allSelected = products.length > 0 && products.every((p) => selectedIds.has(p.id));
   const isEditing = !!editingProduct;
 

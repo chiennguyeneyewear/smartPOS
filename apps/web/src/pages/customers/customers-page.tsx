@@ -47,7 +47,7 @@ export function CustomersPage() {
   }, [search]);
 
   const customers = data?.data ?? [];
-  const total = data?.meta.total ?? 0;
+  const total = data?.meta?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   return (
