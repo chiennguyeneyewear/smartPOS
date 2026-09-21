@@ -2,9 +2,17 @@ generator client {
   provider = "prisma-client-js"
 }
 
+// url: pooled connection (via Neon's PgBouncer "-pooler" endpoint) for normal
+// app queries. directUrl: unpooled connection, used only by `prisma migrate
+// deploy` — migrations take a Postgres advisory lock, which PgBouncer's
+// transaction-mode pooling doesn't support (session state doesn't survive
+// between statements), causing "Timed out trying to acquire a postgres
+// advisory lock" during deploy. Falls back to DATABASE_URL if DIRECT_URL
+// isn't set, so this is safe to deploy before the env var exists.
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // ------------------------------------------------------------------
