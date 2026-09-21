@@ -169,7 +169,7 @@ export function DashboardPage() {
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                 <XAxis dataKey="period" fontSize={12} />
                 <YAxis fontSize={12} tickFormatter={(v) => `${v / 1_000_000} tr`} />
-                <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                <Tooltip formatter={(value: number) => [formatCurrency(value), "Doanh thu"]} />
                 <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -228,7 +228,7 @@ export function DashboardPage() {
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border" horizontal={false} />
                   <XAxis type="number" fontSize={12} tickFormatter={(v) => `${v / 1_000_000} tr`} />
                   <YAxis type="category" dataKey="label" width={140} fontSize={12} />
-                  <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                  <Tooltip formatter={(value: number) => [formatCurrency(value), "Doanh thu"]} />
                   <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
                 </BarChart>
               </ResponsiveContainer>
@@ -250,7 +250,7 @@ export function DashboardPage() {
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border" horizontal={false} />
                   <XAxis type="number" fontSize={12} tickFormatter={(v) => `${v / 1_000_000} tr`} />
                   <YAxis type="category" dataKey="label" width={140} fontSize={12} />
-                  <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                  <Tooltip formatter={(value: number) => [formatCurrency(value), "Doanh thu"]} />
                   <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
                 </BarChart>
               </ResponsiveContainer>

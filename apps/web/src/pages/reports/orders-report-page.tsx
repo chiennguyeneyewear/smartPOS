@@ -78,7 +78,7 @@ export function OrdersReportPage() {
               <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
               <XAxis dataKey="period" fontSize={12} />
               <YAxis fontSize={12} tickFormatter={(v) => `${v / 1000}k`} />
-              <Tooltip formatter={(value: number) => formatCurrency(value)} />
+              <Tooltip formatter={(value: number) => [formatCurrency(value), "Doanh thu"]} />
               <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
