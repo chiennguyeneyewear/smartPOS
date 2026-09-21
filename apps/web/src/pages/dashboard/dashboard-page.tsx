@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { ArrowDownRight, ArrowUpRight, Cake, ReceiptText, RotateCcw, Wallet } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, ReceiptText, RotateCcw, Wallet } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -177,22 +177,6 @@ export function DashboardPage() {
         </Card>
 
         <div className="space-y-4">
-          {!!summary?.birthdaysToday?.length && (
-            <Card>
-              <CardHeader className="flex-row items-center gap-2 space-y-0">
-                <Cake className="h-5 w-5 text-primary" />
-                <CardTitle>
-                  Có {summary.birthdaysToday.length} khách hàng sinh nhật hôm nay
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-1 text-sm text-muted-foreground">
-                {summary.birthdaysToday.map((c) => (
-                  <p key={c.id}>{c.name}</p>
-                ))}
-              </CardContent>
-            </Card>
-          )}
-
           <Card>
             <CardHeader>
               <CardTitle>Hoạt động gần đây</CardTitle>
