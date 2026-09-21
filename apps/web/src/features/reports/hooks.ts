@@ -15,7 +15,11 @@ import {
 } from "./api";
 
 export function useRevenueReport(params: ReportRange & { groupBy?: "day" | "week" | "month" | "hour" | "weekday" }) {
-  return useQuery({ queryKey: ["reports", "revenue", params], queryFn: () => fetchRevenue(params) });
+  return useQuery({
+    queryKey: ["reports", "revenue", params],
+    queryFn: () => fetchRevenue(params),
+    refetchInterval: 60_000,
+  });
 }
 
 export function useDashboardSummary(params: { branchId?: string; from: string; to: string }) {
@@ -27,11 +31,19 @@ export function useDashboardSummary(params: { branchId?: string; from: string; t
 }
 
 export function useTopProductsReport(params: ReportRange & { limit?: number }) {
-  return useQuery({ queryKey: ["reports", "top-products", params], queryFn: () => fetchTopProducts(params) });
+  return useQuery({
+    queryKey: ["reports", "top-products", params],
+    queryFn: () => fetchTopProducts(params),
+    refetchInterval: 60_000,
+  });
 }
 
 export function useTopCustomersReport(params: ReportRange & { limit?: number }) {
-  return useQuery({ queryKey: ["reports", "top-customers", params], queryFn: () => fetchTopCustomers(params) });
+  return useQuery({
+    queryKey: ["reports", "top-customers", params],
+    queryFn: () => fetchTopCustomers(params),
+    refetchInterval: 60_000,
+  });
 }
 
 export function useStockValueReport(branchId?: string) {

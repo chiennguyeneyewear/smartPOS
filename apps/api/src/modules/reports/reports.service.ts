@@ -6,6 +6,25 @@ interface DateRange {
   branchId?: string;
 }
 
+// The business operates out of Ho Chi Minh City (UTC+7, no DST), but this
+// server runs in UTC. Every timestamp stored is a real UTC instant — correct
+// for "which invoices fall in this range" filtering — but grouping by hour/
+// day/weekday must bucket by the LOCAL calendar day, or a 2pm Vietnam sale
+// lands in the wrong hour/day bucket. Shifting by the fixed +7h offset and
+// reading the UTC getters off the shifted instant gives the Vietnam-local
+// calendar fields without needing a timezone database.
+const VN_OFFSET_MS = 7 * 60 * 60 * 1000;
+function toVnParts(date: Date) {
+  const shifted = new Date(date.getTime() + VN_OFFSET_MS);
+  return {
+    year: shifted.getUTCFullYear(),
+    month: shifted.getUTCMonth(),
+    date: shifted.getUTCDate(),
+    hours: shifted.getUTCHours(),
+    day: shifted.getUTCDay(),
+  };
+}
+
 function dateFilter(range: DateRange) {
   return {
     ...(range.branchId ? { branchId: range.branchId } : {}),
@@ -48,17 +67,17 @@ export async function getRevenueOverTime(
   const buckets = new Map<string, number>();
   for (const invoice of invoices) {
     if (!invoice.completedAt) continue;
-    const d = invoice.completedAt;
+    const vn = toVnParts(invoice.completedAt);
     const key =
       groupBy === "month"
-        ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
+        ? `${vn.year}-${String(vn.month + 1).padStart(2, "0")}`
         : groupBy === "week"
-          ? `${d.getFullYear()}-W${String(Math.ceil(d.getDate() / 7)).padStart(2, "0")}`
+          ? `${vn.year}-W${String(Math.ceil(vn.date / 7)).padStart(2, "0")}`
           : groupBy === "hour"
-            ? `${String(d.getHours()).padStart(2, "0")}:00`
+            ? `${String(vn.hours).padStart(2, "0")}:00`
             : groupBy === "weekday"
-              ? weekdayLabel(d.getDay())
-              : d.toISOString().slice(0, 10);
+              ? weekdayLabel(vn.day)
+              : `${vn.year}-${String(vn.month + 1).padStart(2, "0")}-${String(vn.date).padStart(2, "0")}`;
     buckets.set(key, (buckets.get(key) ?? 0) + Number(invoice.totalAmount));
   }
 
@@ -214,8 +233,13 @@ export async function getDashboardSummary(branchId: string | undefined, from: st
   const revenue = sumAmount(periodInvoices);
   const previousRevenue = sumAmount(previousInvoices);
 
+  const nowVn = toVnParts(now);
   const birthdaysToday = customersWithBirthday
-    .filter((c) => c.birthday && c.birthday.getDate() === now.getDate() && c.birthday.getMonth() === now.getMonth())
+    .filter((c) => {
+      if (!c.birthday) return false;
+      const bVn = toVnParts(c.birthday);
+      return bVn.date === nowVn.date && bVn.month === nowVn.month;
+    })
     .map((c) => ({ id: c.id, name: c.name }));
 
   const userIds = [...new Set([...recentCompleted, ...recentCancelled].map((inv) => inv.createdById))];
@@ -259,9 +283,11 @@ export async function getDashboardSummary(branchId: string | undefined, from: st
 // revenue/invoice counts plus how much came in through each payment method,
 // so it can be checked against the physical cash drawer at closing time.
 export async function getEndOfDay(date: string, branchId?: string) {
-  const day = new Date(date);
-  const start = new Date(day.getFullYear(), day.getMonth(), day.getDate());
-  const end = new Date(day.getFullYear(), day.getMonth(), day.getDate(), 23, 59, 59, 999);
+  // `date` is a plain "YYYY-MM-DD" picked in the Vietnam-local date picker;
+  // anchor the day boundaries to +07:00 explicitly rather than the server's
+  // own timezone (Render runs in UTC), or this window silently shifts by 7h.
+  const start = new Date(`${date}T00:00:00+07:00`);
+  const end = new Date(`${date}T23:59:59.999+07:00`);
   const branchFilter = branchId ? { branchId } : {};
 
   const [completed, cancelledCount, payments] = await Promise.all([

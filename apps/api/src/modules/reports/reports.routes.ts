@@ -23,9 +23,11 @@ export function registerReportRoutes(app: FastifyInstance) {
 
   app.get("/reports/dashboard-summary", { preHandler: guard }, async (request) => {
     const query = request.query as { branchId?: string; from?: string; to?: string };
-    const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
-    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999).toISOString();
+    // Fallback only (the frontend always sends from/to) — anchored to
+    // Vietnam-local midnight, not the server's own (UTC) timezone.
+    const todayDate = new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const todayStart = `${todayDate}T00:00:00+07:00`;
+    const todayEnd = `${todayDate}T23:59:59.999+07:00`;
     return reportsService.getDashboardSummary(query.branchId, query.from ?? todayStart, query.to ?? todayEnd);
   });
 
