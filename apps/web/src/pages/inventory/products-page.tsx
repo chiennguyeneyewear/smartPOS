@@ -1,7 +1,7 @@
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ChevronDown, Pencil, Search, SlidersHorizontal, Trash2, Upload } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, Pencil, Search, SlidersHorizontal, Trash2, Upload } from "lucide-react";
 import { productSchema, type ProductInput, type ProductSummary } from "@smartpos/shared";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
@@ -46,24 +46,29 @@ function emptyForm(): ProductInput {
 export function ProductsPage() {
   const activeBranchId = useAuthStore((s) => s.activeBranchId);
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const pageSize = 50;
   const [open, setOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editingProduct, setEditingProduct] = useState<ProductSummary | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ ids: string[]; label: string } | null>(null);
-  const { data, isLoading } = useProducts({ search, branchId: activeBranchId ?? undefined, page: 1, pageSize: 50 });
+  const { data, isLoading } = useProducts({ search, branchId: activeBranchId ?? undefined, page, pageSize });
   const { data: categories } = useCategories();
   const { data: units } = useUnits();
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
   const deleteProduct = useDeleteProduct();
 
+  useEffect(() => {
+    setPage(1);
+  }, [search]);
+
   const products = data?.data ?? [];
-  const totalStockValue = useMemo(
-    () => products.reduce((sum, p) => sum + p.costPrice * (p.stockQuantity ?? 0), 0),
-    [products],
-  );
+  const total = data?.meta.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const totalStockValue = data?.meta.totalStockValue ?? 0;
   const allSelected = products.length > 0 && products.every((p) => selectedIds.has(p.id));
   const isEditing = !!editingProduct;
 
@@ -341,6 +346,37 @@ export function ProductsPage() {
           </tbody>
         </table>
       </div>
+
+      {!isLoading && total > 0 && (
+        <div className="mt-3 flex items-center justify-between text-sm text-muted-foreground">
+          <span>
+            {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, total)} / {formatNumber(total)} sản phẩm
+          </span>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1"
+              disabled={page <= 1}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+            >
+              <ChevronLeft className="h-4 w-4" /> Trước
+            </Button>
+            <span>
+              Trang {page}/{totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1"
+              disabled={page >= totalPages}
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            >
+              Sau <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )}
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>

@@ -38,7 +38,7 @@ export function registerProductRoutes(app: FastifyInstance) {
         : {}),
     };
 
-    const [data, total] = await Promise.all([
+    const [data, total, stockValueRows] = await Promise.all([
       prisma.product.findMany({
         where,
         include: {
@@ -50,7 +50,17 @@ export function registerProductRoutes(app: FastifyInstance) {
         take: pageSize,
       }),
       prisma.product.count({ where }),
+      query.branchId
+        ? prisma.stockItem.findMany({
+            where: { branchId: query.branchId, product: where },
+            select: { quantity: true, product: { select: { costPrice: true } } },
+          })
+        : Promise.resolve(null),
     ]);
+
+    const totalStockValue = stockValueRows
+      ? stockValueRows.reduce((sum, s) => sum + Number(s.quantity) * Number(s.product.costPrice), 0)
+      : undefined;
 
     return {
       data: data.map(({ stockItems, ...p }) => ({
@@ -59,7 +69,7 @@ export function registerProductRoutes(app: FastifyInstance) {
         sellPrice: Number(p.sellPrice),
         stockQuantity: query.branchId ? Number(stockItems?.[0]?.quantity ?? 0) : undefined,
       })),
-      meta: { total, page, pageSize },
+      meta: { total, page, pageSize, totalStockValue },
     };
   });
 

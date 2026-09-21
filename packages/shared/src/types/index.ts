@@ -4,6 +4,7 @@ export interface PageMeta {
   total: number;
   page: number;
   pageSize: number;
+  totalStockValue?: number;
 }
 
 export interface PagedResult<T> {
