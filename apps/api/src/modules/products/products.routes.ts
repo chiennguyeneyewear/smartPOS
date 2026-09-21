@@ -38,12 +38,15 @@ export function registerProductRoutes(app: FastifyInstance) {
         : {}),
     };
 
+    // The 3 branches share a single physical warehouse, so tồn kho is the SUM
+    // of a product's StockItem rows across every branch, not just whichever
+    // branch the requesting user is currently on.
     const [data, total, stockValueRows] = await Promise.all([
       prisma.product.findMany({
         where,
         include: {
           unit: true,
-          stockItems: { where: { branchId: query.branchId ?? "" } },
+          stockItems: true,
         },
         orderBy: { name: "asc" },
         skip: (page - 1) * pageSize,
@@ -52,7 +55,7 @@ export function registerProductRoutes(app: FastifyInstance) {
       prisma.product.count({ where }),
       query.branchId
         ? prisma.stockItem.findMany({
-            where: { branchId: query.branchId, product: where },
+            where: { product: where },
             select: { quantity: true, product: { select: { costPrice: true } } },
           })
         : Promise.resolve(null),
@@ -67,7 +70,9 @@ export function registerProductRoutes(app: FastifyInstance) {
         ...p,
         costPrice: Number(p.costPrice),
         sellPrice: Number(p.sellPrice),
-        stockQuantity: query.branchId ? Number(stockItems?.[0]?.quantity ?? 0) : undefined,
+        stockQuantity: query.branchId
+          ? stockItems.reduce((sum, s) => sum + Number(s.quantity), 0)
+          : undefined,
       })),
       meta: { total, page, pageSize, totalStockValue },
     };

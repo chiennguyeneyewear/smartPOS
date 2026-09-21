@@ -107,10 +107,16 @@ export async function checkoutInvoice(id: string, input: CheckoutInvoiceInput, c
       throw new SalesError("Hóa đơn đã được xử lý trước đó");
     }
 
+    // Stock is shared across all branches (one physical warehouse), so
+    // availability is checked against the SUM across branches, not just the
+    // branch the invoice was created at.
     const stockItems = await tx.stockItem.findMany({
-      where: { branchId: invoice.branchId, productId: { in: invoice.items.map((item) => item.productId) } },
+      where: { productId: { in: invoice.items.map((item) => item.productId) } },
     });
-    const stockByProductId = new Map(stockItems.map((s) => [s.productId, Number(s.quantity)]));
+    const stockByProductId = new Map<string, number>();
+    for (const s of stockItems) {
+      stockByProductId.set(s.productId, (stockByProductId.get(s.productId) ?? 0) + Number(s.quantity));
+    }
     for (const item of invoice.items) {
       const available = stockByProductId.get(item.productId) ?? 0;
       if (available < Number(item.quantity)) {

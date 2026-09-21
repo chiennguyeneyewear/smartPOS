@@ -63,27 +63,30 @@ export async function createStockMovement(input: CreateStockMovementInput, creat
   });
 }
 
-export async function getStock(branchId: string, options: { lowStock?: boolean; search?: string } = {}) {
-  const items = await prisma.stockItem.findMany({
+// The 3 branches share a single physical warehouse (the user's explicit call:
+// "chung 1 kho hàng chung 1 hệ thống khách hàng"), so tồn kho is the SUM of a
+// product's StockItem rows across every branch, not just the requesting
+// branch's own row — mirrors how Product/Customer are already branch-less.
+export async function getStock(_branchId: string, options: { lowStock?: boolean; search?: string } = {}) {
+  const products = await prisma.product.findMany({
     where: {
-      branchId,
-      ...(options.search
-        ? { product: { name: { contains: options.search, mode: "insensitive" } } }
-        : {}),
+      deletedAt: null,
+      isActive: true,
+      ...(options.search ? { name: { contains: options.search, mode: "insensitive" } } : {}),
     },
-    include: { product: { include: { unit: true } } },
-    orderBy: { product: { name: "asc" } },
+    include: { unit: true, stockItems: true },
+    orderBy: { name: "asc" },
   });
 
-  const mapped = items.map((item) => ({
-    productId: item.productId,
-    branchId: item.branchId,
-    quantity: Number(item.quantity),
+  const mapped = products.map(({ stockItems, ...product }) => ({
+    productId: product.id,
+    branchId: _branchId,
+    quantity: stockItems.reduce((sum, s) => sum + Number(s.quantity), 0),
     product: {
-      ...item.product,
-      costPrice: Number(item.product.costPrice),
-      sellPrice: Number(item.product.sellPrice),
-      reorderThreshold: item.product.reorderThreshold ? Number(item.product.reorderThreshold) : null,
+      ...product,
+      costPrice: Number(product.costPrice),
+      sellPrice: Number(product.sellPrice),
+      reorderThreshold: product.reorderThreshold ? Number(product.reorderThreshold) : null,
     },
   }));
 
