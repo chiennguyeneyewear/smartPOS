@@ -1,5 +1,16 @@
 import { useMemo, useState } from "react";
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { ArrowDownRight, ArrowUpRight, ReceiptText, RotateCcw, Wallet } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,9 +19,20 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DatePicker } from "@/components/shared/date-picker";
 import { formatCurrency, formatRelativeTime } from "@/lib/utils";
 import { cn } from "@/lib/utils";
+import { useAuthStore } from "@/stores/auth-store";
 import { useReportBranchId } from "@/hooks/use-report-branch-id";
-import { useDashboardSummary, useRevenueReport, useTopCustomersReport, useTopProductsReport } from "@/features/reports/hooks";
+import {
+  useBranchComparisonReport,
+  useDashboardSummary,
+  useProfitReport,
+  useRevenueReport,
+  useSellerPerformanceReport,
+  useTopCustomersReport,
+  useTopProductsReport,
+} from "@/features/reports/hooks";
 import { PERIOD_PRESET_OPTIONS, formatPeriodLabel, getPeriodRange, type PeriodPreset } from "@/lib/period-presets";
+
+const BRANCH_COLORS = ["hsl(var(--primary))", "#f97316", "#eab308", "#22c55e", "#a855f7", "#ec4899"];
 
 function truncateLabel(value: string, max = 22) {
   return value.length > max ? `${value.slice(0, max - 1)}…` : value;
@@ -41,6 +63,7 @@ function ChangeBadge({ pct }: { pct: number }) {
 
 export function DashboardPage() {
   const reportBranchId = useReportBranchId();
+  const isAdmin = useAuthStore((s) => s.user?.role === "admin");
   const [chartMode, setChartMode] = useState<ChartMode>("day");
   const [preset, setPreset] = useState<PeriodPreset>("today");
   const [customFrom, setCustomFrom] = useState(() => toDateInputValue(new Date()));
@@ -76,6 +99,15 @@ export function DashboardPage() {
     to: toIso,
     limit: 10,
   });
+
+  const { data: profit } = useProfitReport({ branchId: reportBranchId, from: fromIso, to: toIso });
+  const { data: branchComparison } = useBranchComparisonReport({ from: fromIso, to: toIso });
+  const { data: sellerPerformance } = useSellerPerformanceReport({ branchId: reportBranchId, from: fromIso, to: toIso });
+
+  const branchTotal = useMemo(
+    () => (branchComparison ?? []).reduce((sum, b) => sum + b.revenue, 0),
+    [branchComparison],
+  );
 
   const topProductsData = useMemo(
     () => (topProducts ?? []).map((p) => ({ ...p, label: truncateLabel(p.name) })),
@@ -146,6 +178,27 @@ export function DashboardPage() {
         </Card>
       </div>
 
+      <Card>
+        <CardHeader>
+          <CardTitle>Lợi nhuận</CardTitle>
+          <CardDescription>{periodLabel}</CardDescription>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className="rounded-lg bg-primary p-4 text-primary-foreground">
+            <p className="text-sm opacity-90">Lợi nhuận</p>
+            <p className="mt-1 text-xl font-bold">{formatCurrency(profit?.profit ?? 0)}</p>
+          </div>
+          <div className="rounded-lg p-4 text-white" style={{ backgroundColor: "#f97316" }}>
+            <p className="text-sm opacity-90">Doanh thu</p>
+            <p className="mt-1 text-xl font-bold">{formatCurrency(profit?.revenue ?? 0)}</p>
+          </div>
+          <div className="rounded-lg p-4 text-white" style={{ backgroundColor: "#eab308" }}>
+            <p className="text-sm opacity-90">Giá vốn</p>
+            <p className="mt-1 text-xl font-bold">{formatCurrency(profit?.cost ?? 0)}</p>
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader className="flex-row items-center justify-between gap-4 space-y-0">
@@ -213,6 +266,88 @@ export function DashboardPage() {
             </CardContent>
           </Card>
         </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        {isAdmin && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Doanh thu theo chi nhánh</CardTitle>
+              <CardDescription>{periodLabel}</CardDescription>
+            </CardHeader>
+            <CardContent className="flex h-72 items-center gap-4">
+              {branchComparison?.length ? (
+                <>
+                  <div className="relative h-full flex-1">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={branchComparison}
+                          dataKey="revenue"
+                          nameKey="branchName"
+                          innerRadius="60%"
+                          outerRadius="90%"
+                          paddingAngle={2}
+                        >
+                          {branchComparison.map((entry, i) => (
+                            <Cell key={entry.branchId} fill={BRANCH_COLORS[i % BRANCH_COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip formatter={(value: number) => [formatCurrency(value), "Doanh thu"]} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+                      <span className="text-xs text-muted-foreground">Tổng</span>
+                      <span className="text-sm font-semibold">{formatCurrency(branchTotal)}</span>
+                    </div>
+                  </div>
+                  <div className="space-y-2 text-sm">
+                    {branchComparison.map((b, i) => (
+                      <div key={b.branchId} className="flex items-center gap-2">
+                        <span
+                          className="h-2.5 w-2.5 shrink-0 rounded-full"
+                          style={{ backgroundColor: BRANCH_COLORS[i % BRANCH_COLORS.length] }}
+                        />
+                        <span className="truncate">{b.branchName}</span>
+                        <span className="ml-auto shrink-0 font-medium">
+                          {branchTotal > 0 ? Math.round((b.revenue / branchTotal) * 100) : 0}%
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <p className="text-sm text-muted-foreground">Chưa có dữ liệu</p>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Top nhân viên bán tốt</CardTitle>
+            <CardDescription>{periodLabel}</CardDescription>
+          </CardHeader>
+          <CardContent className="h-72">
+            {sellerPerformance?.length ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={sellerPerformance.map((s) => ({ ...s, label: truncateLabel(s.username) }))}
+                  layout="vertical"
+                  margin={{ left: 8, right: 24 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" horizontal={false} />
+                  <XAxis type="number" fontSize={12} tickFormatter={(v) => `${v / 1_000_000} tr`} />
+                  <YAxis type="category" dataKey="label" width={80} fontSize={12} />
+                  <Tooltip formatter={(value: number) => [formatCurrency(value), "Doanh thu"]} />
+                  <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-sm text-muted-foreground">Chưa có dữ liệu</p>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
