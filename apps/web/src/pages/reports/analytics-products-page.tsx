@@ -4,15 +4,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatCurrency } from "@/lib/utils";
 import { PERIOD_PRESET_OPTIONS, getPeriodRange, type PeriodPreset } from "@/lib/period-presets";
-import { useAuthStore } from "@/stores/auth-store";
+import { useReportBranchId } from "@/hooks/use-report-branch-id";
 import { useCategoryPerformanceReport } from "@/features/reports/hooks";
 
 export function AnalyticsProductsPage() {
-  const activeBranchId = useAuthStore((s) => s.activeBranchId);
+  const reportBranchId = useReportBranchId();
   const [preset, setPreset] = useState<PeriodPreset>("this_month");
   const range = useMemo(() => getPeriodRange(preset), [preset]);
   const rangeParams = {
-    branchId: activeBranchId ?? undefined,
+    branchId: reportBranchId,
     from: range.from.toISOString(),
     to: range.to.toISOString(),
   };

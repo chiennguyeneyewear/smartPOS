@@ -4,21 +4,21 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatCurrency } from "@/lib/utils";
 import { PERIOD_PRESET_OPTIONS, getPeriodRange, type PeriodPreset } from "@/lib/period-presets";
-import { useAuthStore } from "@/stores/auth-store";
+import { useReportBranchId } from "@/hooks/use-report-branch-id";
 import { useStockValueReport, useTopProductsReport } from "@/features/reports/hooks";
 
 export function ProductsReportPage() {
-  const activeBranchId = useAuthStore((s) => s.activeBranchId);
+  const reportBranchId = useReportBranchId();
   const [preset, setPreset] = useState<PeriodPreset>("this_month");
   const range = useMemo(() => getPeriodRange(preset), [preset]);
   const rangeParams = {
-    branchId: activeBranchId ?? undefined,
+    branchId: reportBranchId,
     from: range.from.toISOString(),
     to: range.to.toISOString(),
   };
 
   const { data: topProducts } = useTopProductsReport({ ...rangeParams, limit: 20 });
-  const { data: stockValue } = useStockValueReport(activeBranchId ?? undefined);
+  const { data: stockValue } = useStockValueReport(reportBranchId);
 
   return (
     <div className="space-y-4">

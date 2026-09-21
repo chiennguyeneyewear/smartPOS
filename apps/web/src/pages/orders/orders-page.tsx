@@ -13,7 +13,7 @@ import { PrintReceiptDialog } from "@/components/shared/print-receipt-dialog";
 import { useSearchDropdown } from "@/hooks/use-search-dropdown";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
 import { PERIOD_PRESET_OPTIONS, formatPeriodLabel, getPeriodRange, type PeriodPreset } from "@/lib/period-presets";
-import { useAuthStore } from "@/stores/auth-store";
+import { useReportBranchId } from "@/hooks/use-report-branch-id";
 import { mergeSameProductItems, type ReceiptData } from "@/stores/print-receipt-store";
 import { usePrintSettingsStore } from "@/stores/print-settings-store";
 import { useInvoices, useVoidInvoices } from "@/features/sales/hooks";
@@ -26,7 +26,7 @@ function toDateInputValue(d: Date) {
 }
 
 export function OrdersPage() {
-  const activeBranchId = useAuthStore((s) => s.activeBranchId);
+  const reportBranchId = useReportBranchId();
   const mergeSameItems = usePrintSettingsStore((s) => s.mergeSameItems);
   const [preset, setPreset] = useState<PeriodPreset>("this_month");
   const [customFrom, setCustomFrom] = useState(() => toDateInputValue(new Date()));
@@ -53,7 +53,7 @@ export function OrdersPage() {
   const { data: sellers } = useUsers();
   const { data: branches } = useBranches();
   const { data: invoices, isLoading } = useInvoices({
-    branchId: activeBranchId ?? undefined,
+    branchId: reportBranchId,
     createdById: sellerId === "all" ? undefined : sellerId,
     from: range.from.toISOString(),
     to: range.to.toISOString(),

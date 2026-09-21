@@ -2,7 +2,7 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxi
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils";
-import { useAuthStore } from "@/stores/auth-store";
+import { useReportBranchId } from "@/hooks/use-report-branch-id";
 import {
   useBranchComparisonReport,
   useProfitReport,
@@ -12,12 +12,12 @@ import {
 } from "@/features/reports/hooks";
 
 export function ReportsPage() {
-  const activeBranchId = useAuthStore((s) => s.activeBranchId);
-  const { data: revenue } = useRevenueReport({ branchId: activeBranchId ?? undefined, groupBy: "day" });
-  const { data: topProducts } = useTopProductsReport({ branchId: activeBranchId ?? undefined, limit: 5 });
-  const { data: stockValue } = useStockValueReport(activeBranchId ?? undefined);
+  const reportBranchId = useReportBranchId();
+  const { data: revenue } = useRevenueReport({ branchId: reportBranchId, groupBy: "day" });
+  const { data: topProducts } = useTopProductsReport({ branchId: reportBranchId, limit: 5 });
+  const { data: stockValue } = useStockValueReport(reportBranchId);
   const { data: branchComparison } = useBranchComparisonReport({});
-  const { data: profit } = useProfitReport({ branchId: activeBranchId ?? undefined });
+  const { data: profit } = useProfitReport({ branchId: reportBranchId });
 
   return (
     <div className="space-y-4">

@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DatePicker } from "@/components/shared/date-picker";
 import { formatCurrency, formatRelativeTime } from "@/lib/utils";
 import { cn } from "@/lib/utils";
-import { useAuthStore } from "@/stores/auth-store";
+import { useReportBranchId } from "@/hooks/use-report-branch-id";
 import { useDashboardSummary, useRevenueReport, useTopCustomersReport, useTopProductsReport } from "@/features/reports/hooks";
 import { PERIOD_PRESET_OPTIONS, formatPeriodLabel, getPeriodRange, type PeriodPreset } from "@/lib/period-presets";
 
@@ -40,7 +40,7 @@ function ChangeBadge({ pct }: { pct: number }) {
 }
 
 export function DashboardPage() {
-  const activeBranchId = useAuthStore((s) => s.activeBranchId);
+  const reportBranchId = useReportBranchId();
   const [chartMode, setChartMode] = useState<ChartMode>("day");
   const [preset, setPreset] = useState<PeriodPreset>("today");
   const [customFrom, setCustomFrom] = useState(() => toDateInputValue(new Date()));
@@ -54,9 +54,9 @@ export function DashboardPage() {
   const toIso = range.to.toISOString();
   const periodLabel = formatPeriodLabel(preset, range);
 
-  const { data: summary } = useDashboardSummary({ branchId: activeBranchId ?? undefined, from: fromIso, to: toIso });
+  const { data: summary } = useDashboardSummary({ branchId: reportBranchId, from: fromIso, to: toIso });
   const { data: revenue } = useRevenueReport({
-    branchId: activeBranchId ?? undefined,
+    branchId: reportBranchId,
     groupBy: chartMode,
     from: fromIso,
     to: toIso,
@@ -65,13 +65,13 @@ export function DashboardPage() {
   const chartData = useMemo(() => revenue ?? [], [revenue]);
 
   const { data: topProducts } = useTopProductsReport({
-    branchId: activeBranchId ?? undefined,
+    branchId: reportBranchId,
     from: fromIso,
     to: toIso,
     limit: 10,
   });
   const { data: topCustomers } = useTopCustomersReport({
-    branchId: activeBranchId ?? undefined,
+    branchId: reportBranchId,
     from: fromIso,
     to: toIso,
     limit: 10,

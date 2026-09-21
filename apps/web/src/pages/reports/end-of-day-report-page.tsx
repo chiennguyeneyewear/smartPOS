@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { DatePicker } from "@/components/shared/date-picker";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils";
-import { useAuthStore } from "@/stores/auth-store";
+import { useReportBranchId } from "@/hooks/use-report-branch-id";
 import { useEndOfDayReport } from "@/features/reports/hooks";
 
 const METHOD_LABELS: Record<PaymentMethod, string> = {
@@ -20,9 +20,9 @@ function todayValue() {
 }
 
 export function EndOfDayReportPage() {
-  const activeBranchId = useAuthStore((s) => s.activeBranchId);
+  const reportBranchId = useReportBranchId();
   const [date, setDate] = useState(todayValue);
-  const { data, isLoading } = useEndOfDayReport({ branchId: activeBranchId ?? undefined, date });
+  const { data, isLoading } = useEndOfDayReport({ branchId: reportBranchId, date });
 
   return (
     <div className="space-y-4">
