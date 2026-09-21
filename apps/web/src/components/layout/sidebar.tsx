@@ -1,15 +1,5 @@
-import { useState } from "react";
-import { NavLink, useLocation } from "react-router-dom";
-import {
-  LayoutDashboard,
-  ShoppingCart,
-  Package,
-  Users,
-  ClipboardList,
-  UserCog,
-  Store,
-  ChevronDown,
-} from "lucide-react";
+import { NavLink } from "react-router-dom";
+import { LayoutDashboard, ShoppingCart, Package, Users, ClipboardList, UserCog, Store } from "lucide-react";
 import { MENU_ITEMS } from "@smartpos/shared";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth-store";
@@ -34,12 +24,7 @@ const linkClass = ({ isActive }: { isActive: boolean }) =>
 
 export function Sidebar() {
   const menuAccess = useAuthStore((s) => s.user?.menuAccess) ?? [];
-  const location = useLocation();
   const items = NAV_ITEMS.filter((item) => menuAccess.includes(item.menuKey));
-
-  const [openGroup, setOpenGroup] = useState<string | null>(() =>
-    items.find((item) => "children" in item && item.children.some((c) => location.pathname === c.to))?.label ?? null,
-  );
 
   return (
     <aside className="flex h-full w-56 shrink-0 flex-col border-r bg-card">
@@ -52,31 +37,6 @@ export function Sidebar() {
       <nav className="flex-1 space-y-1 p-2">
         {items.map((item) => {
           const Icon = item.icon;
-          if ("children" in item) {
-            const isOpen = openGroup === item.label;
-            return (
-              <div key={item.label}>
-                <button
-                  type="button"
-                  onClick={() => setOpenGroup(isOpen ? null : item.label)}
-                  className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-                >
-                  <Icon className="h-4 w-4" />
-                  <span className="flex-1 text-left">{item.label}</span>
-                  <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", isOpen && "rotate-180")} />
-                </button>
-                {isOpen && (
-                  <div className="ml-4 mt-1 space-y-1 border-l pl-3">
-                    {item.children.map((child) => (
-                      <NavLink key={child.to} to={child.to} className={linkClass}>
-                        {child.label}
-                      </NavLink>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          }
           return (
             <NavLink key={item.to} to={item.to} className={linkClass}>
               <Icon className="h-4 w-4" />
