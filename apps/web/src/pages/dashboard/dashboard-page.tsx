@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
-import { ArrowDownRight, ArrowUpRight, ReceiptText, RotateCcw, Wallet } from "lucide-react";
+import { ReceiptText, RotateCcw } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -36,22 +36,6 @@ const CHART_TABS: { value: ChartMode; label: string }[] = [
 
 function toDateInputValue(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
-function ChangeBadge({ pct }: { pct: number }) {
-  const isUp = pct >= 0;
-  const Icon = isUp ? ArrowUpRight : ArrowDownRight;
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1 text-3xl font-semibold tabular-nums tracking-tight",
-        isUp ? "text-success" : "text-destructive",
-      )}
-    >
-      <Icon className="h-6 w-6" />
-      {Math.abs(pct).toFixed(2).replace(".", ",")}%
-    </span>
-  );
 }
 
 // Each widget can override the page-wide period without touching the others;
@@ -196,44 +180,6 @@ export function DashboardPage() {
             </div>
           )}
         </div>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <Card>
-          <CardContent className="flex items-start justify-between gap-3 p-5">
-            <div>
-              <p className={LABEL_CLASS}>Doanh thu</p>
-              <MoneyValue value={summary?.revenue ?? 0} className="mt-2 block text-3xl font-semibold" />
-              <p className="mt-1.5 text-xs text-muted-foreground">{summary?.invoiceCount ?? 0} hóa đơn</p>
-            </div>
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-              <Wallet className="h-5 w-5" />
-            </span>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="flex items-start justify-between gap-3 p-5">
-            <div>
-              <p className={LABEL_CLASS}>Đơn hủy</p>
-              <p className="mt-2 text-3xl font-semibold tabular-nums tracking-tight">{summary?.cancelledCount ?? 0}</p>
-              <p className="mt-1.5 text-xs text-muted-foreground">{periodLabel}</p>
-            </div>
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-destructive/10 text-destructive">
-              <RotateCcw className="h-5 w-5" />
-            </span>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-5">
-            <p className={LABEL_CLASS}>Tăng trưởng doanh thu</p>
-            <div className="mt-2">
-              <ChangeBadge pct={summary?.changeVsPreviousPct ?? 0} />
-            </div>
-            <p className="mt-1.5 text-xs text-muted-foreground">So với kỳ trước</p>
-          </CardContent>
-        </Card>
       </div>
 
       <Card>
