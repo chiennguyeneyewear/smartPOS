@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Bar,
   BarChart,
@@ -61,6 +61,44 @@ function ChangeBadge({ pct }: { pct: number }) {
   );
 }
 
+// Each widget can override the page-wide period without touching the others;
+// changing the page-wide selector resets every widget back to following it.
+function useCardPeriod(globalPreset: PeriodPreset, customFrom: string, customTo: string) {
+  const [override, setOverride] = useState<PeriodPreset | null>(null);
+  useEffect(() => setOverride(null), [globalPreset, customFrom, customTo]);
+  const preset = override ?? globalPreset;
+  const range = useMemo(() => getPeriodRange(preset, { from: customFrom, to: customTo }), [preset, customFrom, customTo]);
+  return {
+    preset,
+    setPreset: setOverride,
+    fromIso: range.from.toISOString(),
+    toIso: range.to.toISOString(),
+    label: formatPeriodLabel(preset, range),
+  };
+}
+
+function PeriodSelect({
+  period,
+}: {
+  period: { preset: PeriodPreset; setPreset: (p: PeriodPreset) => void; label: string };
+}) {
+  const options = PERIOD_PRESET_OPTIONS.filter((o) => o.value !== "custom" || period.preset === "custom");
+  return (
+    <Select value={period.preset} onValueChange={(v) => period.setPreset(v as PeriodPreset)}>
+      <SelectTrigger className="h-8 w-[150px] shrink-0 text-xs">
+        <SelectValue>{period.label}</SelectValue>
+      </SelectTrigger>
+      <SelectContent>
+        {options.map((option) => (
+          <SelectItem key={option.value} value={option.value}>
+            {option.value === "custom" ? period.label : option.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
 export function DashboardPage() {
   const reportBranchId = useReportBranchId();
   const isAdmin = useAuthStore((s) => s.user?.role === "admin");
@@ -87,22 +125,32 @@ export function DashboardPage() {
 
   const chartData = useMemo(() => revenue ?? [], [revenue]);
 
+  const profitPeriod = useCardPeriod(preset, customFrom, customTo);
+  const branchPeriod = useCardPeriod(preset, customFrom, customTo);
+  const sellerPeriod = useCardPeriod(preset, customFrom, customTo);
+  const productsPeriod = useCardPeriod(preset, customFrom, customTo);
+  const customersPeriod = useCardPeriod(preset, customFrom, customTo);
+
   const { data: topProducts } = useTopProductsReport({
     branchId: reportBranchId,
-    from: fromIso,
-    to: toIso,
+    from: productsPeriod.fromIso,
+    to: productsPeriod.toIso,
     limit: 10,
   });
   const { data: topCustomers } = useTopCustomersReport({
     branchId: reportBranchId,
-    from: fromIso,
-    to: toIso,
+    from: customersPeriod.fromIso,
+    to: customersPeriod.toIso,
     limit: 10,
   });
 
-  const { data: profit } = useProfitReport({ branchId: reportBranchId, from: fromIso, to: toIso });
-  const { data: branchComparison } = useBranchComparisonReport({ from: fromIso, to: toIso });
-  const { data: sellerPerformance } = useSellerPerformanceReport({ branchId: reportBranchId, from: fromIso, to: toIso });
+  const { data: profit } = useProfitReport({ branchId: reportBranchId, from: profitPeriod.fromIso, to: profitPeriod.toIso });
+  const { data: branchComparison } = useBranchComparisonReport({ from: branchPeriod.fromIso, to: branchPeriod.toIso });
+  const { data: sellerPerformance } = useSellerPerformanceReport({
+    branchId: reportBranchId,
+    from: sellerPeriod.fromIso,
+    to: sellerPeriod.toIso,
+  });
 
   const branchTotal = useMemo(
     () => (branchComparison ?? []).reduce((sum, b) => sum + b.revenue, 0),
@@ -179,9 +227,9 @@ export function DashboardPage() {
       </div>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="flex-row items-start justify-between gap-2 space-y-0">
           <CardTitle>Lợi nhuận</CardTitle>
-          <CardDescription>{periodLabel}</CardDescription>
+          <PeriodSelect period={profitPeriod} />
         </CardHeader>
         <CardContent className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <div className="rounded-lg bg-primary p-4 text-primary-foreground">
@@ -271,9 +319,9 @@ export function DashboardPage() {
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {isAdmin && (
           <Card>
-            <CardHeader>
+            <CardHeader className="flex-row items-start justify-between gap-2 space-y-0">
               <CardTitle>Doanh thu theo chi nhánh</CardTitle>
-              <CardDescription>{periodLabel}</CardDescription>
+              <PeriodSelect period={branchPeriod} />
             </CardHeader>
             <CardContent className="flex h-72 items-center gap-4">
               {branchComparison?.length ? (
@@ -324,9 +372,9 @@ export function DashboardPage() {
         )}
 
         <Card>
-          <CardHeader>
+          <CardHeader className="flex-row items-start justify-between gap-2 space-y-0">
             <CardTitle>Top nhân viên bán tốt</CardTitle>
-            <CardDescription>{periodLabel}</CardDescription>
+            <PeriodSelect period={sellerPeriod} />
           </CardHeader>
           <CardContent className="h-72">
             {sellerPerformance?.length ? (
@@ -352,9 +400,9 @@ export function DashboardPage() {
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card>
-          <CardHeader>
+          <CardHeader className="flex-row items-start justify-between gap-2 space-y-0">
             <CardTitle>Top 10 hàng bán chạy</CardTitle>
-            <CardDescription>{periodLabel}</CardDescription>
+            <PeriodSelect period={productsPeriod} />
           </CardHeader>
           <CardContent style={{ height: topChartHeight }}>
             {topProductsData.length ? (
@@ -374,9 +422,9 @@ export function DashboardPage() {
         </Card>
 
         <Card>
-          <CardHeader>
+          <CardHeader className="flex-row items-start justify-between gap-2 space-y-0">
             <CardTitle>Top 10 khách mua nhiều nhất</CardTitle>
-            <CardDescription>{periodLabel}</CardDescription>
+            <PeriodSelect period={customersPeriod} />
           </CardHeader>
           <CardContent style={{ height: topChartHeight }}>
             {topCustomersData.length ? (
