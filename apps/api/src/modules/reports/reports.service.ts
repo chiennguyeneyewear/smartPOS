@@ -190,7 +190,6 @@ function sumAmount(invoices: { totalAmount: unknown }[]): number {
 // against the immediately-preceding period of the same length, so it stays
 // meaningful regardless of which preset the user picked.
 export async function getDashboardSummary(branchId: string | undefined, from: string, to: string) {
-  const now = new Date();
   const rangeStart = new Date(from);
   const rangeEnd = new Date(to);
   const rangeMs = Math.max(0, rangeEnd.getTime() - rangeStart.getTime());
@@ -199,7 +198,7 @@ export async function getDashboardSummary(branchId: string | undefined, from: st
 
   const branchFilter = branchId ? { branchId } : {};
 
-  const [periodInvoices, previousInvoices, cancelledCount, recentCompleted, recentCancelled, customersWithBirthday] =
+  const [periodInvoices, previousInvoices, cancelledCount, recentCompleted, recentCancelled] =
     await Promise.all([
       prisma.invoice.findMany({
         where: { ...branchFilter, status: "COMPLETED", completedAt: { gte: rangeStart, lte: rangeEnd } },
@@ -224,23 +223,10 @@ export async function getDashboardSummary(branchId: string | undefined, from: st
         take: 20,
         include: { customer: { select: { name: true } } },
       }),
-      prisma.customer.findMany({
-        where: { deletedAt: null, birthday: { not: null } },
-        select: { id: true, name: true, birthday: true },
-      }),
     ]);
 
   const revenue = sumAmount(periodInvoices);
   const previousRevenue = sumAmount(previousInvoices);
-
-  const nowVn = toVnParts(now);
-  const birthdaysToday = customersWithBirthday
-    .filter((c) => {
-      if (!c.birthday) return false;
-      const bVn = toVnParts(c.birthday);
-      return bVn.date === nowVn.date && bVn.month === nowVn.month;
-    })
-    .map((c) => ({ id: c.id, name: c.name }));
 
   const userIds = [...new Set([...recentCompleted, ...recentCancelled].map((inv) => inv.createdById))];
   const users = await prisma.user.findMany({ where: { id: { in: userIds } }, select: { id: true, username: true } });
@@ -275,7 +261,6 @@ export async function getDashboardSummary(branchId: string | undefined, from: st
     cancelledCount,
     changeVsPreviousPct: pctChange(revenue, previousRevenue),
     recentActivities,
-    birthdaysToday,
   };
 }
 

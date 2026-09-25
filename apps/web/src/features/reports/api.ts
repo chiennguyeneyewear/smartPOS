@@ -20,7 +20,6 @@ export interface DashboardSummary {
     totalAmount: number;
     at: string | null;
   }[];
-  birthdaysToday: { id: string; name: string }[];
 }
 
 export async function fetchRevenue(params: ReportRange & { groupBy?: "day" | "week" | "month" | "hour" | "weekday" }) {

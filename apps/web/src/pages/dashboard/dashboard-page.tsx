@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
-import { ReceiptText, RotateCcw } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, ReceiptText, RotateCcw } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -36,6 +36,26 @@ const CHART_TABS: { value: ChartMode; label: string }[] = [
 
 function toDateInputValue(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function StatTile({
+  label,
+  gradient,
+  sub,
+  children,
+}: {
+  label: string;
+  gradient: string;
+  sub?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className={cn("rounded-xl bg-gradient-to-br p-4 text-white shadow-sm", gradient)}>
+      <p className="text-xs font-medium uppercase tracking-wider text-white/80">{label}</p>
+      <div className="mt-2">{children}</div>
+      {sub && <p className="mt-1 text-xs text-white/80">{sub}</p>}
+    </div>
+  );
 }
 
 // Each widget can override the page-wide period without touching the others;
@@ -123,6 +143,11 @@ export function DashboardPage() {
     limit: 10,
   });
 
+  const { data: rowSummary } = useDashboardSummary({
+    branchId: reportBranchId,
+    from: profitPeriod.fromIso,
+    to: profitPeriod.toIso,
+  });
   const { data: profit } = useProfitReport({ branchId: reportBranchId, from: profitPeriod.fromIso, to: profitPeriod.toIso });
   const { data: branchComparison } = useBranchComparisonReport({ from: branchPeriod.fromIso, to: branchPeriod.toIso });
   const { data: sellerPerformance } = useSellerPerformanceReport({
@@ -153,7 +178,14 @@ export function DashboardPage() {
     () => (sellerPerformance ?? []).map((s) => ({ key: s.userId, name: s.username, value: s.revenue })),
     [sellerPerformance],
   );
-  const profitMargin = profit && profit.revenue > 0 ? (profit.profit / profit.revenue) * 100 : 0;
+  // Every tile in the row follows the row's own period: revenue/cancellations/growth come from the
+  // dashboard summary, cost from the profit report, and profit is derived so it always equals
+  // the revenue shown next to it (invoice-level discounts included).
+  const rowRevenue = rowSummary?.revenue ?? 0;
+  const rowCost = profit?.cost ?? 0;
+  const rowProfit = rowRevenue - rowCost;
+  const profitMargin = rowRevenue > 0 ? (rowProfit / rowRevenue) * 100 : 0;
+  const growthPct = rowSummary?.changeVsPreviousPct ?? 0;
 
   return (
     <div className="space-y-4">
@@ -186,20 +218,33 @@ export function DashboardPage() {
         <CardHeader className="flex-row items-start justify-end gap-2 space-y-0">
           <PeriodSelect period={profitPeriod} />
         </CardHeader>
-        <CardContent className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <div className="rounded-xl bg-gradient-to-br from-primary to-primary/75 p-4 text-white shadow-sm">
-            <p className="text-xs font-medium uppercase tracking-wider text-white/80">Lợi nhuận</p>
-            <MoneyValue value={profit?.profit ?? 0} className="mt-2 block text-2xl font-semibold" />
-            <p className="mt-1 text-xs text-white/80">Biên lợi nhuận {profitMargin.toFixed(1).replace(".", ",")}%</p>
-          </div>
-          <div className="rounded-xl bg-gradient-to-br from-orange-500 to-orange-400 p-4 text-white shadow-sm">
-            <p className="text-xs font-medium uppercase tracking-wider text-white/80">Doanh thu</p>
-            <MoneyValue value={profit?.revenue ?? 0} className="mt-2 block text-2xl font-semibold" />
-          </div>
-          <div className="rounded-xl bg-gradient-to-br from-amber-500 to-yellow-400 p-4 text-white shadow-sm">
-            <p className="text-xs font-medium uppercase tracking-wider text-white/85">Giá vốn</p>
-            <MoneyValue value={profit?.cost ?? 0} className="mt-2 block text-2xl font-semibold" />
-          </div>
+        <CardContent className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+          <StatTile label="Doanh thu" gradient="from-primary to-primary/75" sub={`${rowSummary?.invoiceCount ?? 0} hóa đơn`}>
+            <MoneyValue value={rowRevenue} className="text-xl font-semibold" />
+          </StatTile>
+          <StatTile label="Đơn hủy" gradient="from-rose-500 to-rose-400" sub="đơn trong kỳ">
+            <span className="text-xl font-semibold tabular-nums tracking-tight">{rowSummary?.cancelledCount ?? 0}</span>
+          </StatTile>
+          <StatTile label="Giá vốn" gradient="from-amber-500 to-yellow-400">
+            <MoneyValue value={rowCost} className="text-xl font-semibold" />
+          </StatTile>
+          <StatTile
+            label="Lợi nhuận"
+            gradient="from-emerald-600 to-emerald-500"
+            sub={`Biên lợi nhuận ${profitMargin.toFixed(1).replace(".", ",")}%`}
+          >
+            <MoneyValue value={rowProfit} className="text-xl font-semibold" />
+          </StatTile>
+          <StatTile
+            label="Tăng trưởng doanh thu"
+            gradient={growthPct >= 0 ? "from-violet-600 to-violet-500" : "from-slate-600 to-slate-500"}
+            sub="So với kỳ trước"
+          >
+            <span className="inline-flex items-center gap-1 text-xl font-semibold tabular-nums tracking-tight">
+              {growthPct >= 0 ? <ArrowUpRight className="h-5 w-5" /> : <ArrowDownRight className="h-5 w-5" />}
+              {Math.abs(growthPct).toFixed(2).replace(".", ",")}%
+            </span>
+          </StatTile>
         </CardContent>
       </Card>
 
