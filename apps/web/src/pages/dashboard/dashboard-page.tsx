@@ -1,25 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { ArrowDownRight, ArrowUpRight, ReceiptText, RotateCcw, Wallet } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DatePicker } from "@/components/shared/date-picker";
 import { formatCurrency, formatRelativeTime } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth-store";
+import { ChartTooltip, ColumnBars, HorizontalBars, MoneyValue, formatCompact } from "./dashboard-widgets";
 import { useReportBranchId } from "@/hooks/use-report-branch-id";
 import {
   useBranchComparisonReport,
@@ -32,6 +22,8 @@ import {
 } from "@/features/reports/hooks";
 import { PERIOD_PRESET_OPTIONS, formatPeriodLabel, getPeriodRange, type PeriodPreset } from "@/lib/period-presets";
 
+const LABEL_CLASS = "text-xs font-medium uppercase tracking-wider text-muted-foreground";
+const EMPTY_CLASS = "flex h-32 items-center justify-center text-sm text-muted-foreground";
 const BRANCH_COLORS = ["hsl(var(--primary))", "#f97316", "#eab308", "#22c55e", "#a855f7", "#ec4899"];
 
 function truncateLabel(value: string, max = 22) {
@@ -54,9 +46,14 @@ function ChangeBadge({ pct }: { pct: number }) {
   const isUp = pct >= 0;
   const Icon = isUp ? ArrowUpRight : ArrowDownRight;
   return (
-    <span className={cn("inline-flex items-center gap-0.5 text-xs font-medium", isUp ? "text-success" : "text-destructive")}>
-      <Icon className="h-3.5 w-3.5" />
-      {Math.abs(pct).toFixed(2)}%
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 text-3xl font-semibold tabular-nums tracking-tight",
+        isUp ? "text-success" : "text-destructive",
+      )}
+    >
+      <Icon className="h-6 w-6" />
+      {Math.abs(pct).toFixed(2).replace(".", ",")}%
     </span>
   );
 }
@@ -165,7 +162,11 @@ export function DashboardPage() {
     () => (topCustomers ?? []).map((c) => ({ ...c, label: truncateLabel(c.name) })),
     [topCustomers],
   );
-  const topChartHeight = Math.max(240, Math.max(topProductsData.length, topCustomersData.length) * 36);
+  const sellerData = useMemo(
+    () => (sellerPerformance ?? []).map((s) => ({ ...s, label: truncateLabel(s.username) })),
+    [sellerPerformance],
+  );
+  const profitMargin = profit && profit.revenue > 0 ? (profit.profit / profit.revenue) * 100 : 0;
 
   return (
     <div className="space-y-4">
@@ -196,33 +197,39 @@ export function DashboardPage() {
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Card>
-          <CardHeader className="flex-row items-center justify-between gap-2 space-y-0">
+          <CardContent className="flex items-start justify-between gap-3 p-5">
             <div>
-              <CardDescription>Doanh thu</CardDescription>
-              <CardTitle className="text-xl">{formatCurrency(summary?.revenue ?? 0)}</CardTitle>
-              <p className="text-xs text-muted-foreground">{summary?.invoiceCount ?? 0} hóa đơn</p>
+              <p className={LABEL_CLASS}>Doanh thu</p>
+              <MoneyValue value={summary?.revenue ?? 0} className="mt-2 block text-3xl font-semibold" />
+              <p className="mt-1.5 text-xs text-muted-foreground">{summary?.invoiceCount ?? 0} hóa đơn</p>
             </div>
-            <Wallet className="h-8 w-8 text-primary/70" />
-          </CardHeader>
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <Wallet className="h-5 w-5" />
+            </span>
+          </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="flex-row items-center justify-between gap-2 space-y-0">
+          <CardContent className="flex items-start justify-between gap-3 p-5">
             <div>
-              <CardDescription>Đơn hủy</CardDescription>
-              <CardTitle className="text-xl">{summary?.cancelledCount ?? 0}</CardTitle>
-              <p className="text-xs text-muted-foreground">{periodLabel}</p>
+              <p className={LABEL_CLASS}>Đơn hủy</p>
+              <p className="mt-2 text-3xl font-semibold tabular-nums tracking-tight">{summary?.cancelledCount ?? 0}</p>
+              <p className="mt-1.5 text-xs text-muted-foreground">{periodLabel}</p>
             </div>
-            <RotateCcw className="h-8 w-8 text-muted-foreground/60" />
-          </CardHeader>
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-destructive/10 text-destructive">
+              <RotateCcw className="h-5 w-5" />
+            </span>
+          </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="space-y-1">
-            <CardDescription>Doanh thu</CardDescription>
-            <ChangeBadge pct={summary?.changeVsPreviousPct ?? 0} />
-            <p className="text-xs text-muted-foreground">So với kỳ trước</p>
-          </CardHeader>
+          <CardContent className="p-5">
+            <p className={LABEL_CLASS}>Tăng trưởng doanh thu</p>
+            <div className="mt-2">
+              <ChangeBadge pct={summary?.changeVsPreviousPct ?? 0} />
+            </div>
+            <p className="mt-1.5 text-xs text-muted-foreground">So với kỳ trước</p>
+          </CardContent>
         </Card>
       </div>
 
@@ -232,27 +239,28 @@ export function DashboardPage() {
           <PeriodSelect period={profitPeriod} />
         </CardHeader>
         <CardContent className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <div className="rounded-lg bg-primary p-4 text-primary-foreground">
-            <p className="text-sm opacity-90">Lợi nhuận</p>
-            <p className="mt-1 text-xl font-bold">{formatCurrency(profit?.profit ?? 0)}</p>
+          <div className="rounded-xl bg-gradient-to-br from-primary to-primary/75 p-4 text-white shadow-sm">
+            <p className="text-xs font-medium uppercase tracking-wider text-white/80">Lợi nhuận</p>
+            <MoneyValue value={profit?.profit ?? 0} className="mt-2 block text-2xl font-semibold" />
+            <p className="mt-1 text-xs text-white/80">Biên lợi nhuận {profitMargin.toFixed(1).replace(".", ",")}%</p>
           </div>
-          <div className="rounded-lg p-4 text-white" style={{ backgroundColor: "#f97316" }}>
-            <p className="text-sm opacity-90">Doanh thu</p>
-            <p className="mt-1 text-xl font-bold">{formatCurrency(profit?.revenue ?? 0)}</p>
+          <div className="rounded-xl bg-gradient-to-br from-orange-500 to-orange-400 p-4 text-white shadow-sm">
+            <p className="text-xs font-medium uppercase tracking-wider text-white/80">Doanh thu</p>
+            <MoneyValue value={profit?.revenue ?? 0} className="mt-2 block text-2xl font-semibold" />
           </div>
-          <div className="rounded-lg p-4 text-white" style={{ backgroundColor: "#eab308" }}>
-            <p className="text-sm opacity-90">Giá vốn</p>
-            <p className="mt-1 text-xl font-bold">{formatCurrency(profit?.cost ?? 0)}</p>
+          <div className="rounded-xl bg-gradient-to-br from-amber-500 to-yellow-400 p-4 text-white shadow-sm">
+            <p className="text-xs font-medium uppercase tracking-wider text-white/85">Giá vốn</p>
+            <MoneyValue value={profit?.cost ?? 0} className="mt-2 block text-2xl font-semibold" />
           </div>
         </CardContent>
       </Card>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
-          <CardHeader className="flex-row items-center justify-between gap-4 space-y-0">
+          <CardHeader className="flex-row items-start justify-between gap-4 space-y-0">
             <div>
-              <CardDescription>Doanh thu thuần</CardDescription>
-              <CardTitle className="text-xl">{formatCurrency(summary?.revenue ?? 0)}</CardTitle>
+              <p className={LABEL_CLASS}>Doanh thu thuần</p>
+              <MoneyValue value={summary?.revenue ?? 0} className="mt-2 block text-3xl font-semibold" />
             </div>
             <Tabs value={chartMode} onValueChange={(v) => setChartMode(v as ChartMode)}>
               <TabsList>
@@ -265,15 +273,7 @@ export function DashboardPage() {
             </Tabs>
           </CardHeader>
           <CardContent className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                <XAxis dataKey="period" fontSize={12} />
-                <YAxis fontSize={12} tickFormatter={(v) => `${v / 1_000_000} tr`} />
-                <Tooltip formatter={(value: number) => [formatCurrency(value), "Doanh thu"]} />
-                <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            <ColumnBars data={chartData} gradientId="grad-revenue" />
           </CardContent>
         </Card>
 
@@ -323,7 +323,7 @@ export function DashboardPage() {
               <CardTitle>Doanh thu theo chi nhánh</CardTitle>
               <PeriodSelect period={branchPeriod} />
             </CardHeader>
-            <CardContent className="flex h-72 items-center gap-4">
+            <CardContent className="flex h-64 items-center gap-6">
               {branchComparison?.length ? (
                 <>
                   <div className="relative h-full flex-1">
@@ -333,31 +333,35 @@ export function DashboardPage() {
                           data={branchComparison}
                           dataKey="revenue"
                           nameKey="branchName"
-                          innerRadius="60%"
-                          outerRadius="90%"
+                          innerRadius="64%"
+                          outerRadius="92%"
                           paddingAngle={2}
+                          stroke="none"
                         >
                           {branchComparison.map((entry, i) => (
                             <Cell key={entry.branchId} fill={BRANCH_COLORS[i % BRANCH_COLORS.length]} />
                           ))}
                         </Pie>
-                        <Tooltip formatter={(value: number) => [formatCurrency(value), "Doanh thu"]} />
+                        <Tooltip content={<ChartTooltip />} />
                       </PieChart>
                     </ResponsiveContainer>
                     <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
                       <span className="text-xs text-muted-foreground">Tổng</span>
-                      <span className="text-sm font-semibold">{formatCurrency(branchTotal)}</span>
+                      <MoneyValue value={branchTotal} className="text-base font-semibold" />
                     </div>
                   </div>
-                  <div className="space-y-2 text-sm">
+                  <div className="min-w-[150px] space-y-3 text-sm">
                     {branchComparison.map((b, i) => (
-                      <div key={b.branchId} className="flex items-center gap-2">
+                      <div key={b.branchId} className="flex items-center gap-2.5">
                         <span
                           className="h-2.5 w-2.5 shrink-0 rounded-full"
                           style={{ backgroundColor: BRANCH_COLORS[i % BRANCH_COLORS.length] }}
                         />
-                        <span className="truncate">{b.branchName}</span>
-                        <span className="ml-auto shrink-0 font-medium">
+                        <div className="min-w-0">
+                          <p className="truncate font-medium leading-tight">{b.branchName}</p>
+                          <p className="text-xs tabular-nums text-muted-foreground">{formatCompact(b.revenue)}</p>
+                        </div>
+                        <span className="ml-auto shrink-0 font-semibold tabular-nums">
                           {branchTotal > 0 ? Math.round((b.revenue / branchTotal) * 100) : 0}%
                         </span>
                       </div>
@@ -365,7 +369,7 @@ export function DashboardPage() {
                   </div>
                 </>
               ) : (
-                <p className="text-sm text-muted-foreground">Chưa có dữ liệu</p>
+                <p className={EMPTY_CLASS}>Chưa có dữ liệu</p>
               )}
             </CardContent>
           </Card>
@@ -376,23 +380,11 @@ export function DashboardPage() {
             <CardTitle>Top nhân viên bán tốt</CardTitle>
             <PeriodSelect period={sellerPeriod} />
           </CardHeader>
-          <CardContent className="h-72">
-            {sellerPerformance?.length ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={sellerPerformance.map((s) => ({ ...s, label: truncateLabel(s.username) }))}
-                  layout="vertical"
-                  margin={{ left: 8, right: 24 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" horizontal={false} />
-                  <XAxis type="number" fontSize={12} tickFormatter={(v) => `${v / 1_000_000} tr`} />
-                  <YAxis type="category" dataKey="label" width={80} fontSize={12} />
-                  <Tooltip formatter={(value: number) => [formatCurrency(value), "Doanh thu"]} />
-                  <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+          <CardContent>
+            {sellerData.length ? (
+              <HorizontalBars data={sellerData} gradientId="grad-sellers" />
             ) : (
-              <p className="text-sm text-muted-foreground">Chưa có dữ liệu</p>
+              <p className={EMPTY_CLASS}>Chưa có dữ liệu</p>
             )}
           </CardContent>
         </Card>
@@ -404,19 +396,11 @@ export function DashboardPage() {
             <CardTitle>Top 10 hàng bán chạy</CardTitle>
             <PeriodSelect period={productsPeriod} />
           </CardHeader>
-          <CardContent style={{ height: topChartHeight }}>
+          <CardContent>
             {topProductsData.length ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={topProductsData} layout="vertical" margin={{ left: 8, right: 24 }}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" horizontal={false} />
-                  <XAxis type="number" fontSize={12} tickFormatter={(v) => `${v / 1_000_000} tr`} />
-                  <YAxis type="category" dataKey="label" width={140} fontSize={12} />
-                  <Tooltip formatter={(value: number) => [formatCurrency(value), "Doanh thu"]} />
-                  <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+              <HorizontalBars data={topProductsData} gradientId="grad-products" />
             ) : (
-              <p className="text-sm text-muted-foreground">Chưa có dữ liệu</p>
+              <p className={EMPTY_CLASS}>Chưa có dữ liệu</p>
             )}
           </CardContent>
         </Card>
@@ -426,19 +410,11 @@ export function DashboardPage() {
             <CardTitle>Top 10 khách mua nhiều nhất</CardTitle>
             <PeriodSelect period={customersPeriod} />
           </CardHeader>
-          <CardContent style={{ height: topChartHeight }}>
+          <CardContent>
             {topCustomersData.length ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={topCustomersData} layout="vertical" margin={{ left: 8, right: 24 }}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" horizontal={false} />
-                  <XAxis type="number" fontSize={12} tickFormatter={(v) => `${v / 1_000_000} tr`} />
-                  <YAxis type="category" dataKey="label" width={140} fontSize={12} />
-                  <Tooltip formatter={(value: number) => [formatCurrency(value), "Doanh thu"]} />
-                  <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+              <HorizontalBars data={topCustomersData} gradientId="grad-customers" />
             ) : (
-              <p className="text-sm text-muted-foreground">Chưa có dữ liệu</p>
+              <p className={EMPTY_CLASS}>Chưa có dữ liệu</p>
             )}
           </CardContent>
         </Card>
