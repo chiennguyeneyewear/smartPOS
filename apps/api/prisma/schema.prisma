@@ -48,8 +48,6 @@ model User {
   role            Role         @relation(fields: [roleId], references: [id])
   defaultBranchId String?
   branches        UserBranch[]
-  tasksAssigned   Task[]       @relation("TaskAssigner")
-  tasksReceived   Task[]       @relation("TaskAssignee")
   // Which sidebar menu items this user can see. Empty = fall back to the role's
   // default (see DEFAULT_MENU_ACCESS in @smartpos/shared) rather than "no access".
   menuAccess      String[]     @default([])
@@ -331,6 +329,20 @@ enum TaskStatus {
   DONE
 }
 
+// Staff who give and receive work. Deliberately separate from User (logins): the
+// people doing the work are not necessarily the shared CS1/CS2/CS3 counter accounts.
+// Soft-deleted so old tasks keep showing who they belonged to.
+model Employee {
+  id            String    @id @default(cuid())
+  name          String
+  deletedAt     DateTime?
+  createdAt     DateTime  @default(now())
+  tasksAssigned Task[]    @relation("TaskAssigner")
+  tasksReceived Task[]    @relation("TaskAssignee")
+
+  @@map("employees")
+}
+
 model Task {
   id          String     @id @default(cuid())
   title       String
@@ -341,8 +353,8 @@ model Task {
   completedAt DateTime?
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
-  assigner    User       @relation("TaskAssigner", fields: [assignerId], references: [id])
-  assignee    User       @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  assigner    Employee   @relation("TaskAssigner", fields: [assignerId], references: [id])
+  assignee    Employee   @relation("TaskAssignee", fields: [assigneeId], references: [id])
 
   @@index([assigneeId, status])
   @@index([createdAt])

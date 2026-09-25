@@ -152,3 +152,8 @@ export interface TaskSummary {
   createdAt: string;
   completedAt: string | null;
 }
+
+export interface EmployeeSummary {
+  id: string;
+  name: string;
+}

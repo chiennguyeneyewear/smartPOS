@@ -1,7 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { UpdateTaskInput } from "@smartpos/shared";
 import { toast } from "@/stores/toast-store";
-import { createTask, deleteTask, fetchAssignees, fetchTasks, updateTask, type TaskQuery } from "./api";
+import {
+  createEmployee,
+  createTask,
+  deleteEmployee,
+  deleteTask,
+  fetchEmployees,
+  fetchTasks,
+  updateTask,
+  type TaskQuery,
+} from "./api";
 
 function errorMessage(error: unknown): string | undefined {
   return error && typeof error === "object" && "response" in error
@@ -13,8 +22,8 @@ export function useTasks(query: TaskQuery) {
   return useQuery({ queryKey: ["tasks", query], queryFn: () => fetchTasks(query), refetchInterval: 60_000 });
 }
 
-export function useAssignees() {
-  return useQuery({ queryKey: ["tasks", "assignees"], queryFn: fetchAssignees, staleTime: 5 * 60_000 });
+export function useEmployees() {
+  return useQuery({ queryKey: ["employees"], queryFn: fetchEmployees });
 }
 
 export function useCreateTask() {
@@ -53,5 +62,31 @@ export function useDeleteTask() {
     },
     onError: (error: unknown) =>
       toast({ title: "Không thể xóa công việc", description: errorMessage(error), variant: "destructive" }),
+  });
+}
+
+export function useCreateEmployee() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: createEmployee,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["employees"] });
+      toast({ title: "Đã thêm nhân viên", variant: "success" });
+    },
+    onError: (error: unknown) =>
+      toast({ title: "Không thể thêm nhân viên", description: errorMessage(error), variant: "destructive" }),
+  });
+}
+
+export function useDeleteEmployee() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: deleteEmployee,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["employees"] });
+      toast({ title: "Đã xóa nhân viên", variant: "success" });
+    },
+    onError: (error: unknown) =>
+      toast({ title: "Không thể xóa nhân viên", description: errorMessage(error), variant: "destructive" }),
   });
 }

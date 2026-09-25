@@ -1,56 +1,76 @@
 import type { FastifyInstance } from "fastify";
 import { Prisma } from "@prisma/client";
-import { ROLES, TASK_STATUS, taskSchema, updateTaskSchema } from "@smartpos/shared";
+import { TASK_STATUS, employeeSchema, taskSchema, updateTaskSchema } from "@smartpos/shared";
 import { authenticate } from "../../middleware/authenticate.js";
 import { prisma } from "../../lib/prisma.js";
 
 const taskInclude = {
-  assigner: { select: { id: true, username: true } },
-  assignee: { select: { id: true, username: true } },
+  assigner: { select: { id: true, name: true } },
+  assignee: { select: { id: true, name: true } },
 } satisfies Prisma.TaskInclude;
 
-type TaskWithUsers = Prisma.TaskGetPayload<{ include: typeof taskInclude }>;
+type TaskWithStaff = Prisma.TaskGetPayload<{ include: typeof taskInclude }>;
 
-function toDto(task: TaskWithUsers) {
+function toDto(task: TaskWithStaff) {
   return {
     id: task.id,
     title: task.title,
     description: task.description,
     status: task.status,
     assignerId: task.assignerId,
-    assignerName: task.assigner.username,
+    assignerName: task.assigner.name,
     assigneeId: task.assigneeId,
-    assigneeName: task.assignee.username,
+    assigneeName: task.assignee.name,
     createdAt: task.createdAt.toISOString(),
     completedAt: task.completedAt ? task.completedAt.toISOString() : null,
   };
 }
 
-async function activeUserExists(id: string) {
-  const user = await prisma.user.findFirst({ where: { id, isActive: true }, select: { id: true } });
-  return !!user;
+async function allActiveEmployees(ids: string[]) {
+  const found = await prisma.employee.count({ where: { id: { in: ids }, deletedAt: null } });
+  return found === new Set(ids).size;
+}
+
+const MISSING_STAFF_MESSAGE = "Người giao hoặc người nhận việc không tồn tại (có thể đã bị xóa khỏi danh sách nhân viên)";
+
+// Staff who give/receive work are their own list (not the shared login accounts), managed
+// right from the task screen; every signed-in user can maintain it.
+export function registerEmployeeRoutes(app: FastifyInstance) {
+  app.get("/employees", { preHandler: authenticate }, async () => {
+    const employees = await prisma.employee.findMany({
+      where: { deletedAt: null },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    });
+    return { data: employees };
+  });
+
+  app.post("/employees", { preHandler: authenticate }, async (request, reply) => {
+    const { name } = employeeSchema.parse(request.body);
+    const duplicate = await prisma.employee.findFirst({
+      where: { deletedAt: null, name: { equals: name, mode: "insensitive" } },
+    });
+    if (duplicate) return reply.code(409).send({ message: "Nhân viên này đã có trong danh sách" });
+    const employee = await prisma.employee.create({ data: { name }, select: { id: true, name: true } });
+    return reply.code(201).send(employee);
+  });
+
+  // Soft delete: tasks already given to/by this person keep their name.
+  app.delete("/employees/:id", { preHandler: authenticate }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const existing = await prisma.employee.findFirst({ where: { id, deletedAt: null } });
+    if (!existing) return reply.code(404).send({ message: "Không tìm thấy nhân viên" });
+    await prisma.employee.update({ where: { id }, data: { deletedAt: new Date() } });
+    return { success: true };
+  });
 }
 
 export function registerTaskRoutes(app: FastifyInstance) {
-  // Anyone signed in can be given work, so the picker can't reuse /users (admin-only).
-  app.get("/tasks/assignees", { preHandler: authenticate }, async () => {
-    const users = await prisma.user.findMany({
-      where: { isActive: true },
-      select: { id: true, username: true },
-      orderBy: { username: "asc" },
-    });
-    return { data: users };
-  });
-
-  // Admins see every task; everyone else sees the tasks they gave or received.
   app.get("/tasks", { preHandler: authenticate }, async (request) => {
-    const me = request.authUser!;
     const query = request.query as { status?: string; assigneeId?: string; from?: string; to?: string };
-    const isAdmin = me.role === ROLES.ADMIN;
 
     const tasks = await prisma.task.findMany({
       where: {
-        ...(isAdmin ? {} : { OR: [{ assignerId: me.id }, { assigneeId: me.id }] }),
         ...(query.status === TASK_STATUS.PENDING || query.status === TASK_STATUS.DONE
           ? { status: query.status }
           : {}),
@@ -73,35 +93,28 @@ export function registerTaskRoutes(app: FastifyInstance) {
 
   app.post("/tasks", { preHandler: authenticate }, async (request, reply) => {
     const input = taskSchema.parse(request.body);
-    if (!(await activeUserExists(input.assigneeId))) {
-      return reply.code(400).send({ message: "Người nhận việc không tồn tại hoặc đã ngừng hoạt động" });
+    if (!(await allActiveEmployees([input.assignerId, input.assigneeId]))) {
+      return reply.code(400).send({ message: MISSING_STAFF_MESSAGE });
     }
-    const task = await prisma.task.create({
-      data: { ...input, assignerId: request.authUser!.id },
-      include: taskInclude,
-    });
+    const task = await prisma.task.create({ data: input, include: taskInclude });
     return reply.code(201).send(toDto(task));
   });
 
-  // The assigner (and admins) can edit anything; the assignee can only move the status.
   app.patch("/tasks/:id", { preHandler: authenticate }, async (request, reply) => {
-    const me = request.authUser!;
     const { id } = request.params as { id: string };
-    const input = updateTaskSchema.parse(request.body);
+    const { status, ...fields } = updateTaskSchema.parse(request.body);
 
     const existing = await prisma.task.findUnique({ where: { id } });
     if (!existing) return reply.code(404).send({ message: "Không tìm thấy công việc" });
 
-    const canEdit = me.role === ROLES.ADMIN || existing.assignerId === me.id;
-    const canChangeStatus = canEdit || existing.assigneeId === me.id;
-    const { status, ...fields } = input;
-    const editsFields = Object.values(fields).some((v) => v !== undefined);
-
-    if ((editsFields && !canEdit) || (status !== undefined && !canChangeStatus)) {
-      return reply.code(403).send({ message: "Bạn không có quyền sửa công việc này" });
-    }
-    if (fields.assigneeId && !(await activeUserExists(fields.assigneeId))) {
-      return reply.code(400).send({ message: "Người nhận việc không tồn tại hoặc đã ngừng hoạt động" });
+    // Only re-validate people that are actually being changed, so a task whose original
+    // assigner was later removed from the list can still be marked done.
+    const changedStaff = [
+      fields.assignerId && fields.assignerId !== existing.assignerId ? fields.assignerId : null,
+      fields.assigneeId && fields.assigneeId !== existing.assigneeId ? fields.assigneeId : null,
+    ].filter((v): v is string => v !== null);
+    if (changedStaff.length > 0 && !(await allActiveEmployees(changedStaff))) {
+      return reply.code(400).send({ message: MISSING_STAFF_MESSAGE });
     }
 
     const task = await prisma.task.update({
@@ -118,13 +131,9 @@ export function registerTaskRoutes(app: FastifyInstance) {
   });
 
   app.delete("/tasks/:id", { preHandler: authenticate }, async (request, reply) => {
-    const me = request.authUser!;
     const { id } = request.params as { id: string };
     const existing = await prisma.task.findUnique({ where: { id } });
     if (!existing) return reply.code(404).send({ message: "Không tìm thấy công việc" });
-    if (me.role !== ROLES.ADMIN && existing.assignerId !== me.id) {
-      return reply.code(403).send({ message: "Chỉ người giao việc mới được xóa công việc" });
-    }
     await prisma.task.delete({ where: { id } });
     return { success: true };
   });
