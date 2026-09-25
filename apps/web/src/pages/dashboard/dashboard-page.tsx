@@ -399,7 +399,7 @@ export function DashboardPage() {
             <CardTitle>Top 10 hàng bán chạy</CardTitle>
             <div className="flex items-center gap-2">
               <Select value={productMetric} onValueChange={(v) => setProductMetric(v as "revenue" | "quantity")}>
-                <SelectTrigger className="h-8 w-[160px] shrink-0 text-xs">
+                <SelectTrigger className="h-8 w-[185px] shrink-0 whitespace-nowrap text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

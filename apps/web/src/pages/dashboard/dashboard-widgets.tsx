@@ -118,6 +118,7 @@ export function ColumnBars({ data }: { data: { period: string; revenue: number }
               tickLine={false}
               axisLine={false}
               width={48}
+              interval={0}
               domain={[0, top]}
               ticks={ticks}
               tickFormatter={formatCompact}
