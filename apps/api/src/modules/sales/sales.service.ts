@@ -274,7 +274,7 @@ export async function listInvoices(filters: {
     include: {
       items: { include: { product: true } },
       payments: true,
-      customer: { select: { code: true, name: true, phone: true } },
+      customer: { select: { code: true, name: true, phone: true, note: true } },
     },
     orderBy: { createdAt: "desc" },
     take: 200,

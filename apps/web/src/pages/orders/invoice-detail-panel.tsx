@@ -159,11 +159,18 @@ export function InvoiceDetailPanel({
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">
             <div
               className={cn(
-                "min-h-[104px] whitespace-pre-wrap rounded-md border px-3 py-2",
-                invoice.note ? "" : "text-muted-foreground",
+                "min-h-[104px] space-y-2 whitespace-pre-wrap rounded-md border px-3 py-2",
+                customer?.note || invoice.note ? "" : "text-muted-foreground",
               )}
             >
-              {invoice.note || "Ghi chú..."}
+              {customer?.note && <p>{customer.note}</p>}
+              {invoice.note && (
+                <p className={customer?.note ? "border-t pt-2" : ""}>
+                  <span className="text-muted-foreground">Ghi chú hóa đơn: </span>
+                  {invoice.note}
+                </p>
+              )}
+              {!customer?.note && !invoice.note && "Ghi chú..."}
             </div>
             <div className="space-y-2.5">
               <TotalLine label={`Tổng tiền hàng (${invoice.items.length})`} value={fmt(goodsTotal(invoice))} />

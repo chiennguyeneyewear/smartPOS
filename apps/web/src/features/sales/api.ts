@@ -32,7 +32,7 @@ export interface InvoiceListItem extends Omit<InvoiceSummary, "items"> {
   }[];
   payments: { method: PaymentMethod; amount: number; createdAt?: string }[];
   createdByName: string;
-  customer: { code: string; name: string; phone: string | null } | null;
+  customer: { code: string; name: string; phone: string | null; note: string | null } | null;
 }
 
 export async function fetchInvoices(params: {
