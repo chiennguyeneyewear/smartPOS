@@ -33,6 +33,7 @@ model Branch {
   stockItems     StockItem[]
   invoices       Invoice[]
   stockMovements StockMovement[] @relation("MovementBranch")
+  tasks          Task[]
 
   @@map("branches")
 }
@@ -357,11 +358,13 @@ model Task {
   status      TaskStatus @default(PENDING)
   assignerId  String
   assigneeId  String
+  branchId    String?
   completedAt DateTime?
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
   assigner    Employee   @relation("TaskAssigner", fields: [assignerId], references: [id])
   assignee    Employee   @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  branch      Branch?    @relation(fields: [branchId], references: [id])
 
   @@index([assigneeId, status])
   @@index([createdAt])

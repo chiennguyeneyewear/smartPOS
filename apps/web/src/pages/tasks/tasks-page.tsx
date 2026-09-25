@@ -22,6 +22,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { PERIOD_PRESET_OPTIONS, getPeriodRange, type PeriodPreset } from "@/lib/period-presets";
 import { cn, formatDateTime } from "@/lib/utils";
+import { useBranches } from "@/features/branches/hooks";
 import {
   useCreateEmployee,
   useCreateTask,
@@ -41,6 +42,10 @@ const STATUS_TRIGGER_CLASS: Record<TaskStatus, string> = {
   PENDING: "border-amber-300 bg-amber-50 text-amber-700",
   DONE: "border-success/40 bg-success/10 text-success",
 };
+
+function sortedBranches<T extends { name: string }>(branches: T[] | undefined): T[] {
+  return [...(branches ?? [])].sort((a, b) => a.name.localeCompare(b.name, "vi", { numeric: true }));
+}
 
 const KIND_TEXT: Record<
   EmployeeKind,
@@ -226,12 +231,14 @@ function TaskFormDialog({
 }) {
   const { data: assigners } = useEmployees(EMPLOYEE_KIND.ASSIGNER);
   const { data: assignees } = useEmployees(EMPLOYEE_KIND.ASSIGNEE);
+  const { data: branches } = useBranches();
   const createTask = useCreateTask();
   const updateTask = useUpdateTask();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [assignerId, setAssignerId] = useState("");
   const [assigneeId, setAssigneeId] = useState("");
+  const [branchId, setBranchId] = useState("");
   const [status, setStatus] = useState<TaskStatus>(TASK_STATUS.PENDING);
   const [error, setError] = useState<string | null>(null);
 
@@ -241,6 +248,7 @@ function TaskFormDialog({
     setDescription(task?.description ?? "");
     setAssignerId(task?.assignerId ?? "");
     setAssigneeId(task?.assigneeId ?? "");
+    setBranchId(task?.branchId ?? "");
     setStatus(task?.status ?? TASK_STATUS.PENDING);
     setError(null);
   }, [open, task]);
@@ -264,7 +272,7 @@ function TaskFormDialog({
   const pending = createTask.isPending || updateTask.isPending;
 
   function submit() {
-    const parsed = taskSchema.safeParse({ title, description, assignerId, assigneeId });
+    const parsed = taskSchema.safeParse({ title, description, assignerId, assigneeId, branchId });
     if (!parsed.success) {
       setError(parsed.error.issues[0]?.message ?? "Dữ liệu không hợp lệ");
       return;
@@ -299,6 +307,21 @@ function TaskFormDialog({
           <div className="space-y-1.5">
             <Label>Tên công việc</Label>
             <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="VD: Kiểm kho gọng kính" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Chi nhánh</Label>
+            <Select value={branchId} onValueChange={setBranchId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Chọn chi nhánh" />
+              </SelectTrigger>
+              <SelectContent>
+                {sortedBranches(branches).map((b) => (
+                  <SelectItem key={b.id} value={b.id}>
+                    {b.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-1.5">
             <Label>Nội dung chi tiết</Label>
@@ -355,12 +378,14 @@ function TaskFormDialog({
 
 export function TasksPage() {
   const { data: employees } = useEmployees(EMPLOYEE_KIND.ASSIGNEE);
+  const { data: branches } = useBranches();
   const updateTask = useUpdateTask();
   const deleteTask = useDeleteTask();
 
   const [preset, setPreset] = useState<PeriodPreset>("all_time");
   const [statusFilter, setStatusFilter] = useState<"all" | TaskStatus>("all");
   const [assigneeFilter, setAssigneeFilter] = useState("all");
+  const [branchFilter, setBranchFilter] = useState("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [managerKind, setManagerKind] = useState<EmployeeKind | null>(null);
@@ -371,6 +396,7 @@ export function TasksPage() {
   const { data: tasks, isLoading } = useTasks({
     status: statusFilter === "all" ? undefined : statusFilter,
     assigneeId: assigneeFilter === "all" ? undefined : assigneeFilter,
+    branchId: branchFilter === "all" ? undefined : branchFilter,
     from: preset === "all_time" ? undefined : range.from.toISOString(),
     to: preset === "all_time" ? undefined : range.to.toISOString(),
   });
@@ -386,6 +412,7 @@ export function TasksPage() {
       header: "Tên công việc",
       cell: ({ row }) => <span className="block max-w-[260px] truncate font-medium">{row.original.title}</span>,
     },
+    { id: "branch", header: "Chi nhánh", cell: ({ row }) => row.original.branchName ?? "" },
     {
       id: "description",
       header: "Nội dung",
@@ -509,6 +536,19 @@ export function TasksPage() {
             {employees?.map((e) => (
               <SelectItem key={e.id} value={e.id}>
                 {e.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={branchFilter} onValueChange={setBranchFilter}>
+          <SelectTrigger className="w-[160px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tất cả chi nhánh</SelectItem>
+            {sortedBranches(branches).map((b) => (
+              <SelectItem key={b.id} value={b.id}>
+                {b.name}
               </SelectItem>
             ))}
           </SelectContent>

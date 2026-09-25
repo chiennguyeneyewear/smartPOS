@@ -4,6 +4,7 @@ import { apiClient } from "@/lib/api-client";
 export interface TaskQuery {
   status?: string;
   assigneeId?: string;
+  branchId?: string;
   from?: string;
   to?: string;
 }

@@ -7,6 +7,7 @@ import { prisma } from "../../lib/prisma.js";
 const taskInclude = {
   assigner: { select: { id: true, name: true } },
   assignee: { select: { id: true, name: true } },
+  branch: { select: { id: true, name: true } },
 } satisfies Prisma.TaskInclude;
 
 type TaskWithStaff = Prisma.TaskGetPayload<{ include: typeof taskInclude }>;
@@ -21,6 +22,8 @@ function toDto(task: TaskWithStaff) {
     assignerName: task.assigner.name,
     assigneeId: task.assigneeId,
     assigneeName: task.assignee.name,
+    branchId: task.branchId,
+    branchName: task.branch?.name ?? null,
     createdAt: task.createdAt.toISOString(),
     completedAt: task.completedAt ? task.completedAt.toISOString() : null,
   };
@@ -38,6 +41,11 @@ async function staffAreValid(staff: { assignerId?: string; assigneeId?: string }
   return (await Promise.all(checks)).every((n) => n === 1);
 }
 
+async function branchExists(id: string) {
+  return (await prisma.branch.count({ where: { id, isActive: true } })) === 1;
+}
+
+const MISSING_BRANCH_MESSAGE = "Chi nhánh không tồn tại";
 const MISSING_STAFF_MESSAGE = "Người giao hoặc người nhận việc không hợp lệ (có thể đã bị xóa khỏi danh sách)";
 
 // People who give work and people who receive it are two separate lists (not the shared login
@@ -78,7 +86,13 @@ export function registerEmployeeRoutes(app: FastifyInstance) {
 
 export function registerTaskRoutes(app: FastifyInstance) {
   app.get("/tasks", { preHandler: authenticate }, async (request) => {
-    const query = request.query as { status?: string; assigneeId?: string; from?: string; to?: string };
+    const query = request.query as {
+      status?: string;
+      assigneeId?: string;
+      branchId?: string;
+      from?: string;
+      to?: string;
+    };
 
     const tasks = await prisma.task.findMany({
       where: {
@@ -86,6 +100,7 @@ export function registerTaskRoutes(app: FastifyInstance) {
           ? { status: query.status }
           : {}),
         ...(query.assigneeId ? { assigneeId: query.assigneeId } : {}),
+        ...(query.branchId ? { branchId: query.branchId } : {}),
         ...(query.from || query.to
           ? {
               createdAt: {
@@ -107,6 +122,9 @@ export function registerTaskRoutes(app: FastifyInstance) {
     if (!(await staffAreValid(input))) {
       return reply.code(400).send({ message: MISSING_STAFF_MESSAGE });
     }
+    if (!(await branchExists(input.branchId))) {
+      return reply.code(400).send({ message: MISSING_BRANCH_MESSAGE });
+    }
     const task = await prisma.task.create({ data: input, include: taskInclude });
     return reply.code(201).send(toDto(task));
   });
@@ -126,6 +144,10 @@ export function registerTaskRoutes(app: FastifyInstance) {
     };
     if (!(await staffAreValid(changedStaff))) {
       return reply.code(400).send({ message: MISSING_STAFF_MESSAGE });
+    }
+
+    if (fields.branchId && fields.branchId !== existing.branchId && !(await branchExists(fields.branchId))) {
+      return reply.code(400).send({ message: MISSING_BRANCH_MESSAGE });
     }
 
     const task = await prisma.task.update({

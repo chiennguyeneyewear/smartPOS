@@ -7,6 +7,7 @@ export const taskSchema = z
     description: z.string().trim().max(5000, "Nội dung tối đa 5000 ký tự").default(""),
     assignerId: z.string().min(1, "Chọn người giao việc"),
     assigneeId: z.string().min(1, "Chọn người nhận việc"),
+    branchId: z.string().min(1, "Chọn chi nhánh"),
   });
 export type TaskInput = z.infer<typeof taskSchema>;
 

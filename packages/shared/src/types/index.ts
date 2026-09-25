@@ -149,6 +149,8 @@ export interface TaskSummary {
   assignerName: string;
   assigneeId: string;
   assigneeName: string;
+  branchId: string | null;
+  branchName: string | null;
   createdAt: string;
   completedAt: string | null;
 }
