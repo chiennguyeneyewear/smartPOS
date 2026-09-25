@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { TASK_STATUS } from "../constants/enums.js";
+import { EMPLOYEE_KIND, TASK_STATUS } from "../constants/enums.js";
 
 export const taskSchema = z
   .object({
@@ -16,6 +16,7 @@ export const updateTaskSchema = taskSchema.partial().extend({
 export type UpdateTaskInput = z.infer<typeof updateTaskSchema>;
 
 export const employeeSchema = z.object({
-  name: z.string().trim().min(1, "Nhập tên nhân viên").max(100, "Tên nhân viên tối đa 100 ký tự"),
+  name: z.string().trim().min(1, "Nhập tên").max(100, "Tên tối đa 100 ký tự"),
+  kind: z.nativeEnum(EMPLOYEE_KIND),
 });
 export type EmployeeInput = z.infer<typeof employeeSchema>;

@@ -1,4 +1,4 @@
-import type { EmployeeSummary, TaskInput, TaskSummary, UpdateTaskInput } from "@smartpos/shared";
+import type { EmployeeInput, EmployeeKind, EmployeeSummary, TaskInput, TaskSummary, UpdateTaskInput } from "@smartpos/shared";
 import { apiClient } from "@/lib/api-client";
 
 export interface TaskQuery {
@@ -27,13 +27,13 @@ export async function deleteTask(id: string): Promise<void> {
   await apiClient.delete(`/tasks/${id}`);
 }
 
-export async function fetchEmployees(): Promise<EmployeeSummary[]> {
-  const { data } = await apiClient.get<{ data: EmployeeSummary[] }>("/employees");
+export async function fetchEmployees(kind: EmployeeKind): Promise<EmployeeSummary[]> {
+  const { data } = await apiClient.get<{ data: EmployeeSummary[] }>("/employees", { params: { kind } });
   return data.data;
 }
 
-export async function createEmployee(name: string): Promise<EmployeeSummary> {
-  const { data } = await apiClient.post<EmployeeSummary>("/employees", { name });
+export async function createEmployee(input: EmployeeInput): Promise<EmployeeSummary> {
+  const { data } = await apiClient.post<EmployeeSummary>("/employees", input);
   return data;
 }
 

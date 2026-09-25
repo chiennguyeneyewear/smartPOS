@@ -324,6 +324,12 @@ model Payment {
 // Tasks (daily work assignment)
 // ------------------------------------------------------------------
 
+// Two separate lists: who hands out work (ASSIGNER) and who receives it (ASSIGNEE).
+enum EmployeeKind {
+  ASSIGNER
+  ASSIGNEE
+}
+
 enum TaskStatus {
   PENDING
   DONE
@@ -333,12 +339,13 @@ enum TaskStatus {
 // people doing the work are not necessarily the shared CS1/CS2/CS3 counter accounts.
 // Soft-deleted so old tasks keep showing who they belonged to.
 model Employee {
-  id            String    @id @default(cuid())
+  id            String       @id @default(cuid())
   name          String
+  kind          EmployeeKind @default(ASSIGNEE)
   deletedAt     DateTime?
-  createdAt     DateTime  @default(now())
-  tasksAssigned Task[]    @relation("TaskAssigner")
-  tasksReceived Task[]    @relation("TaskAssignee")
+  createdAt     DateTime     @default(now())
+  tasksAssigned Task[]       @relation("TaskAssigner")
+  tasksReceived Task[]       @relation("TaskAssignee")
 
   @@map("employees")
 }

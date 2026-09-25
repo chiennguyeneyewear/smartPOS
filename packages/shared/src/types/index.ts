@@ -1,4 +1,4 @@
-import type { Gender, InvoiceStatus, PaymentMethod, SaleMode, StockMovementType, TaskStatus } from "../constants/enums.js";
+import type { Gender, InvoiceStatus, PaymentMethod, SaleMode, StockMovementType, TaskStatus, EmployeeKind } from "../constants/enums.js";
 
 export interface PageMeta {
   total: number;
@@ -156,4 +156,5 @@ export interface TaskSummary {
 export interface EmployeeSummary {
   id: string;
   name: string;
+  kind: EmployeeKind;
 }

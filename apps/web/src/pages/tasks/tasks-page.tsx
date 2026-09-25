@@ -2,9 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Pencil, Plus, Trash2, Users } from "lucide-react";
 import {
+  EMPLOYEE_KIND,
   TASK_STATUS,
   employeeSchema,
   taskSchema,
+  type EmployeeKind,
   type EmployeeSummary,
   type TaskStatus,
   type TaskSummary,
@@ -40,17 +42,33 @@ const STATUS_TRIGGER_CLASS: Record<TaskStatus, string> = {
   DONE: "border-success/40 bg-success/10 text-success",
 };
 
-// Employees for a picker, plus anyone already on the task who has since been removed from the list.
-function withTaskStaff(employees: EmployeeSummary[], task: TaskSummary | null): EmployeeSummary[] {
-  const list = [...employees];
-  if (!task) return list;
-  for (const person of [
-    { id: task.assignerId, name: task.assignerName },
-    { id: task.assigneeId, name: task.assigneeName },
-  ]) {
-    if (!list.some((e) => e.id === person.id)) list.push({ id: person.id, name: `${person.name} (đã xóa)` });
-  }
-  return list;
+const KIND_TEXT: Record<
+  EmployeeKind,
+  { manageTitle: string; addLabel: string; placeholder: string; deleteTitle: string; noun: string }
+> = {
+  ASSIGNER: {
+    manageTitle: "Quản lý người giao việc",
+    addLabel: "Thêm người giao việc",
+    placeholder: "Tên người giao việc",
+    deleteTitle: "Xóa người giao việc",
+    noun: "người giao việc",
+  },
+  ASSIGNEE: {
+    manageTitle: "Quản lý nhân viên nhận việc",
+    addLabel: "Thêm nhân viên",
+    placeholder: "Tên nhân viên",
+    deleteTitle: "Xóa nhân viên",
+    noun: "nhân viên",
+  },
+};
+
+// The list for a picker, plus the person already on the task if they have since been removed.
+function withCurrentPerson(
+  list: EmployeeSummary[],
+  current: { id: string; name: string; kind: EmployeeKind } | null,
+): EmployeeSummary[] {
+  if (!current || list.some((e) => e.id === current.id)) return list;
+  return [...list, { id: current.id, name: `${current.name} (đã xóa)`, kind: current.kind }];
 }
 
 function EmployeeSelect({
@@ -80,8 +98,25 @@ function EmployeeSelect({
   );
 }
 
-function EmployeeManagerDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
-  const { data: employees } = useEmployees();
+function ManageLink({ onClick, children }: { onClick: () => void; children: string }) {
+  return (
+    <button type="button" onClick={onClick} className="text-xs font-medium text-primary hover:underline">
+      {children}
+    </button>
+  );
+}
+
+function EmployeeManagerDialog({
+  kind,
+  open,
+  onOpenChange,
+}: {
+  kind: EmployeeKind;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const text = KIND_TEXT[kind];
+  const { data: employees } = useEmployees(kind);
   const createEmployee = useCreateEmployee();
   const deleteEmployee = useDeleteEmployee();
   const [name, setName] = useState("");
@@ -96,13 +131,13 @@ function EmployeeManagerDialog({ open, onOpenChange }: { open: boolean; onOpenCh
   }, [open]);
 
   function add() {
-    const parsed = employeeSchema.safeParse({ name });
+    const parsed = employeeSchema.safeParse({ name, kind });
     if (!parsed.success) {
       setError(parsed.error.issues[0]?.message ?? "Tên không hợp lệ");
       return;
     }
     setError(null);
-    createEmployee.mutate(parsed.data.name, { onSuccess: () => setName("") });
+    createEmployee.mutate(parsed.data, { onSuccess: () => setName("") });
   }
 
   return (
@@ -110,17 +145,17 @@ function EmployeeManagerDialog({ open, onOpenChange }: { open: boolean; onOpenCh
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Quản lý nhân viên</DialogTitle>
+            <DialogTitle>{text.manageTitle}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-1.5">
-              <Label>Thêm nhân viên</Label>
+              <Label>{text.addLabel}</Label>
               <div className="flex gap-2">
                 <Input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && add()}
-                  placeholder="Tên nhân viên"
+                  placeholder={text.placeholder}
                 />
                 <Button onClick={add} disabled={createEmployee.isPending} className="shrink-0 gap-1.5">
                   <Plus className="h-4 w-4" /> Thêm
@@ -144,7 +179,7 @@ function EmployeeManagerDialog({ open, onOpenChange }: { open: boolean; onOpenCh
                   </div>
                 ))
               ) : (
-                <p className="p-4 text-center text-sm text-muted-foreground">Chưa có nhân viên nào</p>
+                <p className="p-4 text-center text-sm text-muted-foreground">Chưa có {text.noun} nào</p>
               )}
             </div>
           </div>
@@ -154,11 +189,11 @@ function EmployeeManagerDialog({ open, onOpenChange }: { open: boolean; onOpenCh
       <Dialog open={!!deleting} onOpenChange={(o) => !o && setDeleting(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Xóa nhân viên</DialogTitle>
+            <DialogTitle>{text.deleteTitle}</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            Bạn có chắc muốn xóa nhân viên <span className="font-medium text-foreground">{deleting?.name}</span> khỏi
-            danh sách? Các công việc đã giao hoặc đã nhận của nhân viên này vẫn được giữ lại.
+            Bạn có chắc muốn xóa {text.noun} <span className="font-medium text-foreground">{deleting?.name}</span> khỏi
+            danh sách? Các công việc đã giao hoặc đã nhận của người này vẫn được giữ lại.
           </p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleting(null)}>
@@ -182,14 +217,15 @@ function TaskFormDialog({
   open,
   onOpenChange,
   task,
-  onManageEmployees,
+  onManage,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   task: TaskSummary | null;
-  onManageEmployees: () => void;
+  onManage: (kind: EmployeeKind) => void;
 }) {
-  const { data: employees } = useEmployees();
+  const { data: assigners } = useEmployees(EMPLOYEE_KIND.ASSIGNER);
+  const { data: assignees } = useEmployees(EMPLOYEE_KIND.ASSIGNEE);
   const createTask = useCreateTask();
   const updateTask = useUpdateTask();
   const [title, setTitle] = useState("");
@@ -209,7 +245,22 @@ function TaskFormDialog({
     setError(null);
   }, [open, task]);
 
-  const options = useMemo(() => withTaskStaff(employees ?? [], task), [employees, task]);
+  const assignerOptions = useMemo(
+    () =>
+      withCurrentPerson(
+        assigners ?? [],
+        task && { id: task.assignerId, name: task.assignerName, kind: EMPLOYEE_KIND.ASSIGNER },
+      ),
+    [assigners, task],
+  );
+  const assigneeOptions = useMemo(
+    () =>
+      withCurrentPerson(
+        assignees ?? [],
+        task && { id: task.assigneeId, name: task.assigneeName, kind: EMPLOYEE_KIND.ASSIGNEE },
+      ),
+    [assignees, task],
+  );
   const pending = createTask.isPending || updateTask.isPending;
 
   function submit() {
@@ -236,18 +287,12 @@ function TaskFormDialog({
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <Label>Người giao việc</Label>
-              <button
-                type="button"
-                onClick={onManageEmployees}
-                className="text-xs font-medium text-primary hover:underline"
-              >
-                + Thêm / xóa nhân viên
-              </button>
+              <ManageLink onClick={() => onManage(EMPLOYEE_KIND.ASSIGNER)}>+ Thêm / xóa người giao việc</ManageLink>
             </div>
             <EmployeeSelect
               value={assignerId}
               onChange={setAssignerId}
-              employees={options}
+              employees={assignerOptions}
               placeholder="Chọn người giao việc"
             />
           </div>
@@ -264,34 +309,35 @@ function TaskFormDialog({
               placeholder="Mô tả cụ thể việc cần làm..."
             />
           </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div className="space-y-1.5">
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
               <Label>Người nhận việc</Label>
-              <EmployeeSelect
-                value={assigneeId}
-                onChange={setAssigneeId}
-                employees={options}
-                placeholder="Chọn người nhận"
-              />
+              <ManageLink onClick={() => onManage(EMPLOYEE_KIND.ASSIGNEE)}>+ Thêm / xóa nhân viên</ManageLink>
             </div>
-            {task && (
-              <div className="space-y-1.5">
-                <Label>Trạng thái</Label>
-                <Select value={status} onValueChange={(v) => setStatus(v as TaskStatus)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.values(TASK_STATUS).map((st) => (
-                      <SelectItem key={st} value={st}>
-                        {STATUS_LABELS[st]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
+            <EmployeeSelect
+              value={assigneeId}
+              onChange={setAssigneeId}
+              employees={assigneeOptions}
+              placeholder="Chọn người nhận"
+            />
           </div>
+          {task && (
+            <div className="space-y-1.5">
+              <Label>Trạng thái</Label>
+              <Select value={status} onValueChange={(v) => setStatus(v as TaskStatus)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.values(TASK_STATUS).map((st) => (
+                    <SelectItem key={st} value={st}>
+                      {STATUS_LABELS[st]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           {error && <p className="text-sm text-destructive">{error}</p>}
         </div>
         <DialogFooter>
@@ -308,7 +354,7 @@ function TaskFormDialog({
 }
 
 export function TasksPage() {
-  const { data: employees } = useEmployees();
+  const { data: employees } = useEmployees(EMPLOYEE_KIND.ASSIGNEE);
   const updateTask = useUpdateTask();
   const deleteTask = useDeleteTask();
 
@@ -317,7 +363,7 @@ export function TasksPage() {
   const [assigneeFilter, setAssigneeFilter] = useState("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
-  const [managerOpen, setManagerOpen] = useState(false);
+  const [managerKind, setManagerKind] = useState<EmployeeKind | null>(null);
   const [editing, setEditing] = useState<TaskSummary | null>(null);
   const [deleting, setDeleting] = useState<TaskSummary | null>(null);
 
@@ -412,7 +458,7 @@ export function TasksPage() {
         description="Giao việc và theo dõi công việc hằng ngày"
         actions={
           <div className="flex items-center gap-2">
-            <Button variant="outline" className="gap-1.5" onClick={() => setManagerOpen(true)}>
+            <Button variant="outline" className="gap-1.5" onClick={() => setManagerKind(EMPLOYEE_KIND.ASSIGNEE)}>
               <Users className="h-4 w-4" /> Nhân viên
             </Button>
             <Button
@@ -504,10 +550,14 @@ export function TasksPage() {
         open={formOpen}
         onOpenChange={setFormOpen}
         task={editing}
-        onManageEmployees={() => setManagerOpen(true)}
+        onManage={setManagerKind}
       />
 
-      <EmployeeManagerDialog open={managerOpen} onOpenChange={setManagerOpen} />
+      <EmployeeManagerDialog
+        kind={managerKind ?? EMPLOYEE_KIND.ASSIGNEE}
+        open={managerKind !== null}
+        onOpenChange={(o) => !o && setManagerKind(null)}
+      />
 
       <Dialog open={!!deleting} onOpenChange={(o) => !o && setDeleting(null)}>
         <DialogContent>

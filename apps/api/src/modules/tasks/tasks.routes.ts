@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { Prisma } from "@prisma/client";
-import { TASK_STATUS, employeeSchema, taskSchema, updateTaskSchema } from "@smartpos/shared";
+import { EMPLOYEE_KIND, TASK_STATUS, employeeSchema, taskSchema, updateTaskSchema } from "@smartpos/shared";
 import { authenticate } from "../../middleware/authenticate.js";
 import { prisma } from "../../lib/prisma.js";
 
@@ -26,32 +26,43 @@ function toDto(task: TaskWithStaff) {
   };
 }
 
-async function allActiveEmployees(ids: string[]) {
-  const found = await prisma.employee.count({ where: { id: { in: ids }, deletedAt: null } });
-  return found === new Set(ids).size;
+// Each side of a task must come from its own list (givers vs receivers), and still be active.
+async function staffAreValid(staff: { assignerId?: string; assigneeId?: string }) {
+  const checks: Promise<number>[] = [];
+  if (staff.assignerId) {
+    checks.push(prisma.employee.count({ where: { id: staff.assignerId, kind: EMPLOYEE_KIND.ASSIGNER, deletedAt: null } }));
+  }
+  if (staff.assigneeId) {
+    checks.push(prisma.employee.count({ where: { id: staff.assigneeId, kind: EMPLOYEE_KIND.ASSIGNEE, deletedAt: null } }));
+  }
+  return (await Promise.all(checks)).every((n) => n === 1);
 }
 
-const MISSING_STAFF_MESSAGE = "Người giao hoặc người nhận việc không tồn tại (có thể đã bị xóa khỏi danh sách nhân viên)";
+const MISSING_STAFF_MESSAGE = "Người giao hoặc người nhận việc không hợp lệ (có thể đã bị xóa khỏi danh sách)";
 
-// Staff who give/receive work are their own list (not the shared login accounts), managed
-// right from the task screen; every signed-in user can maintain it.
+// People who give work and people who receive it are two separate lists (not the shared login
+// accounts), managed right from the task screen; every signed-in user can maintain them.
 export function registerEmployeeRoutes(app: FastifyInstance) {
-  app.get("/employees", { preHandler: authenticate }, async () => {
+  app.get("/employees", { preHandler: authenticate }, async (request) => {
+    const { kind } = request.query as { kind?: string };
     const employees = await prisma.employee.findMany({
-      where: { deletedAt: null },
-      select: { id: true, name: true },
+      where: {
+        deletedAt: null,
+        ...(kind === EMPLOYEE_KIND.ASSIGNER || kind === EMPLOYEE_KIND.ASSIGNEE ? { kind } : {}),
+      },
+      select: { id: true, name: true, kind: true },
       orderBy: { name: "asc" },
     });
     return { data: employees };
   });
 
   app.post("/employees", { preHandler: authenticate }, async (request, reply) => {
-    const { name } = employeeSchema.parse(request.body);
+    const { name, kind } = employeeSchema.parse(request.body);
     const duplicate = await prisma.employee.findFirst({
-      where: { deletedAt: null, name: { equals: name, mode: "insensitive" } },
+      where: { deletedAt: null, kind, name: { equals: name, mode: "insensitive" } },
     });
-    if (duplicate) return reply.code(409).send({ message: "Nhân viên này đã có trong danh sách" });
-    const employee = await prisma.employee.create({ data: { name }, select: { id: true, name: true } });
+    if (duplicate) return reply.code(409).send({ message: "Tên này đã có trong danh sách" });
+    const employee = await prisma.employee.create({ data: { name, kind }, select: { id: true, name: true, kind: true } });
     return reply.code(201).send(employee);
   });
 
@@ -93,7 +104,7 @@ export function registerTaskRoutes(app: FastifyInstance) {
 
   app.post("/tasks", { preHandler: authenticate }, async (request, reply) => {
     const input = taskSchema.parse(request.body);
-    if (!(await allActiveEmployees([input.assignerId, input.assigneeId]))) {
+    if (!(await staffAreValid(input))) {
       return reply.code(400).send({ message: MISSING_STAFF_MESSAGE });
     }
     const task = await prisma.task.create({ data: input, include: taskInclude });
@@ -109,11 +120,11 @@ export function registerTaskRoutes(app: FastifyInstance) {
 
     // Only re-validate people that are actually being changed, so a task whose original
     // assigner was later removed from the list can still be marked done.
-    const changedStaff = [
-      fields.assignerId && fields.assignerId !== existing.assignerId ? fields.assignerId : null,
-      fields.assigneeId && fields.assigneeId !== existing.assigneeId ? fields.assigneeId : null,
-    ].filter((v): v is string => v !== null);
-    if (changedStaff.length > 0 && !(await allActiveEmployees(changedStaff))) {
+    const changedStaff = {
+      assignerId: fields.assignerId && fields.assignerId !== existing.assignerId ? fields.assignerId : undefined,
+      assigneeId: fields.assigneeId && fields.assigneeId !== existing.assigneeId ? fields.assigneeId : undefined,
+    };
+    if (!(await staffAreValid(changedStaff))) {
       return reply.code(400).send({ message: MISSING_STAFF_MESSAGE });
     }
 

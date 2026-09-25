@@ -42,3 +42,9 @@ export const TASK_STATUS = {
   DONE: "DONE",
 } as const;
 export type TaskStatus = (typeof TASK_STATUS)[keyof typeof TASK_STATUS];
+
+export const EMPLOYEE_KIND = {
+  ASSIGNER: "ASSIGNER",
+  ASSIGNEE: "ASSIGNEE",
+} as const;
+export type EmployeeKind = (typeof EMPLOYEE_KIND)[keyof typeof EMPLOYEE_KIND];

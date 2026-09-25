@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { UpdateTaskInput } from "@smartpos/shared";
+import type { EmployeeKind, UpdateTaskInput } from "@smartpos/shared";
 import { toast } from "@/stores/toast-store";
 import {
   createEmployee,
@@ -22,8 +22,8 @@ export function useTasks(query: TaskQuery) {
   return useQuery({ queryKey: ["tasks", query], queryFn: () => fetchTasks(query), refetchInterval: 60_000 });
 }
 
-export function useEmployees() {
-  return useQuery({ queryKey: ["employees"], queryFn: fetchEmployees });
+export function useEmployees(kind: EmployeeKind) {
+  return useQuery({ queryKey: ["employees", kind], queryFn: () => fetchEmployees(kind) });
 }
 
 export function useCreateTask() {
@@ -71,10 +71,10 @@ export function useCreateEmployee() {
     mutationFn: createEmployee,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["employees"] });
-      toast({ title: "Đã thêm nhân viên", variant: "success" });
+      toast({ title: "Đã thêm vào danh sách", variant: "success" });
     },
     onError: (error: unknown) =>
-      toast({ title: "Không thể thêm nhân viên", description: errorMessage(error), variant: "destructive" }),
+      toast({ title: "Không thể thêm vào danh sách", description: errorMessage(error), variant: "destructive" }),
   });
 }
 
@@ -84,9 +84,9 @@ export function useDeleteEmployee() {
     mutationFn: deleteEmployee,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["employees"] });
-      toast({ title: "Đã xóa nhân viên", variant: "success" });
+      toast({ title: "Đã xóa khỏi danh sách", variant: "success" });
     },
     onError: (error: unknown) =>
-      toast({ title: "Không thể xóa nhân viên", description: errorMessage(error), variant: "destructive" }),
+      toast({ title: "Không thể xóa khỏi danh sách", description: errorMessage(error), variant: "destructive" }),
   });
 }
