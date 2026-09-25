@@ -29,30 +29,32 @@ model Branch {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  users            UserBranch[]
-  stockItems       StockItem[]
-  invoices         Invoice[]
-  stockMovements   StockMovement[] @relation("MovementBranch")
+  users          UserBranch[]
+  stockItems     StockItem[]
+  invoices       Invoice[]
+  stockMovements StockMovement[] @relation("MovementBranch")
 
   @@map("branches")
 }
 
 model User {
-  id              String    @id @default(cuid())
-  username        String    @unique
-  email           String?   @unique
+  id              String       @id @default(cuid())
+  username        String       @unique
+  email           String?      @unique
   passwordHash    String
   phone           String?
-  isActive        Boolean   @default(true)
+  isActive        Boolean      @default(true)
   roleId          String
-  role            Role      @relation(fields: [roleId], references: [id])
+  role            Role         @relation(fields: [roleId], references: [id])
   defaultBranchId String?
   branches        UserBranch[]
+  tasksAssigned   Task[]       @relation("TaskAssigner")
+  tasksReceived   Task[]       @relation("TaskAssignee")
   // Which sidebar menu items this user can see. Empty = fall back to the role's
   // default (see DEFAULT_MENU_ACCESS in @smartpos/shared) rather than "no access".
-  menuAccess      String[]  @default([])
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  menuAccess      String[]     @default([])
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
 
   @@map("users")
 }
@@ -108,22 +110,22 @@ model Unit {
 }
 
 model Product {
-  id                String    @id @default(cuid())
-  sku               String    @unique
-  barcode           String?   @unique
-  name              String
-  imageUrl          String?
-  categoryId        String?
-  category          Category? @relation(fields: [categoryId], references: [id])
-  unitId            String
-  unit              Unit      @relation(fields: [unitId], references: [id])
-  costPrice         Decimal   @db.Decimal(14, 2)
-  sellPrice         Decimal   @db.Decimal(14, 2)
-  reorderThreshold  Decimal?  @db.Decimal(14, 3)
-  isActive          Boolean   @default(true)
-  deletedAt         DateTime?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  id               String    @id @default(cuid())
+  sku              String    @unique
+  barcode          String?   @unique
+  name             String
+  imageUrl         String?
+  categoryId       String?
+  category         Category? @relation(fields: [categoryId], references: [id])
+  unitId           String
+  unit             Unit      @relation(fields: [unitId], references: [id])
+  costPrice        Decimal   @db.Decimal(14, 2)
+  sellPrice        Decimal   @db.Decimal(14, 2)
+  reorderThreshold Decimal?  @db.Decimal(14, 3)
+  isActive         Boolean   @default(true)
+  deletedAt        DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   stockItems         StockItem[]
   invoiceItems       InvoiceItem[]
@@ -289,15 +291,15 @@ model Invoice {
 }
 
 model InvoiceItem {
-  id         String  @id @default(cuid())
-  invoiceId  String
-  productId  String
-  quantity   Decimal @db.Decimal(14, 3)
-  unitPrice  Decimal @db.Decimal(14, 2)
-  discount   Decimal @default(0) @db.Decimal(14, 2)
-  lineTotal  Decimal @db.Decimal(14, 2)
-  invoice    Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  product    Product @relation(fields: [productId], references: [id])
+  id        String  @id @default(cuid())
+  invoiceId String
+  productId String
+  quantity  Decimal @db.Decimal(14, 3)
+  unitPrice Decimal @db.Decimal(14, 2)
+  discount  Decimal @default(0) @db.Decimal(14, 2)
+  lineTotal Decimal @db.Decimal(14, 2)
+  invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  product   Product @relation(fields: [productId], references: [id])
 
   @@map("invoice_items")
 }
@@ -318,4 +320,31 @@ model Payment {
   invoice   Invoice       @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 
   @@map("payments")
+}
+
+// ------------------------------------------------------------------
+// Tasks (daily work assignment)
+// ------------------------------------------------------------------
+
+enum TaskStatus {
+  PENDING
+  DONE
+}
+
+model Task {
+  id          String     @id @default(cuid())
+  title       String
+  description String     @default("")
+  status      TaskStatus @default(PENDING)
+  assignerId  String
+  assigneeId  String
+  completedAt DateTime?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  assigner    User       @relation("TaskAssigner", fields: [assignerId], references: [id])
+  assignee    User       @relation("TaskAssignee", fields: [assigneeId], references: [id])
+
+  @@index([assigneeId, status])
+  @@index([createdAt])
+  @@map("tasks")
 }

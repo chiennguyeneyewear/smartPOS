@@ -1,4 +1,4 @@
-import type { Gender, InvoiceStatus, PaymentMethod, SaleMode, StockMovementType } from "../constants/enums.js";
+import type { Gender, InvoiceStatus, PaymentMethod, SaleMode, StockMovementType, TaskStatus } from "../constants/enums.js";
 
 export interface PageMeta {
   total: number;
@@ -138,4 +138,17 @@ export interface CurrentUser {
   menuAccess: string[];
   branches: BranchSummary[];
   defaultBranchId: string | null;
+}
+
+export interface TaskSummary {
+  id: string;
+  title: string;
+  description: string;
+  status: TaskStatus;
+  assignerId: string;
+  assignerName: string;
+  assigneeId: string;
+  assigneeName: string;
+  createdAt: string;
+  completedAt: string | null;
 }

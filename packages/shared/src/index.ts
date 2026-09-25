@@ -6,4 +6,5 @@ export * from "./schemas/product.schema.js";
 export * from "./schemas/customer.schema.js";
 export * from "./schemas/sales.schema.js";
 export * from "./schemas/inventory.schema.js";
+export * from "./schemas/task.schema.js";
 export * from "./types/index.js";

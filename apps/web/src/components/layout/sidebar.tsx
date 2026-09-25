@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { LayoutDashboard, ShoppingCart, Package, Users, ClipboardList, UserCog, Store } from "lucide-react";
+import { LayoutDashboard, ShoppingCart, Package, Users, ClipboardList, ListChecks, UserCog, Store } from "lucide-react";
 import { MENU_ITEMS } from "@smartpos/shared";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth-store";
@@ -10,6 +10,7 @@ const NAV_ITEMS = [
   { to: "/inventory/products", label: "Hàng hóa", icon: Package, menuKey: MENU_ITEMS.PRODUCTS },
   { to: "/customers", label: "Khách hàng", icon: Users, menuKey: MENU_ITEMS.CUSTOMERS },
   { to: "/orders", label: "Đơn hàng", icon: ClipboardList, menuKey: MENU_ITEMS.ORDERS },
+  { to: "/tasks", label: "Quản lý công việc", icon: ListChecks, menuKey: MENU_ITEMS.TASKS },
   { to: "/settings/users", label: "Quản lý người dùng", icon: UserCog, menuKey: MENU_ITEMS.USERS },
   { to: "/settings/branches", label: "Cửa hàng", icon: Store, menuKey: MENU_ITEMS.BRANCHES },
 ] as const;

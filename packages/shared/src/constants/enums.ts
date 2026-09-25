@@ -36,3 +36,9 @@ export const PAYMENT_METHOD = {
   DEBT: "DEBT",
 } as const;
 export type PaymentMethod = (typeof PAYMENT_METHOD)[keyof typeof PAYMENT_METHOD];
+
+export const TASK_STATUS = {
+  PENDING: "PENDING",
+  DONE: "DONE",
+} as const;
+export type TaskStatus = (typeof TASK_STATUS)[keyof typeof TASK_STATUS];
