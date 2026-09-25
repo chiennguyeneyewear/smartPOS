@@ -30,7 +30,7 @@ export interface InvoiceListItem extends Omit<InvoiceSummary, "items"> {
     lineTotal: number;
     product: { name: string; sku: string };
   }[];
-  payments: { method: PaymentMethod; amount: number }[];
+  payments: { method: PaymentMethod; amount: number; createdAt?: string }[];
   createdByName: string;
   customer: { code: string; name: string; phone: string | null } | null;
 }

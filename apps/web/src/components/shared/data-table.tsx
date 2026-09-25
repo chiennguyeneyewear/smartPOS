@@ -1,4 +1,4 @@
-import { Fragment, type ReactNode } from "react";
+import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 import {
   type ColumnDef,
   flexRender,
@@ -31,8 +31,22 @@ export function DataTable<TData>({
 }: DataTableProps<TData>) {
   const table = useReactTable({ data, columns, getCoreRowModel: getCoreRowModel() });
 
+  // The table can be wider than its scroll container; expanded rows are pinned to the
+  // visible width so their content (and buttons) stay reachable without scrolling sideways.
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const [visibleWidth, setVisibleWidth] = useState<number>();
+  useEffect(() => {
+    const el = wrapperRef.current;
+    if (!el) return;
+    const update = () => setVisibleWidth(el.clientWidth);
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   return (
-    <div className="overflow-auto rounded-md border">
+    <div ref={wrapperRef} className="overflow-auto rounded-md border">
       <table className="w-full text-sm">
         <thead className="bg-muted/50">
           {table.getHeaderGroups().map((headerGroup) => (
@@ -89,7 +103,9 @@ export function DataTable<TData>({
                   {expanded && (
                     <tr className="border-t bg-primary/5">
                       <td colSpan={columns.length} className="border-l-[3px] border-l-primary p-4">
-                        {renderExpandedRow!(row.original)}
+                        <div className="sticky left-0" style={{ width: visibleWidth ? visibleWidth - 35 : undefined }}>
+                          {renderExpandedRow!(row.original)}
+                        </div>
                       </td>
                     </tr>
                   )}

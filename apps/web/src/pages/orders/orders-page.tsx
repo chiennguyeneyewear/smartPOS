@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Ban, Printer, Search, SlidersHorizontal } from "lucide-react";
+import { Ban, Search, SlidersHorizontal } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DatePicker } from "@/components/shared/date-picker";
 import { PrintReceiptDialog } from "@/components/shared/print-receipt-dialog";
+import { InvoiceDetailPanel } from "./invoice-detail-panel";
 import { useSearchDropdown } from "@/hooks/use-search-dropdown";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
 import { PERIOD_PRESET_OPTIONS, formatPeriodLabel, getPeriodRange, type PeriodPreset } from "@/lib/period-presets";
@@ -35,6 +36,7 @@ export function OrdersPage() {
   const [showCompleted, setShowCompleted] = useState(true);
   const [showCancelled, setShowCancelled] = useState(true);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [confirmingVoid, setConfirmingVoid] = useState(false);
   const [printInvoice, setPrintInvoice] = useState<InvoiceListItem | null>(null);
   const [codeQuery, setCodeQuery] = useState("");
@@ -169,6 +171,7 @@ export function OrdersPage() {
         <input
           type="checkbox"
           checked={selectedIds.has(row.original.id)}
+          onClick={(e) => e.stopPropagation()}
           onChange={() => toggleOne(row.original.id)}
         />
       ),
@@ -189,11 +192,6 @@ export function OrdersPage() {
       header: "Khách hàng",
       cell: ({ row }) => row.original.customer?.name ?? "Khách lẻ",
     },
-    {
-      id: "customerPhone",
-      header: "Số điện thoại",
-      cell: ({ row }) => row.original.customer?.phone ?? "",
-    },
     { accessorKey: "createdByName", header: "Người bán" },
     {
       id: "status",
@@ -210,19 +208,21 @@ export function OrdersPage() {
         ),
     },
     {
-      id: "totalAmount",
+      id: "subTotal",
       header: "Tổng tiền hàng",
-      cell: ({ row }) => <span className="font-medium">{formatCurrency(row.original.totalAmount)}</span>,
+      cell: ({ row }) => <span className="tabular-nums">{row.original.subTotal.toLocaleString("en-US")}</span>,
     },
     {
-      id: "actions",
-      header: "",
-      cell: ({ row }) =>
-        row.original.status === "COMPLETED" && (
-          <Button variant="ghost" size="sm" className="gap-1.5" onClick={() => setPrintInvoice(row.original)}>
-            <Printer className="h-3.5 w-3.5" /> In hóa đơn
-          </Button>
-        ),
+      id: "discountAmount",
+      header: "Giảm giá",
+      cell: ({ row }) => <span className="tabular-nums">{row.original.discountAmount.toLocaleString("en-US")}</span>,
+    },
+    {
+      id: "paidAmount",
+      header: "Khách đã trả",
+      cell: ({ row }) => (
+        <span className="font-medium tabular-nums">{row.original.paidAmount.toLocaleString("en-US")}</span>
+      ),
     },
   ];
 
@@ -373,6 +373,19 @@ export function OrdersPage() {
             data={filteredInvoices}
             isLoading={isLoading}
             emptyMessage="Không có hóa đơn nào"
+            onRowClick={(row) => setExpandedId((prev) => (prev === row.id ? null : row.id))}
+            isRowSelected={(row) => row.id === expandedId}
+            renderExpandedRow={(row) => (
+              <InvoiceDetailPanel
+                invoice={row}
+                branchName={branches?.find((b) => b.id === row.branchId)?.name}
+                onPrint={() => setPrintInvoice(row)}
+                onVoid={() => {
+                  setSelectedIds(new Set([row.id]));
+                  setConfirmingVoid(true);
+                }}
+              />
+            )}
           />
         </div>
       </div>
