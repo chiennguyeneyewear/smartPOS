@@ -183,8 +183,7 @@ export function DashboardPage() {
       </div>
 
       <Card>
-        <CardHeader className="flex-row items-start justify-between gap-2 space-y-0">
-          <CardTitle>Lợi nhuận</CardTitle>
+        <CardHeader className="flex-row items-start justify-end gap-2 space-y-0">
           <PeriodSelect period={profitPeriod} />
         </CardHeader>
         <CardContent className="grid grid-cols-1 gap-3 sm:grid-cols-3">
