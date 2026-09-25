@@ -1,13 +1,17 @@
-import { Bar, BarChart, CartesianGrid, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { cn } from "@/lib/utils";
+
+export const CHART_BLUE = "#0070f4";
+const CHART_BLUE_HOVER = "#4da3ff";
+const GRID_COLOR = "#ececec";
 
 const numberFormat = new Intl.NumberFormat("vi-VN");
 
 function trimDecimal(n: number) {
-  return (Math.round(n * 10) / 10).toString().replace(".", ",");
+  return String(Math.round(n * 10) / 10);
 }
 
-// 6.020.001 -> "6 tr", 1.250.000.000 -> "1,3 tỷ": short enough for axis ticks and bar labels.
+// 52.500.000 -> "52.5 tr", 1.250.000.000 -> "1.3 tỷ": short enough for axis ticks and bar labels.
 export function formatCompact(value: number): string {
   const abs = Math.abs(value);
   if (abs >= 1e9) return `${trimDecimal(value / 1e9)} tỷ`;
@@ -27,9 +31,50 @@ export function MoneyValue({ value, className }: { value: number; className?: st
   );
 }
 
-function formatPeriodTick(period: string): string {
+export function formatFull(value: number): string {
+  return numberFormat.format(Math.round(value));
+}
+
+// Blue pill shown on hover, shared by every chart.
+export function TooltipPill({ children, className }: { children: React.ReactNode; className?: string }) {
+  return (
+    <div
+      className={cn("whitespace-nowrap rounded-lg px-2.5 py-1 text-xs font-bold text-white shadow-lg", className)}
+      style={{ backgroundColor: CHART_BLUE }}
+    >
+      {children}
+    </div>
+  );
+}
+
+interface TooltipPayloadItem {
+  value?: number;
+  name?: string | number;
+  payload?: { branchName?: string };
+}
+
+export function ChartTooltip({
+  active,
+  payload,
+  seriesLabel,
+}: {
+  active?: boolean;
+  payload?: TooltipPayloadItem[];
+  seriesLabel?: string;
+}) {
+  if (!active || !payload?.length) return null;
+  const item = payload[0]!;
+  const name = seriesLabel ?? item.payload?.branchName ?? String(item.name ?? "");
+  return (
+    <TooltipPill>
+      {name}: {formatFull(item.value ?? 0)} ₫
+    </TooltipPill>
+  );
+}
+
+function formatPeriodTick(period: string, sameMonth: boolean): string {
   const day = period.match(/^\d{4}-(\d{2})-(\d{2})$/);
-  if (day) return `${day[2]}/${day[1]}`;
+  if (day) return sameMonth ? day[2]! : `${day[2]}/${day[1]}`;
   const month = period.match(/^(\d{4})-(\d{2})$/);
   if (month) return `${month[2]}/${month[1]}`;
   const hour = period.match(/^(\d{2}):00$/);
@@ -37,120 +82,103 @@ function formatPeriodTick(period: string): string {
   return period;
 }
 
-function formatPeriodFull(period: string): string {
-  const day = period.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (day) return `${day[3]}/${day[2]}/${day[1]}`;
-  const hour = period.match(/^(\d{2}):00$/);
-  if (hour) return `${hour[1]}:00 - ${hour[1]}:59`;
-  return period;
+// Ten even steps from 0 so the axis reads like 0, 7, 14 ... 70 tr, topping out just above the tallest bar.
+function buildTicks(max: number) {
+  if (max <= 0) return { ticks: [0, 1], top: 1 };
+  const unit = Math.max(1, 10 ** (Math.floor(Math.log10(max)) - 1));
+  const step = Math.ceil(max / 10 / unit) * unit;
+  return { ticks: Array.from({ length: 11 }, (_, i) => i * step), top: step * 10 };
 }
 
-interface TooltipPayloadItem {
-  value?: number;
-  name?: string | number;
-  payload?: { period?: string; label?: string; branchName?: string };
-}
+const TICK = { fontSize: 11, fill: "#6b7280" };
 
-export function ChartTooltip({
-  active,
-  payload,
-  label,
-}: {
-  active?: boolean;
-  payload?: TooltipPayloadItem[];
-  label?: string | number;
-}) {
-  if (!active || !payload?.length) return null;
-  const item = payload[0]!;
-  const title = String(item.payload?.branchName ?? item.payload?.label ?? label ?? item.name ?? "");
+// Vertical columns over time: solid blue, light horizontal grid, day-of-month labels.
+export function ColumnBars({ data }: { data: { period: string; revenue: number }[] }) {
+  const { ticks, top } = buildTicks(Math.max(0, ...data.map((d) => d.revenue)));
+  const sameMonth =
+    data.length > 0 && data[0]!.period.slice(0, 7) === data[data.length - 1]!.period.slice(0, 7);
   return (
-    <div className="rounded-lg border bg-popover px-3 py-2 text-xs shadow-lg">
-      <p className="text-muted-foreground">{formatPeriodFull(title)}</p>
-      <p className="mt-1 text-sm font-semibold">
-        <MoneyValue value={item.value ?? 0} />
-      </p>
-      <p className="mt-0.5 text-muted-foreground">Doanh thu</p>
+    <div className="flex h-full flex-col">
+      <div className="min-h-0 flex-1">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }} barCategoryGap="45%">
+            <CartesianGrid vertical={false} stroke={GRID_COLOR} />
+            <XAxis
+              dataKey="period"
+              tick={TICK}
+              tickLine={false}
+              axisLine={{ stroke: "#d4d4d8" }}
+              tickMargin={8}
+              interval="preserveStartEnd"
+              minTickGap={6}
+              tickFormatter={(v: string) => formatPeriodTick(v, sameMonth)}
+            />
+            <YAxis
+              tick={TICK}
+              tickLine={false}
+              axisLine={false}
+              width={48}
+              domain={[0, top]}
+              ticks={ticks}
+              tickFormatter={formatCompact}
+            />
+            <Tooltip cursor={false} content={<ChartTooltip seriesLabel="Doanh thu" />} />
+            <Bar dataKey="revenue" maxBarSize={32} fill={CHART_BLUE} activeBar={{ fill: CHART_BLUE_HOVER }} />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+      <div className="mt-2 flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+        <span className="h-2 w-2" style={{ backgroundColor: CHART_BLUE }} />
+        Doanh thu
+      </div>
     </div>
   );
 }
 
-const TICK = { fontSize: 11, fill: "hsl(var(--muted-foreground))" };
-
-// Vertical columns over time. Bars are capped in width so a period with only a
-// couple of buckets doesn't turn into one giant slab.
-export function ColumnBars({ data, gradientId }: { data: { period: string; revenue: number }[]; gradientId: string }) {
-  return (
-    <ResponsiveContainer width="100%" height="100%">
-      <BarChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }} barCategoryGap="30%">
-        <defs>
-          <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={1} />
-            <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0.55} />
-          </linearGradient>
-        </defs>
-        <CartesianGrid vertical={false} strokeDasharray="3 5" stroke="hsl(var(--border))" />
-        <XAxis
-          dataKey="period"
-          tick={TICK}
-          tickLine={false}
-          axisLine={false}
-          tickMargin={8}
-          minTickGap={14}
-          tickFormatter={formatPeriodTick}
-        />
-        <YAxis tick={TICK} tickLine={false} axisLine={false} width={48} tickFormatter={formatCompact} />
-        <Tooltip cursor={{ fill: "hsl(var(--muted))", opacity: 0.6 }} content={<ChartTooltip />} />
-        <Bar dataKey="revenue" maxBarSize={26} radius={[6, 6, 0, 0]} fill={`url(#${gradientId})`} />
-      </BarChart>
-    </ResponsiveContainer>
-  );
-}
-
-// Ranked horizontal bars: slim bars on a faint track with the value written at
-// the end, sized by row count instead of stretching to fill the card.
-export function HorizontalBars({
-  data,
-  gradientId,
+// Ranked bars, each with its name above a thin solid bar and the value at the end;
+// hovering shows a blue "value - name" pill. Plain HTML so the label placement is exact.
+export function RankedBars({
+  items,
+  formatLabel,
+  formatTooltip,
 }: {
-  data: { label: string; revenue: number }[];
-  gradientId: string;
+  items: { key: string; name: string; value: number }[];
+  formatLabel: (value: number) => string;
+  formatTooltip: (value: number) => string;
 }) {
-  const height = Math.max(140, data.length * 40 + 12);
-  const max = Math.max(...data.map((d) => d.revenue), 1);
+  const max = Math.max(...items.map((i) => i.value), 1);
   return (
-    <ResponsiveContainer width="100%" height={height}>
-      <BarChart data={data} layout="vertical" margin={{ top: 2, right: 52, bottom: 2, left: 0 }} barCategoryGap={14}>
-        <defs>
-          <linearGradient id={gradientId} x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.6} />
-            <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={1} />
-          </linearGradient>
-        </defs>
-        <XAxis type="number" hide domain={[0, max]} />
-        <YAxis
-          type="category"
-          dataKey="label"
-          width={120}
-          tickLine={false}
-          axisLine={false}
-          tick={{ fontSize: 12, fill: "hsl(var(--foreground))" }}
-        />
-        <Tooltip cursor={false} content={<ChartTooltip />} />
-        <Bar
-          dataKey="revenue"
-          barSize={12}
-          radius={[0, 6, 6, 0]}
-          fill={`url(#${gradientId})`}
-          background={{ fill: "hsl(var(--muted))" }}
-        >
-          <LabelList
-            dataKey="revenue"
-            position="right"
-            formatter={(v: number) => formatCompact(v)}
-            style={{ fontSize: 11, fontWeight: 600, fill: "hsl(var(--muted-foreground))" }}
-          />
-        </Bar>
-      </BarChart>
-    </ResponsiveContainer>
+    <div
+      className="relative"
+      style={{
+        backgroundImage: `linear-gradient(to right, ${GRID_COLOR} 1px, transparent 1px)`,
+        backgroundSize: "25% 100%",
+        borderRight: `1px solid ${GRID_COLOR}`,
+      }}
+    >
+      {items.map((item) => {
+        const pct = (item.value / max) * 78;
+        return (
+          <div key={item.key} className="group relative px-1 py-2">
+            <p className="truncate text-xs font-semibold uppercase text-muted-foreground">{item.name}</p>
+            <div className="mt-1 flex items-center gap-2">
+              <div
+                className="h-5 rounded-[2px] bg-[#0070f4] transition-colors group-hover:bg-[#4da3ff]"
+                style={{ width: `${pct}%`, minWidth: 2 }}
+              />
+              <span className="shrink-0 text-xs tabular-nums text-foreground">{formatLabel(item.value)}</span>
+            </div>
+            <div
+              className="pointer-events-none absolute bottom-2 z-10 hidden group-hover:block"
+              style={{ left: `calc(${pct}% + 12px)` }}
+            >
+              <TooltipPill>
+                {formatTooltip(item.value)} - {item.name}
+              </TooltipPill>
+            </div>
+          </div>
+        );
+      })}
+    </div>
   );
 }

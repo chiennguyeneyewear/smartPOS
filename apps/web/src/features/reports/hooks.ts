@@ -30,7 +30,7 @@ export function useDashboardSummary(params: { branchId?: string; from: string; t
   });
 }
 
-export function useTopProductsReport(params: ReportRange & { limit?: number }) {
+export function useTopProductsReport(params: ReportRange & { limit?: number; sortBy?: "revenue" | "quantity" }) {
   return useQuery({
     queryKey: ["reports", "top-products", params],
     queryFn: () => fetchTopProducts(params),

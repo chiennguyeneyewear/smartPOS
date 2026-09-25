@@ -100,7 +100,7 @@ export async function getRevenueOverTime(
     .sort((a, b) => a.period.localeCompare(b.period));
 }
 
-export async function getTopProducts(range: DateRange, limit = 10) {
+export async function getTopProducts(range: DateRange, limit = 10, sortBy: "revenue" | "quantity" = "revenue") {
   const items = await prisma.invoiceItem.findMany({
     where: { invoice: dateFilter(range) },
     include: { product: true },
@@ -120,7 +120,7 @@ export async function getTopProducts(range: DateRange, limit = 10) {
   }
 
   return Array.from(totals.values())
-    .sort((a, b) => b.revenue - a.revenue)
+    .sort((a, b) => b[sortBy] - a[sortBy])
     .slice(0, limit);
 }
 

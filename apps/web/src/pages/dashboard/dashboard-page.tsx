@@ -9,7 +9,7 @@ import { DatePicker } from "@/components/shared/date-picker";
 import { formatCurrency, formatRelativeTime } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth-store";
-import { ChartTooltip, ColumnBars, HorizontalBars, MoneyValue, formatCompact } from "./dashboard-widgets";
+import { ChartTooltip, ColumnBars, MoneyValue, RankedBars, formatCompact, formatFull } from "./dashboard-widgets";
 import { useReportBranchId } from "@/hooks/use-report-branch-id";
 import {
   useBranchComparisonReport,
@@ -25,10 +25,6 @@ import { PERIOD_PRESET_OPTIONS, formatPeriodLabel, getPeriodRange, type PeriodPr
 const LABEL_CLASS = "text-xs font-medium uppercase tracking-wider text-muted-foreground";
 const EMPTY_CLASS = "flex h-32 items-center justify-center text-sm text-muted-foreground";
 const BRANCH_COLORS = ["hsl(var(--primary))", "#f97316", "#eab308", "#22c55e", "#a855f7", "#ec4899"];
-
-function truncateLabel(value: string, max = 22) {
-  return value.length > max ? `${value.slice(0, max - 1)}…` : value;
-}
 
 type ChartMode = "day" | "hour" | "weekday";
 
@@ -126,6 +122,7 @@ export function DashboardPage() {
   const branchPeriod = useCardPeriod(preset, customFrom, customTo);
   const sellerPeriod = useCardPeriod(preset, customFrom, customTo);
   const productsPeriod = useCardPeriod(preset, customFrom, customTo);
+  const [productMetric, setProductMetric] = useState<"revenue" | "quantity">("revenue");
   const customersPeriod = useCardPeriod(preset, customFrom, customTo);
 
   const { data: topProducts } = useTopProductsReport({
@@ -133,6 +130,7 @@ export function DashboardPage() {
     from: productsPeriod.fromIso,
     to: productsPeriod.toIso,
     limit: 10,
+    sortBy: productMetric,
   });
   const { data: topCustomers } = useTopCustomersReport({
     branchId: reportBranchId,
@@ -155,15 +153,20 @@ export function DashboardPage() {
   );
 
   const topProductsData = useMemo(
-    () => (topProducts ?? []).map((p) => ({ ...p, label: truncateLabel(p.name) })),
-    [topProducts],
+    () =>
+      (topProducts ?? []).map((p) => ({
+        key: p.productId,
+        name: p.name,
+        value: productMetric === "quantity" ? p.quantity : p.revenue,
+      })),
+    [topProducts, productMetric],
   );
   const topCustomersData = useMemo(
-    () => (topCustomers ?? []).map((c) => ({ ...c, label: truncateLabel(c.name) })),
+    () => (topCustomers ?? []).map((c) => ({ key: c.customerId, name: c.name, value: c.revenue })),
     [topCustomers],
   );
   const sellerData = useMemo(
-    () => (sellerPerformance ?? []).map((s) => ({ ...s, label: truncateLabel(s.username) })),
+    () => (sellerPerformance ?? []).map((s) => ({ key: s.userId, name: s.username, value: s.revenue })),
     [sellerPerformance],
   );
   const profitMargin = profit && profit.revenue > 0 ? (profit.profit / profit.revenue) * 100 : 0;
@@ -273,7 +276,7 @@ export function DashboardPage() {
             </Tabs>
           </CardHeader>
           <CardContent className="h-72">
-            <ColumnBars data={chartData} gradientId="grad-revenue" />
+            <ColumnBars data={chartData} />
           </CardContent>
         </Card>
 
@@ -382,7 +385,7 @@ export function DashboardPage() {
           </CardHeader>
           <CardContent>
             {sellerData.length ? (
-              <HorizontalBars data={sellerData} gradientId="grad-sellers" />
+              <RankedBars items={sellerData} formatLabel={formatCompact} formatTooltip={formatFull} />
             ) : (
               <p className={EMPTY_CLASS}>Chưa có dữ liệu</p>
             )}
@@ -394,11 +397,26 @@ export function DashboardPage() {
         <Card>
           <CardHeader className="flex-row items-start justify-between gap-2 space-y-0">
             <CardTitle>Top 10 hàng bán chạy</CardTitle>
-            <PeriodSelect period={productsPeriod} />
+            <div className="flex items-center gap-2">
+              <Select value={productMetric} onValueChange={(v) => setProductMetric(v as "revenue" | "quantity")}>
+                <SelectTrigger className="h-8 w-[160px] shrink-0 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="revenue">Theo doanh thu thuần</SelectItem>
+                  <SelectItem value="quantity">Theo số lượng</SelectItem>
+                </SelectContent>
+              </Select>
+              <PeriodSelect period={productsPeriod} />
+            </div>
           </CardHeader>
           <CardContent>
             {topProductsData.length ? (
-              <HorizontalBars data={topProductsData} gradientId="grad-products" />
+              <RankedBars
+                items={topProductsData}
+                formatLabel={productMetric === "quantity" ? String : formatCompact}
+                formatTooltip={productMetric === "quantity" ? String : formatFull}
+              />
             ) : (
               <p className={EMPTY_CLASS}>Chưa có dữ liệu</p>
             )}
@@ -412,7 +430,7 @@ export function DashboardPage() {
           </CardHeader>
           <CardContent>
             {topCustomersData.length ? (
-              <HorizontalBars data={topCustomersData} gradientId="grad-customers" />
+              <RankedBars items={topCustomersData} formatLabel={formatCompact} formatTooltip={formatFull} />
             ) : (
               <p className={EMPTY_CLASS}>Chưa có dữ liệu</p>
             )}

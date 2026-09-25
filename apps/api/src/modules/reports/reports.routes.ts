@@ -32,8 +32,9 @@ export function registerReportRoutes(app: FastifyInstance) {
   });
 
   app.get("/reports/top-products", { preHandler: guard }, async (request) => {
-    const query = request.query as { branchId?: string; from?: string; to?: string; limit?: string };
-    const data = await reportsService.getTopProducts(query, Number(query.limit ?? 10));
+    const query = request.query as { branchId?: string; from?: string; to?: string; limit?: string; sortBy?: string };
+    const sortBy = query.sortBy === "quantity" ? "quantity" : "revenue";
+    const data = await reportsService.getTopProducts(query, Number(query.limit ?? 10), sortBy);
     return { data };
   });
 
