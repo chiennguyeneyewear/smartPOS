@@ -6,6 +6,12 @@ import type { InvoiceListItem } from "@/features/sales/api";
 
 const fmt = (n: number) => n.toLocaleString("en-US");
 
+// Goods total after per-line discounts, so it reconciles with the invoice discount and amount due.
+// (invoice.subTotal is the gross before line discounts and would not add up.)
+export function goodsTotal(invoice: InvoiceListItem): number {
+  return invoice.items.reduce((sum, item) => sum + item.lineTotal, 0);
+}
+
 const SALE_MODE_LABELS: Record<string, string> = {
   NORMAL: "Bán trực tiếp",
   QUICK: "Bán nhanh",
@@ -160,7 +166,7 @@ export function InvoiceDetailPanel({
               {invoice.note || "Ghi chú..."}
             </div>
             <div className="space-y-2.5">
-              <TotalLine label={`Tổng tiền hàng (${invoice.items.length})`} value={fmt(invoice.subTotal)} />
+              <TotalLine label={`Tổng tiền hàng (${invoice.items.length})`} value={fmt(goodsTotal(invoice))} />
               <TotalLine label="Giảm giá hóa đơn" value={fmt(invoice.discountAmount)} />
               <TotalLine label="Khách cần trả" value={fmt(invoice.totalAmount)} />
               <TotalLine label="Khách đã trả" value={fmt(invoice.paidAmount)} bold />

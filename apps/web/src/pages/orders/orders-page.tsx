@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DatePicker } from "@/components/shared/date-picker";
 import { PrintReceiptDialog } from "@/components/shared/print-receipt-dialog";
-import { InvoiceDetailPanel } from "./invoice-detail-panel";
+import { InvoiceDetailPanel, goodsTotal } from "./invoice-detail-panel";
 import { useSearchDropdown } from "@/hooks/use-search-dropdown";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
 import { PERIOD_PRESET_OPTIONS, formatPeriodLabel, getPeriodRange, type PeriodPreset } from "@/lib/period-presets";
@@ -210,7 +210,7 @@ export function OrdersPage() {
     {
       id: "subTotal",
       header: "Tổng tiền hàng",
-      cell: ({ row }) => <span className="tabular-nums">{row.original.subTotal.toLocaleString("en-US")}</span>,
+      cell: ({ row }) => <span className="tabular-nums">{goodsTotal(row.original).toLocaleString("en-US")}</span>,
     },
     {
       id: "discountAmount",
