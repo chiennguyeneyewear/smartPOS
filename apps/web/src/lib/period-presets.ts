@@ -1,23 +1,33 @@
 export type PeriodPreset =
   | "today"
   | "yesterday"
+  | "this_week"
+  | "last_week"
+  | "last_7_days"
+  | "last_30_days"
   | "this_month"
   | "last_month"
   | "this_quarter"
   | "last_quarter"
   | "this_year"
   | "last_year"
+  | "all_time"
   | "custom";
 
 export const PERIOD_PRESET_OPTIONS: { value: PeriodPreset; label: string }[] = [
   { value: "today", label: "Hôm nay" },
   { value: "yesterday", label: "Hôm qua" },
+  { value: "this_week", label: "Tuần này" },
+  { value: "last_week", label: "Tuần trước" },
+  { value: "last_7_days", label: "7 ngày qua" },
+  { value: "last_30_days", label: "30 ngày qua" },
   { value: "this_month", label: "Tháng này" },
   { value: "last_month", label: "Tháng trước" },
   { value: "this_quarter", label: "Quý này" },
   { value: "last_quarter", label: "Quý trước" },
   { value: "this_year", label: "Năm này" },
   { value: "last_year", label: "Năm trước" },
+  { value: "all_time", label: "Tất cả thời gian" },
   { value: "custom", label: "Tùy chỉnh" },
 ];
 
@@ -31,6 +41,16 @@ function startOfDay(d: Date) {
 
 function endOfDay(d: Date) {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
+}
+
+// Weeks start on Monday (Vietnamese convention), not Sunday.
+function mondayOf(d: Date) {
+  const offset = (d.getDay() + 6) % 7;
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate() - offset);
+}
+
+function daysAgo(d: Date, n: number) {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate() - n);
 }
 
 function quarterStartMonth(month: number) {
@@ -52,6 +72,27 @@ export function getPeriodRange(
       y.setDate(y.getDate() - 1);
       return { from: startOfDay(y), to: endOfDay(y) };
     }
+
+    case "this_week": {
+      const from = mondayOf(now);
+      return { from, to: endOfDay(now) };
+    }
+
+    case "last_week": {
+      const thisMonday = mondayOf(now);
+      const from = new Date(thisMonday.getFullYear(), thisMonday.getMonth(), thisMonday.getDate() - 7);
+      const to = new Date(thisMonday.getTime() - 1);
+      return { from, to };
+    }
+
+    case "last_7_days":
+      return { from: startOfDay(daysAgo(now, 6)), to: endOfDay(now) };
+
+    case "last_30_days":
+      return { from: startOfDay(daysAgo(now, 29)), to: endOfDay(now) };
+
+    case "all_time":
+      return { from: new Date(2000, 0, 1), to: endOfDay(now) };
 
     case "this_month":
       return { from: new Date(now.getFullYear(), now.getMonth(), 1), to: endOfDay(now) };
