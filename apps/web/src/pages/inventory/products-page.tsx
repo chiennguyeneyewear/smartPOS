@@ -1,14 +1,10 @@
 import { Fragment, useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { ChevronDown, ChevronLeft, ChevronRight, Pencil, Search, SlidersHorizontal, Trash2, Upload } from "lucide-react";
-import { productSchema, type ProductInput, type ProductSummary } from "@smartpos/shared";
+import type { ProductSummary } from "@smartpos/shared";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,31 +12,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuthStore } from "@/stores/auth-store";
-import {
-  useCategories,
-  useCreateProduct,
-  useDeleteProduct,
-  useProducts,
-  useUnits,
-  useUpdateProduct,
-} from "@/features/products/hooks";
+import { useCategories, useDeleteProduct, useProducts } from "@/features/products/hooks";
+import { ProductFormDialog, ProductPhoto } from "./product-form-dialog";
 import { ProductImportDialog } from "./product-import-dialog";
 
 function formatNumber(value: number): string {
   return value.toLocaleString("en-US");
-}
-
-function emptyForm(): ProductInput {
-  return {
-    sku: "",
-    barcode: "",
-    name: "",
-    categoryId: undefined,
-    unitId: "",
-    costPrice: 0,
-    sellPrice: 0,
-    isActive: true,
-  };
 }
 
 export function ProductsPage() {
@@ -56,9 +33,6 @@ export function ProductsPage() {
   const [deleteTarget, setDeleteTarget] = useState<{ ids: string[]; label: string } | null>(null);
   const { data, isLoading } = useProducts({ search, branchId: activeBranchId ?? undefined, page, pageSize });
   const { data: categories } = useCategories();
-  const { data: units } = useUnits();
-  const createProduct = useCreateProduct();
-  const updateProduct = useUpdateProduct();
   const deleteProduct = useDeleteProduct();
 
   useEffect(() => {
@@ -89,59 +63,15 @@ export function ProductsPage() {
     setExpandedId((prev) => (prev === id ? null : id));
   }
 
-  const {
-    register,
-    handleSubmit,
-    reset,
-    setValue,
-    watch,
-    formState: { errors },
-  } = useForm<ProductInput>({ resolver: zodResolver(productSchema), defaultValues: emptyForm() });
-
-  const categoryId = watch("categoryId");
-  const unitId = watch("unitId");
-
   function openCreateDialog() {
     setEditingProduct(null);
-    reset(emptyForm());
     setOpen(true);
   }
 
   function openEditDialog(p: ProductSummary) {
     setEditingProduct(p);
-    reset({
-      sku: p.sku,
-      barcode: p.barcode ?? "",
-      name: p.name,
-      categoryId: p.categoryId ?? undefined,
-      unitId: p.unitId,
-      costPrice: p.costPrice,
-      sellPrice: p.sellPrice,
-      isActive: p.isActive,
-    });
     setOpen(true);
   }
-
-  const onSubmit = handleSubmit((values) => {
-    if (editingProduct) {
-      updateProduct.mutate(
-        { id: editingProduct.id, input: values },
-        {
-          onSuccess: () => {
-            setOpen(false);
-            setEditingProduct(null);
-          },
-        },
-      );
-      return;
-    }
-    createProduct.mutate(values, {
-      onSuccess: () => {
-        reset(emptyForm());
-        setOpen(false);
-      },
-    });
-  });
 
   async function confirmDelete() {
     if (!deleteTarget) return;
@@ -288,8 +218,12 @@ export function ProductsPage() {
                                 <p className="font-medium">{p.sku}</p>
                               </div>
                               <div>
-                                <p className="text-xs text-muted-foreground">Mã vạch</p>
-                                <p className="font-medium">{p.barcode || "Chưa có"}</p>
+                                <p className="text-xs text-muted-foreground">Định mức tồn</p>
+                                <p className="font-medium">
+                                  {p.reorderThreshold != null || p.maxStock != null
+                                    ? `${p.reorderThreshold != null ? formatNumber(p.reorderThreshold) : "0"} - ${p.maxStock != null ? formatNumber(p.maxStock) : "không giới hạn"}`
+                                    : "Chưa đặt"}
+                                </p>
                               </div>
                               <div>
                                 <p className="text-xs text-muted-foreground">Nhóm hàng</p>
@@ -315,8 +249,22 @@ export function ProductsPage() {
                               </div>
                               <div>
                                 <p className="text-xs text-muted-foreground">Trạng thái</p>
-                                <p className="font-medium">{p.isActive ? "Đang bán" : "Ngừng bán"}</p>
+                                <p className="font-medium">
+                                  {p.isActive ? (p.sellDirectly ? "Đang bán" : "Không bán trực tiếp") : "Ngừng bán"}
+                                </p>
                               </div>
+                              {p.images.length > 0 && (
+                                <div className="col-span-full flex gap-2">
+                                  {p.images.map((img) => (
+                                    <div key={img.id} className="h-16 w-16 overflow-hidden rounded-md border">
+                                      <ProductPhoto id={img.id} />
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                              {p.description && (
+                                <p className="col-span-full whitespace-pre-wrap text-muted-foreground">{p.description}</p>
+                              )}
                             </div>
                             <div className="flex shrink-0 items-center gap-2">
                               <Button
@@ -378,72 +326,12 @@ export function ProductsPage() {
         </div>
       )}
 
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{isEditing ? `Sửa sản phẩm — ${editingProduct?.name}` : "Thêm sản phẩm"}</DialogTitle>
-          </DialogHeader>
-          <form className="grid grid-cols-2 gap-4" onSubmit={onSubmit}>
-            <div className="space-y-1.5">
-              <Label>Mã hàng (SKU)</Label>
-              <Input {...register("sku")} />
-              {errors.sku && <p className="text-xs text-destructive">{errors.sku.message}</p>}
-            </div>
-            <div className="space-y-1.5">
-              <Label>Mã vạch</Label>
-              <Input {...register("barcode")} />
-            </div>
-            <div className="col-span-2 space-y-1.5">
-              <Label>Tên sản phẩm</Label>
-              <Input {...register("name")} />
-              {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
-            </div>
-            <div className="space-y-1.5">
-              <Label>Đơn vị tính</Label>
-              <Select value={unitId} onValueChange={(v) => setValue("unitId", v)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Chọn đơn vị" />
-                </SelectTrigger>
-                <SelectContent>
-                  {units?.map((u) => (
-                    <SelectItem key={u.id} value={u.id}>
-                      {u.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Danh mục</Label>
-              <Select value={categoryId ?? undefined} onValueChange={(v) => setValue("categoryId", v)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Chọn danh mục" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories?.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Giá vốn</Label>
-              <Input type="number" {...register("costPrice")} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Giá bán</Label>
-              <Input type="number" {...register("sellPrice")} />
-            </div>
-            <DialogFooter className="col-span-2">
-              <Button type="submit" disabled={createProduct.isPending || updateProduct.isPending}>
-                {createProduct.isPending || updateProduct.isPending ? "Đang lưu..." : "Lưu sản phẩm"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <ProductFormDialog
+        open={open}
+        onOpenChange={setOpen}
+        product={editingProduct}
+        activeBranchId={activeBranchId}
+      />
 
       <Dialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
         <DialogContent>

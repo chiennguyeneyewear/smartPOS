@@ -43,6 +43,11 @@ export interface ProductSummary {
   unit: UnitSummary;
   costPrice: number;
   sellPrice: number;
+  reorderThreshold: number | null;
+  maxStock: number | null;
+  description: string;
+  sellDirectly: boolean;
+  images: { id: string; mimeType: string }[];
   isActive: boolean;
   stockQuantity?: number;
 }

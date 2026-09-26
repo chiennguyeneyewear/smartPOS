@@ -1,12 +1,39 @@
 import type { FastifyInstance } from "fastify";
-import { PERMISSIONS, productSchema, categorySchema, unitSchema, productImportInputSchema } from "@smartpos/shared";
+import {
+  PERMISSIONS,
+  PRODUCT_IMAGE_LIMITS,
+  productSchema,
+  productCreateSchema,
+  categorySchema,
+  unitSchema,
+  productImportInputSchema,
+} from "@smartpos/shared";
 import { authenticate } from "../../middleware/authenticate.js";
 import { requirePermission } from "../../middleware/require-permission.js";
 import { prisma } from "../../lib/prisma.js";
 import { Prisma } from "@prisma/client";
 import { importProducts } from "./products.service.js";
+import { generateProductCode } from "../../lib/codes.js";
+import { createStockMovement } from "../inventory/inventory.service.js";
 
 const PAGE_SIZE_DEFAULT = 24;
+
+const imageSelect = { id: true, mimeType: true } satisfies Prisma.ProductImageSelect;
+
+function isUniqueViolation(error: unknown): boolean {
+  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
+}
+
+// Decimal columns arrive as Decimal objects (strings in JSON); the app works in numbers.
+function toNumbers<T extends { costPrice: unknown; sellPrice: unknown; reorderThreshold: unknown; maxStock: unknown }>(p: T) {
+  return {
+    ...p,
+    costPrice: Number(p.costPrice),
+    sellPrice: Number(p.sellPrice),
+    reorderThreshold: p.reorderThreshold === null ? null : Number(p.reorderThreshold),
+    maxStock: p.maxStock === null ? null : Number(p.maxStock),
+  };
+}
 
 export function registerProductRoutes(app: FastifyInstance) {
   // Used by the POS product grid (search F3 + barcode scan) and the back-office product list.
@@ -16,6 +43,7 @@ export function registerProductRoutes(app: FastifyInstance) {
       categoryId?: string;
       barcode?: string;
       branchId?: string;
+      sellable?: string;
       page?: string;
       pageSize?: string;
     };
@@ -26,6 +54,8 @@ export function registerProductRoutes(app: FastifyInstance) {
       deletedAt: null,
       isActive: true,
       ...(query.categoryId ? { categoryId: query.categoryId } : {}),
+      // POS only offers products marked "Bán trực tiếp"; the back-office list shows everything.
+      ...(query.sellable === "true" ? { sellDirectly: true } : {}),
       ...(query.barcode ? { barcode: query.barcode } : {}),
       ...(query.search
         ? {
@@ -47,6 +77,7 @@ export function registerProductRoutes(app: FastifyInstance) {
         include: {
           unit: true,
           stockItems: true,
+          images: { select: imageSelect, orderBy: { createdAt: "asc" }, take: PRODUCT_IMAGE_LIMITS.maxPerProduct },
         },
         orderBy: { name: "asc" },
         skip: (page - 1) * pageSize,
@@ -67,9 +98,7 @@ export function registerProductRoutes(app: FastifyInstance) {
 
     return {
       data: data.map(({ stockItems, ...p }) => ({
-        ...p,
-        costPrice: Number(p.costPrice),
-        sellPrice: Number(p.sellPrice),
+        ...toNumbers(p),
         stockQuantity: query.branchId
           ? stockItems.reduce((sum, s) => sum + Number(s.quantity), 0)
           : undefined,
@@ -82,19 +111,54 @@ export function registerProductRoutes(app: FastifyInstance) {
     "/products",
     { preHandler: [authenticate, requirePermission(PERMISSIONS.PRODUCTS_MANAGE)] },
     async (request, reply) => {
-      const input = productSchema.parse(request.body);
-      const product = await prisma.product.create({ data: input });
-      return reply.code(201).send(product);
+      const { initialStock, branchId, ...input } = productCreateSchema.parse(request.body);
+
+      // A blank code is generated; retry a couple of times in case two creates race for the same one.
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const sku = input.sku ?? (await generateProductCode());
+        try {
+          const product = await prisma.product.create({
+            data: { ...input, sku, barcode: input.barcode || null },
+            include: { unit: true, images: { select: imageSelect } },
+          });
+          if (initialStock && initialStock > 0 && branchId) {
+            await createStockMovement(
+              {
+                type: "IMPORT",
+                branchId,
+                note: "Tồn kho ban đầu",
+                lines: [{ productId: product.id, quantity: initialStock, unitCost: input.costPrice }],
+              },
+              request.authUser!.id,
+            );
+          }
+          return reply.code(201).send({ ...toNumbers(product), stockQuantity: initialStock ?? 0 });
+        } catch (error) {
+          if (!isUniqueViolation(error)) throw error;
+          if (input.sku) return reply.code(409).send({ message: "Mã hàng đã tồn tại" });
+        }
+      }
+      return reply.code(409).send({ message: "Không tạo được mã hàng tự động, vui lòng thử lại" });
     },
   );
 
   app.patch(
     "/products/:id",
     { preHandler: [authenticate, requirePermission(PERMISSIONS.PRODUCTS_MANAGE)] },
-    async (request) => {
+    async (request, reply) => {
       const { id } = request.params as { id: string };
       const input = productSchema.partial().parse(request.body);
-      return prisma.product.update({ where: { id }, data: input });
+      try {
+        const product = await prisma.product.update({
+          where: { id },
+          data: input,
+          include: { unit: true, images: { select: imageSelect } },
+        });
+        return toNumbers(product);
+      } catch (error) {
+        if (isUniqueViolation(error)) return reply.code(409).send({ message: "Mã hàng đã tồn tại" });
+        throw error;
+      }
     },
   );
 
@@ -114,6 +178,65 @@ export function registerProductRoutes(app: FastifyInstance) {
     async (request) => {
       const input = productImportInputSchema.parse(request.body);
       return importProducts(input.rows, input.branchId);
+    },
+  );
+
+  // Product photos: raw-body upload like task attachments, small and capped (4 per product, 2 MB).
+  app.post(
+    "/products/:id/images",
+    {
+      preHandler: [authenticate, requirePermission(PERMISSIONS.PRODUCTS_MANAGE)],
+      bodyLimit: PRODUCT_IMAGE_LIMITS.maxBytes + 1024,
+    },
+    async (request, reply) => {
+      const { id } = request.params as { id: string };
+      const { filename } = request.query as { filename?: string };
+      const mimeType = (request.headers["content-type"] ?? "").split(";")[0]!.trim().toLowerCase();
+      const data = request.body as Buffer;
+
+      if (
+        !(PRODUCT_IMAGE_LIMITS.allowedMimeTypes as readonly string[]).includes(mimeType) ||
+        !Buffer.isBuffer(data) ||
+        data.length === 0
+      ) {
+        return reply.code(415).send({ message: "Chỉ hỗ trợ ảnh JPG, PNG hoặc WebP" });
+      }
+      if (data.length > PRODUCT_IMAGE_LIMITS.maxBytes) {
+        return reply.code(413).send({ message: "Mỗi ảnh không quá 2 MB" });
+      }
+      const product = await prisma.product.findFirst({ where: { id, deletedAt: null }, select: { id: true } });
+      if (!product) return reply.code(404).send({ message: "Không tìm thấy sản phẩm" });
+      if ((await prisma.productImage.count({ where: { productId: id } })) >= PRODUCT_IMAGE_LIMITS.maxPerProduct) {
+        return reply.code(400).send({ message: `Mỗi sản phẩm tối đa ${PRODUCT_IMAGE_LIMITS.maxPerProduct} ảnh` });
+      }
+      const image = await prisma.productImage.create({
+        data: { productId: id, fileName: (filename || "anh").slice(0, 200), mimeType, size: data.length, data },
+        select: imageSelect,
+      });
+      return reply.code(201).send(image);
+    },
+  );
+
+  app.get("/product-images/:id", { preHandler: authenticate }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const image = await prisma.productImage.findUnique({ where: { id } });
+    if (!image) return reply.code(404).send({ message: "Không tìm thấy ảnh" });
+    return reply
+      .header("Content-Type", image.mimeType)
+      .header("Content-Length", image.size)
+      .header("Cache-Control", "private, max-age=86400")
+      .send(Buffer.from(image.data));
+  });
+
+  app.delete(
+    "/product-images/:id",
+    { preHandler: [authenticate, requirePermission(PERMISSIONS.PRODUCTS_MANAGE)] },
+    async (request, reply) => {
+      const { id } = request.params as { id: string };
+      const existing = await prisma.productImage.findUnique({ where: { id }, select: { id: true } });
+      if (!existing) return reply.code(404).send({ message: "Không tìm thấy ảnh" });
+      await prisma.productImage.delete({ where: { id } });
+      return { success: true };
     },
   );
 

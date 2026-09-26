@@ -33,7 +33,7 @@ export function ProductGridPanel({
   const addItem = usePosStore((s) => s.addItem);
   const setCustomer = usePosStore((s) => s.setCustomer);
 
-  const { data, isLoading } = useProducts({ page, pageSize: PAGE_SIZE });
+  const { data, isLoading } = useProducts({ page, pageSize: PAGE_SIZE, sellable: true });
   const totalPages = data ? Math.max(1, Math.ceil(data.meta.total / PAGE_SIZE)) : 1;
 
   return (

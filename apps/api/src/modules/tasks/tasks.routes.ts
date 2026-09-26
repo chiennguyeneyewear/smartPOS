@@ -230,10 +230,6 @@ const MAX_UPLOAD_BYTES = Math.max(TASK_ATTACHMENT_LIMITS.maxImageBytes, TASK_ATT
 // the file's type, the name goes in ?filename=), which keeps this free of multipart parsing and lets the
 // browser send the picked File/Blob straight through.
 export function registerTaskAttachmentRoutes(app: FastifyInstance) {
-  app.addContentTypeParser(/^(image|video)\//, { parseAs: "buffer", bodyLimit: MAX_UPLOAD_BYTES }, (_req, body, done) =>
-    done(null, body),
-  );
-
   app.post("/tasks/:id/attachments", { preHandler: authenticate, bodyLimit: MAX_UPLOAD_BYTES }, async (request, reply) => {
     const { id } = request.params as { id: string };
     const { filename } = request.query as { filename?: string };

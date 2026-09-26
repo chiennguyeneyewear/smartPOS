@@ -50,6 +50,10 @@ export function buildApp() {
 
   app.register(
     async (api) => {
+      // Raw image/video bodies for the file upload endpoints (tasks, products).
+      api.addContentTypeParser(/^(image|video)\//, { parseAs: "buffer", bodyLimit: 30 * 1024 * 1024 }, (_req, body, done) =>
+        done(null, body),
+      );
       registerAuthRoutes(api);
       registerBranchRoutes(api);
       registerUserRoutes(api);

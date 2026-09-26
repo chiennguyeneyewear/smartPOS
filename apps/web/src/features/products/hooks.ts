@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ProductInput } from "@smartpos/shared";
 import { toast } from "@/stores/toast-store";
-import { createProduct, deleteProduct, fetchCategories, fetchProducts, fetchUnits, updateProduct, type ProductQuery } from "./api";
+import { createCategory, createProduct, deleteProduct, fetchCategories, fetchProducts, fetchUnits, updateProduct, type ProductQuery } from "./api";
 
 export function useProducts(query: ProductQuery, options: { enabled?: boolean } = {}) {
   return useQuery({
@@ -13,6 +13,17 @@ export function useProducts(query: ProductQuery, options: { enabled?: boolean } 
 
 export function useCategories() {
   return useQuery({ queryKey: ["categories"], queryFn: fetchCategories });
+}
+
+export function useCreateCategory() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: createCategory,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["categories"] });
+      toast({ title: "Đã thêm nhóm hàng", variant: "success" });
+    },
+  });
 }
 
 export function useUnits() {

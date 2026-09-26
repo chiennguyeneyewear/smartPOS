@@ -34,3 +34,12 @@ export async function generateInvoiceCode() {
   });
   return nextSequentialCode("HD", last?.code ?? null);
 }
+
+// Next auto product code (SP000123). Takes the highest purely numeric SP-code, ignoring imported
+// codes that don't follow the pattern, so a stray code can't break the sequence.
+export async function generateProductCode() {
+  const rows = await prisma.$queryRaw<{ max: number | null }[]>`
+    SELECT MAX(CAST(SUBSTRING(sku FROM 3) AS INTEGER)) AS max FROM products WHERE sku ~ '^SP[0-9]{1,9}$'
+  `;
+  return `SP${String((rows[0]?.max ?? 0) + 1).padStart(6, "0")}`;
+}

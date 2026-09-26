@@ -5,30 +5,13 @@ import { TASK_ATTACHMENT_LIMITS, type TaskAttachmentSummary } from "@smartpos/sh
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { prepareImage, useObjectUrl } from "@/lib/media";
 import { fetchAttachmentBlob } from "@/features/tasks/api";
 
 const MB = 1024 * 1024;
 const ALLOWED = new Set<string>(TASK_ATTACHMENT_LIMITS.allowedMimeTypes);
 
-// Big phone photos are shrunk before upload (longest side 1600px, JPEG): a typical 4-6 MB photo
-// becomes a few hundred KB, which keeps uploads quick on mobile data and the database small.
-export async function prepareFile(file: File): Promise<File> {
-  if (!file.type.startsWith("image/") || file.type === "image/gif" || file.size < 600 * 1024) return file;
-  try {
-    const bitmap = await createImageBitmap(file);
-    const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.round(bitmap.width * scale);
-    canvas.height = Math.round(bitmap.height * scale);
-    canvas.getContext("2d")?.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-    bitmap.close();
-    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.82));
-    if (!blob || blob.size >= file.size) return file;
-    return new File([blob], `${file.name.replace(/\.[^.]+$/, "")}.jpg`, { type: "image/jpeg" });
-  } catch {
-    return file;
-  }
-}
+export const prepareFile = (file: File) => prepareImage(file);
 
 // Returns an error message for the first file that can't be attached, or null if all are fine.
 export function checkFiles(files: File[], alreadyAttached: number): string | null {
@@ -43,20 +26,6 @@ export function checkFiles(files: File[], alreadyAttached: number): string | nul
     }
   }
   return null;
-}
-
-function useObjectUrl(source: Blob | null | undefined): string | null {
-  const [url, setUrl] = useState<string | null>(null);
-  useEffect(() => {
-    if (!source) {
-      setUrl(null);
-      return;
-    }
-    const next = URL.createObjectURL(source);
-    setUrl(next);
-    return () => URL.revokeObjectURL(next);
-  }, [source]);
-  return url;
 }
 
 // Downloads a stored file with the auth header (an <img src> can't send it) and returns a local URL.

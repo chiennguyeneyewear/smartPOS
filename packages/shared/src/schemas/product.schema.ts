@@ -1,7 +1,12 @@
 import { z } from "zod";
 
+// Empty sku means "generate one" on create; it is dropped on update so a blank never overwrites the code.
 export const productSchema = z.object({
-  sku: z.string().min(1, "Mã hàng không được để trống"),
+  sku: z
+    .string()
+    .trim()
+    .optional()
+    .transform((v) => v || undefined),
   barcode: z.string().optional().nullable(),
   name: z.string().min(1, "Tên sản phẩm không được để trống"),
   imageUrl: z.string().url().optional().nullable(),
@@ -9,10 +14,26 @@ export const productSchema = z.object({
   unitId: z.string().min(1, "Đơn vị tính không được để trống"),
   costPrice: z.coerce.number().min(0, "Giá vốn phải >= 0"),
   sellPrice: z.coerce.number().min(0, "Giá bán phải >= 0"),
-  reorderThreshold: z.coerce.number().min(0).optional(),
+  reorderThreshold: z.coerce.number().min(0).optional().nullable(),
+  maxStock: z.coerce.number().min(0).optional().nullable(),
+  description: z.string().trim().max(5000, "Mô tả tối đa 5000 ký tự").default(""),
+  sellDirectly: z.boolean().default(true),
   isActive: z.boolean().default(true),
 });
 export type ProductInput = z.infer<typeof productSchema>;
+
+// Creating a product can also record its opening stock at a branch.
+export const productCreateSchema = productSchema.extend({
+  initialStock: z.coerce.number().min(0).optional(),
+  branchId: z.string().optional(),
+});
+export type ProductCreateInput = z.infer<typeof productCreateSchema>;
+
+export const PRODUCT_IMAGE_LIMITS = {
+  maxPerProduct: 4,
+  maxBytes: 2 * 1024 * 1024,
+  allowedMimeTypes: ["image/jpeg", "image/png", "image/webp"],
+} as const;
 
 export const categorySchema = z.object({
   name: z.string().min(1, "Tên danh mục không được để trống"),

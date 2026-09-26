@@ -24,7 +24,7 @@ export const ProductQuickSearch = forwardRef<HTMLInputElement, { className?: str
 
   const hasSearch = debouncedSearch.trim().length > 0;
   const { data } = useProducts(
-    { search: debouncedSearch, branchId: activeBranchId ?? undefined, page: 1, pageSize: 8 },
+    { search: debouncedSearch, branchId: activeBranchId ?? undefined, sellable: true, page: 1, pageSize: 8 },
     { enabled: hasSearch },
   );
   const results = data?.data ?? [];
