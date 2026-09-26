@@ -6,9 +6,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useLogin } from "@/features/auth/hooks";
+import { useAuthStore } from "@/stores/auth-store";
 
 export function LoginPage() {
   const login = useLogin();
+  const sessionNotice = useAuthStore((s) => s.sessionNotice);
   const {
     register,
     handleSubmit,
@@ -26,6 +28,11 @@ export function LoginPage() {
           <CardDescription>Đăng nhập để quản lý bán hàng &amp; tồn kho</CardDescription>
         </CardHeader>
         <CardContent>
+          {sessionNotice && (
+            <p className="mb-4 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              {sessionNotice}
+            </p>
+          )}
           <form className="space-y-4" onSubmit={handleSubmit((data) => login.mutate(data))}>
             <div className="space-y-1.5">
               <Label htmlFor="username">Tên đăng nhập</Label>

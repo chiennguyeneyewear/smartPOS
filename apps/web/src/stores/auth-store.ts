@@ -7,6 +7,10 @@ interface AuthState {
   accessToken: string | null;
   user: CurrentUser | null;
   activeBranchId: string | null;
+  // Why the last session ended (deploy / admin change); shown once on the login page.
+  sessionNotice: string | null;
+  endSession: (notice: string) => void;
+  clearSessionNotice: () => void;
   setAccessToken: (token: string, user: CurrentUser) => void;
   setActiveBranch: (branchId: string) => void;
   logout: () => void;
@@ -18,6 +22,12 @@ export const useAuthStore = create<AuthState>()(
       accessToken: null,
       user: null,
       activeBranchId: null,
+      sessionNotice: null,
+      endSession: (notice) => {
+        usePrintSettingsStore.getState().resetReceiptBranchId();
+        set({ accessToken: null, user: null, activeBranchId: null, sessionNotice: notice });
+      },
+      clearSessionNotice: () => set({ sessionNotice: null }),
       setAccessToken: (accessToken, user) =>
         set((state) => {
           // Keep the branch chosen in the switcher only while it still belongs to this account; after
@@ -26,6 +36,7 @@ export const useAuthStore = create<AuthState>()(
           return {
             accessToken,
             user,
+            sessionNotice: null,
             activeBranchId: stillAllowed
               ? state.activeBranchId
               : (user.defaultBranchId ?? user.branches[0]?.id ?? null),
@@ -46,6 +57,7 @@ export const useAuthStore = create<AuthState>()(
         accessToken: state.accessToken,
         user: state.user,
         activeBranchId: state.activeBranchId,
+        sessionNotice: state.sessionNotice,
       }),
     },
   ),

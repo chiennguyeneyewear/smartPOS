@@ -5,6 +5,7 @@ import jwt from "@fastify/jwt";
 import rateLimit from "@fastify/rate-limit";
 import Fastify from "fastify";
 import { config } from "./lib/config.js";
+import { bumpChangeEpoch } from "./lib/session-state.js";
 import { errorHandler } from "./middleware/error-handler.js";
 import { registerAuthRoutes } from "./modules/auth/auth.routes.js";
 import { registerBranchRoutes } from "./modules/branches/branches.routes.js";
@@ -54,6 +55,16 @@ export function buildApp() {
       api.addContentTypeParser(/^(image|video)\//, { parseAs: "buffer", bodyLimit: 30 * 1024 * 1024 }, (_req, body, done) =>
         done(null, body),
       );
+      // When an admin changes accounts, permissions or branches, every non-admin session is ended so
+      // the new settings apply immediately (they must sign in again).
+      api.addHook("onResponse", async (request, reply) => {
+        if (request.method === "GET" || request.method === "HEAD" || request.method === "OPTIONS") return;
+        if (reply.statusCode >= 400 || request.authUser?.role !== "admin") return;
+        const path = request.url.split("?")[0] ?? "";
+        if (path.startsWith("/api/v1/users") || path.startsWith("/api/v1/branches")) {
+          await bumpChangeEpoch().catch((error) => request.log.error(error));
+        }
+      });
       registerAuthRoutes(api);
       registerBranchRoutes(api);
       registerUserRoutes(api);

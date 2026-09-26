@@ -1,5 +1,6 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from "axios";
 import { useAuthStore } from "@/stores/auth-store";
+import { SESSION_ENDED_MESSAGE } from "@/lib/session-message";
 
 export const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_URL ?? "http://localhost:4000/api/v1",
@@ -29,8 +30,14 @@ async function refreshAccessToken(): Promise<string | null> {
     const newToken = response.data.accessToken as string;
     useAuthStore.getState().setAccessToken(newToken, response.data.user);
     return newToken;
-  } catch {
-    useAuthStore.getState().logout();
+  } catch (error) {
+    // Only an explicit refusal ends the session; a sleeping server or a dropped connection must not.
+    if (axios.isAxiosError(error) && error.response?.status === 401) {
+      // A failed login attempt (wrong password) also lands here; only announce it for a live session.
+      const { accessToken, endSession, logout } = useAuthStore.getState();
+      if (accessToken) endSession(SESSION_ENDED_MESSAGE);
+      else logout();
+    }
     return null;
   }
 }

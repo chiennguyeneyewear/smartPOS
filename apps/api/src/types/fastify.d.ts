@@ -23,6 +23,8 @@ declare module "@fastify/jwt" {
       role: string;
       permissions: string[];
       branchIds: string[];
+      dv?: string;
+      ce?: number;
     };
     user: {
       sub: string;
@@ -30,6 +32,8 @@ declare module "@fastify/jwt" {
       role: string;
       permissions: string[];
       branchIds: string[];
+      dv?: string;
+      ce?: number;
     };
   }
 }

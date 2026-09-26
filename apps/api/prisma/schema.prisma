@@ -418,3 +418,13 @@ model Task {
   @@index([createdAt])
   @@map("tasks")
 }
+
+// Single-row state used to end every login session at once: deployVersion changes on each deploy,
+// changeEpoch is bumped when an admin changes accounts / permissions / branches.
+model AppState {
+  id            String @id @default("singleton")
+  deployVersion String @default("")
+  changeEpoch   Int    @default(1)
+
+  @@map("app_state")
+}

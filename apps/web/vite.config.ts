@@ -5,9 +5,21 @@ import { defineConfig } from "vite";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-export default defineConfig({
+// Identifies this build. Every deploy gets a new one; the running app compares it with /version.json.
+const appVersion = process.env.VERCEL_GIT_COMMIT_SHA || String(Date.now());
+
+export default defineConfig(({ command }) => ({
+  define: { __APP_VERSION__: JSON.stringify(command === "build" ? appVersion : "dev") },
   envDir: path.resolve(__dirname, "../.."),
-  plugins: [react()],
+  plugins: [
+    react(),
+    {
+      name: "emit-version-json",
+      generateBundle() {
+        this.emitFile({ type: "asset", fileName: "version.json", source: JSON.stringify({ version: appVersion }) });
+      },
+    },
+  ],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
@@ -42,4 +54,4 @@ export default defineConfig({
       },
     },
   },
-});
+}));

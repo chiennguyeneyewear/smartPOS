@@ -38,6 +38,10 @@ export function registerAuthRoutes(app: FastifyInstance) {
     return { success: true };
   });
 
+  // Cheap check the web app polls: it answers 401 once this session has been ended by a deploy or an
+  // admin change, which sends the user back to the login page.
+  app.get("/auth/ping", { preHandler: authenticate }, async (_request, reply) => reply.code(204).send());
+
   app.get("/auth/me", { preHandler: authenticate }, async (request) => {
     return authService.getCurrentUser(request.authUser!.id);
   });

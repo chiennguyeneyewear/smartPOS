@@ -3,6 +3,7 @@ import { loginSchema, type LoginInput } from "@smartpos/shared";
 import { prisma } from "../../lib/prisma.js";
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from "../../lib/jwt.js";
 import { resolveMenuAccess } from "../../lib/menu-access.js";
+import { getSessionState, sessionStillValid } from "../../lib/session-state.js";
 
 class AuthError extends Error {
   statusCode = 401;
@@ -28,8 +29,14 @@ async function loadAuthContext(userId: string) {
   return user;
 }
 
-function buildTokenPayload(user: Awaited<ReturnType<typeof loadAuthContext>>) {
+async function currentSession() {
+  const state = await getSessionState();
+  return { dv: state?.deployVersion ?? "", ce: state?.changeEpoch ?? 1 };
+}
+
+function buildTokenPayload(user: Awaited<ReturnType<typeof loadAuthContext>>, session: { dv: string; ce: number }) {
   return {
+    ...session,
     sub: user.id,
     username: user.username,
     role: user.role.name,
@@ -75,14 +82,15 @@ export async function login(input: LoginInput) {
     throw new AuthError("Tên đăng nhập hoặc mật khẩu không đúng");
   }
 
-  const accessToken = signAccessToken(buildTokenPayload(user));
-  const refreshToken = signRefreshToken(user.id);
+  const session = await currentSession();
+  const accessToken = signAccessToken(buildTokenPayload(user, session));
+  const refreshToken = signRefreshToken(user.id, session);
 
   return { accessToken, refreshToken, user: toCurrentUser(user) };
 }
 
 export async function refresh(refreshToken: string) {
-  let payload: { sub: string };
+  let payload: { sub: string; dv?: string; ce?: number };
   try {
     payload = verifyRefreshToken(refreshToken);
   } catch {
@@ -90,8 +98,13 @@ export async function refresh(refreshToken: string) {
   }
 
   const user = await loadAuthContext(payload.sub);
-  const accessToken = signAccessToken(buildTokenPayload(user));
-  const newRefreshToken = signRefreshToken(user.id);
+  // A deploy, or an admin change for non-admin accounts, makes old sessions unrenewable: sign in again.
+  if (!sessionStillValid(payload, user.role.name, await getSessionState())) {
+    throw new AuthError("Phiên đăng nhập đã kết thúc do hệ thống vừa cập nhật, vui lòng đăng nhập lại");
+  }
+  const session = await currentSession();
+  const accessToken = signAccessToken(buildTokenPayload(user, session));
+  const newRefreshToken = signRefreshToken(user.id, session);
 
   return { accessToken, refreshToken: newRefreshToken, user: toCurrentUser(user) };
 }
