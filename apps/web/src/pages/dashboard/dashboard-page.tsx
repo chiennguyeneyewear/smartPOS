@@ -186,7 +186,6 @@ export function DashboardPage() {
 
   const chartData = useMemo(() => revenue ?? [], [revenue]);
 
-  const profitPeriod = useCardPeriod(preset, customFrom, customTo);
   const branchPeriod = useCardPeriod(preset, customFrom, customTo);
   const sellerPeriod = useCardPeriod(preset, customFrom, customTo);
   const productsPeriod = useCardPeriod(preset, customFrom, customTo);
@@ -207,12 +206,7 @@ export function DashboardPage() {
     limit: 10,
   });
 
-  const { data: rowSummary } = useDashboardSummary({
-    branchId: reportBranchId,
-    from: profitPeriod.fromIso,
-    to: profitPeriod.toIso,
-  });
-  const { data: profit } = useProfitReport({ branchId: reportBranchId, from: profitPeriod.fromIso, to: profitPeriod.toIso });
+  const { data: profit } = useProfitReport({ branchId: reportBranchId, from: fromIso, to: toIso });
   const { data: branchComparison } = useBranchComparisonReport({ from: branchPeriod.fromIso, to: branchPeriod.toIso });
   const { data: sellerPerformance } = useSellerPerformanceReport({
     branchId: reportBranchId,
@@ -242,14 +236,14 @@ export function DashboardPage() {
     () => (sellerPerformance ?? []).map((s) => ({ key: s.userId, name: s.username, value: s.revenue })),
     [sellerPerformance],
   );
-  // Every tile in the row follows the row's own period: revenue/cancellations/growth come from the
+  // Every tile in the row follows the page-wide period: revenue/cancellations/growth come from the
   // dashboard summary, cost from the profit report, and profit is derived so it always equals
   // the revenue shown next to it (invoice-level discounts included).
-  const rowRevenue = rowSummary?.revenue ?? 0;
+  const rowRevenue = summary?.revenue ?? 0;
   const rowCost = profit?.cost ?? 0;
   const rowProfit = rowRevenue - rowCost;
   const profitMargin = rowRevenue > 0 ? (rowProfit / rowRevenue) * 100 : 0;
-  const growthPct = rowSummary?.changeVsPreviousPct ?? 0;
+  const growthPct = summary?.changeVsPreviousPct ?? 0;
 
   return (
     <div className="space-y-4">
@@ -279,15 +273,12 @@ export function DashboardPage() {
       </div>
 
       <Card>
-        <CardHeader className="flex-row items-start justify-end gap-2 space-y-0">
-          <PeriodSelect period={profitPeriod} />
-        </CardHeader>
-        <CardContent className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-          <StatTile label="Doanh thu" gradient="from-primary to-primary/75" sub={`${rowSummary?.invoiceCount ?? 0} hóa đơn`}>
+        <CardContent className="grid grid-cols-2 gap-3 pt-4 sm:grid-cols-3 lg:grid-cols-5">
+          <StatTile label="Doanh thu" gradient="from-primary to-primary/75" sub={`${summary?.invoiceCount ?? 0} hóa đơn`}>
             <MoneyValue value={rowRevenue} className="text-xl font-semibold" />
           </StatTile>
           <StatTile label="Đơn hủy" gradient="from-rose-500 to-rose-400" sub="đơn trong kỳ">
-            <span className="text-xl font-semibold tabular-nums tracking-tight">{rowSummary?.cancelledCount ?? 0}</span>
+            <span className="text-xl font-semibold tabular-nums tracking-tight">{summary?.cancelledCount ?? 0}</span>
           </StatTile>
           <StatTile label="Giá vốn" gradient="from-amber-500 to-yellow-400">
             <MoneyValue value={rowCost} className="text-xl font-semibold" />
