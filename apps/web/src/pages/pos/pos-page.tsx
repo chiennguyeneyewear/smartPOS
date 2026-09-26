@@ -1,6 +1,5 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
-import { useNavigate } from "react-router-dom";
 import { LayoutGrid, Printer } from "lucide-react";
 import type { CustomerSummary, PaymentMethod } from "@smartpos/shared";
 import { useAuthStore } from "@/stores/auth-store";
@@ -10,8 +9,7 @@ import { useBranches } from "@/features/branches/hooks";
 import { toast } from "@/stores/toast-store";
 import { cn } from "@/lib/utils";
 import { UserMenu } from "@/components/shared/user-menu";
-import { NAV_ITEMS } from "@/components/layout/sidebar";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Sidebar } from "@/components/layout/sidebar";
 import { PrintReceiptDialog } from "@/components/shared/print-receipt-dialog";
 import { usePrintReceiptStore, mergeSameProductItems, type ReceiptData } from "@/stores/print-receipt-store";
 import { usePrintSettingsStore } from "@/stores/print-settings-store";
@@ -26,8 +24,7 @@ import { PrintSettingsPopover } from "./print-settings-popover";
 export function PosPage() {
   const activeBranchId = useAuthStore((s) => s.activeBranchId);
   const username = useAuthStore((s) => s.user?.username) ?? "";
-  const menuAccess = useAuthStore((s) => s.user?.menuAccess) ?? [];
-  const navigate = useNavigate();
+  const [menuOpen, setMenuOpen] = useState(false);
   const tabs = usePosStore((s) => s.tabs);
   const activeTabId = usePosStore((s) => s.activeTabId);
   const setCustomer = usePosStore((s) => s.setCustomer);
@@ -150,32 +147,33 @@ export function PosPage() {
 
   const total = Math.max(0, tab.items.reduce((sum, item) => sum + getLineTotal(item), 0) - tab.discountAmount);
 
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setMenuOpen(false);
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [menuOpen]);
+
   return (
     <div className="flex h-full flex-col">
+      {/* Same navigation as the back-office sidebar, slid over the POS; only shows pages this account may open. */}
+      {menuOpen && (
+        <div className="fixed inset-0 z-50 flex" onClick={() => setMenuOpen(false)}>
+          <div className="h-full shadow-xl" onClick={(e) => (e.target as HTMLElement).closest("a") && setMenuOpen(false)}>
+            <Sidebar />
+          </div>
+          <div className="flex-1 bg-black/40" />
+        </div>
+      )}
       <div className="flex h-14 shrink-0 items-center gap-2 bg-primary px-2">
-        {/* Only the pages this account may open (a seller with just Bán hàng + Đơn hàng sees just Đơn hàng). */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              type="button"
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-primary-foreground/80 hover:bg-white/10 hover:text-primary-foreground"
-              title="Menu"
-            >
-              <LayoutGrid className="h-5 w-5" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="min-w-[200px]">
-            {NAV_ITEMS.filter((item) => item.menuKey !== "pos" && menuAccess.includes(item.menuKey)).map((item) => {
-              const Icon = item.icon;
-              return (
-                <DropdownMenuItem key={item.to} onSelect={() => navigate(item.to)} className="gap-2">
-                  <Icon className="h-4 w-4" />
-                  {item.label}
-                </DropdownMenuItem>
-              );
-            })}
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <button
+          type="button"
+          onClick={() => setMenuOpen(true)}
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-primary-foreground/80 hover:bg-white/10 hover:text-primary-foreground"
+          title="Menu"
+        >
+          <LayoutGrid className="h-5 w-5" />
+        </button>
         <ProductQuickSearch ref={productSearchRef} className="max-w-xs" />
         <InvoiceTabsBar />
         <div className="flex shrink-0 items-center gap-1.5">

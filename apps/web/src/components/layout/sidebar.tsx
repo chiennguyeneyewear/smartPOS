@@ -4,7 +4,7 @@ import { MENU_ITEMS } from "@smartpos/shared";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth-store";
 
-export const NAV_ITEMS = [
+const NAV_ITEMS = [
   { to: "/dashboard", label: "Tổng quan", icon: LayoutDashboard, menuKey: MENU_ITEMS.DASHBOARD },
   { to: "/pos", label: "Bán hàng", icon: ShoppingCart, menuKey: MENU_ITEMS.POS },
   { to: "/inventory/products", label: "Hàng hóa", icon: Package, menuKey: MENU_ITEMS.PRODUCTS },
