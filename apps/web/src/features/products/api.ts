@@ -12,6 +12,7 @@ import { apiClient } from "@/lib/api-client";
 
 export interface ProductQuery {
   search?: string;
+  note?: string;
   categoryId?: string;
   barcode?: string;
   branchId?: string;

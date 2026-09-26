@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useState } from "react";
-import { ChartNoAxesCombined, ChevronDown, ChevronLeft, ChevronRight, Pencil, Search, SlidersHorizontal, Trash2, Upload } from "lucide-react";
+import { ChartNoAxesCombined, ChevronDown, ChevronLeft, ChevronRight, Pencil, Trash2, Upload } from "lucide-react";
 import type { ProductSummary } from "@smartpos/shared";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ import { useCategories, useDeleteProduct, useProducts } from "@/features/product
 import { ProductFormDialog, ProductPhoto } from "./product-form-dialog";
 import { ProductImportDialog } from "./product-import-dialog";
 import { CategoryFilter } from "./category-filter";
+import { ProductSearchBox } from "./product-search-box";
 import { ProductAnalysisDialog } from "./product-analysis-dialog";
 
 function formatNumber(value: number): string {
@@ -25,6 +26,7 @@ function formatNumber(value: number): string {
 export function ProductsPage() {
   const activeBranchId = useAuthStore((s) => s.activeBranchId);
   const [search, setSearch] = useState("");
+  const [note, setNote] = useState("");
   const [categoryIds, setCategoryIds] = useState<string[]>([]);
   const [page, setPage] = useState(1);
   const pageSize = 50;
@@ -37,6 +39,7 @@ export function ProductsPage() {
   const [deleteTarget, setDeleteTarget] = useState<{ ids: string[]; label: string } | null>(null);
   const { data, isLoading } = useProducts({
     search,
+    note: note || undefined,
     categoryId: categoryIds.length > 0 ? categoryIds.join(",") : undefined,
     branchId: activeBranchId ?? undefined,
     page,
@@ -47,7 +50,7 @@ export function ProductsPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [search, categoryIds]);
+  }, [search, note, categoryIds]);
 
   const products = data?.data ?? [];
   const total = data?.meta?.total ?? 0;
@@ -101,16 +104,15 @@ export function ProductsPage() {
 
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-        <div className="relative w-full max-w-sm flex-1">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Theo mã, tên hàng"
-            className="pl-8 pr-9"
-          />
-          <SlidersHorizontal className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        </div>
+        <ProductSearchBox
+          search={search}
+          note={note}
+          onSearchChange={setSearch}
+          onApply={(s, n) => {
+            setSearch(s);
+            setNote(n);
+          }}
+        />
         <CategoryFilter categories={categories ?? []} value={categoryIds} onApply={setCategoryIds} />
         </div>
 

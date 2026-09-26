@@ -40,6 +40,7 @@ export function registerProductRoutes(app: FastifyInstance) {
   app.get("/products", { preHandler: authenticate }, async (request) => {
     const query = request.query as {
       search?: string;
+      note?: string;
       categoryId?: string;
       barcode?: string;
       branchId?: string;
@@ -58,6 +59,7 @@ export function registerProductRoutes(app: FastifyInstance) {
       // POS only offers products marked "Bán trực tiếp"; the back-office list shows everything.
       ...(query.sellable === "true" ? { sellDirectly: true } : {}),
       ...(query.barcode ? { barcode: query.barcode } : {}),
+      ...(query.note?.trim() ? { description: { contains: query.note.trim(), mode: "insensitive" as const } } : {}),
       ...(query.search
         ? {
             OR: [
