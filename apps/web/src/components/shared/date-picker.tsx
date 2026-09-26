@@ -36,6 +36,7 @@ export function DatePicker({ value, onChange, className }: DatePickerProps) {
   const selected = parseValue(value);
   const [viewYear, setViewYear] = useState(selected.getFullYear());
   const [viewMonth, setViewMonth] = useState(selected.getMonth());
+  const [alignRight, setAlignRight] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -51,6 +52,9 @@ export function DatePicker({ value, onChange, className }: DatePickerProps) {
   }, [open]);
 
   function openNow() {
+    // The calendar is 256px wide; open it leftwards when the trigger sits near the right edge.
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (rect) setAlignRight(rect.left + 256 > window.innerWidth - 8 && rect.right - 256 >= 8);
     setViewYear(selected.getFullYear());
     setViewMonth(selected.getMonth());
     setOpen(true);
@@ -93,7 +97,10 @@ export function DatePicker({ value, onChange, className }: DatePickerProps) {
         <Calendar className="h-4 w-4 shrink-0 text-muted-foreground" />
       </button>
       {open && (
-        <div className="absolute left-0 top-full z-30 mt-1 w-64 rounded-md border bg-popover p-3 shadow-lg">
+        <div className={cn(
+            "absolute top-full z-30 mt-1 w-64 rounded-md border bg-popover p-3 shadow-lg",
+            alignRight ? "right-0" : "left-0",
+          )}>
           <div className="mb-2 flex items-center justify-between">
             <button type="button" onClick={goPrevMonth} className="rounded p-1 hover:bg-muted">
               <ChevronLeft className="h-4 w-4" />
