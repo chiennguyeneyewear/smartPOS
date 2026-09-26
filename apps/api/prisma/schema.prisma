@@ -362,21 +362,38 @@ model TaskBranch {
   @@map("task_branches")
 }
 
+// Photos/videos attached to a task, stored in the database (small, capped uploads) so no separate
+// file storage is needed. Kept out of the Task row so list queries never load the bytes.
+model TaskAttachment {
+  id        String   @id @default(cuid())
+  taskId    String
+  fileName  String
+  mimeType  String
+  size      Int
+  data      Bytes
+  createdAt DateTime @default(now())
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+  @@map("task_attachments")
+}
+
 model Task {
-  id          String      @id @default(cuid())
+  id          String           @id @default(cuid())
   title       String
-  description String      @default("")
-  status      TaskStatus  @default(PENDING)
+  description String           @default("")
+  status      TaskStatus       @default(PENDING)
   assignerId  String
   assigneeId  String
   branchId    String?
   dueAt       DateTime?
   completedAt DateTime?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  assigner    Employee    @relation("TaskAssigner", fields: [assignerId], references: [id])
-  assignee    Employee    @relation("TaskAssignee", fields: [assigneeId], references: [id])
-  branch      TaskBranch? @relation(fields: [branchId], references: [id])
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  assigner    Employee         @relation("TaskAssigner", fields: [assignerId], references: [id])
+  assignee    Employee         @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  branch      TaskBranch?      @relation(fields: [branchId], references: [id])
+  attachments TaskAttachment[]
 
   @@index([assigneeId, status])
   @@index([createdAt])

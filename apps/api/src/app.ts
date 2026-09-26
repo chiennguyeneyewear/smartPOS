@@ -14,7 +14,12 @@ import { registerProductRoutes } from "./modules/products/products.routes.js";
 import { registerReportRoutes } from "./modules/reports/reports.routes.js";
 import { registerSalesRoutes } from "./modules/sales/sales.routes.js";
 import { registerSupplierRoutes } from "./modules/suppliers/suppliers.routes.js";
-import { registerEmployeeRoutes, registerTaskBranchRoutes, registerTaskRoutes } from "./modules/tasks/tasks.routes.js";
+import {
+  registerEmployeeRoutes,
+  registerTaskAttachmentRoutes,
+  registerTaskBranchRoutes,
+  registerTaskRoutes,
+} from "./modules/tasks/tasks.routes.js";
 import { registerUserRoutes } from "./modules/users/users.routes.js";
 
 export function buildApp() {
@@ -57,6 +62,7 @@ export function buildApp() {
       registerEmployeeRoutes(api);
       registerTaskBranchRoutes(api);
       registerTaskRoutes(api);
+      registerTaskAttachmentRoutes(api);
     },
     { prefix: "/api/v1" },
   );

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Pencil, Plus, Trash2, Users } from "lucide-react";
+import { Paperclip, Pencil, Plus, Trash2, Users } from "lucide-react";
 import {
   EMPLOYEE_KIND,
   TASK_STATUS,
@@ -24,6 +25,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { PERIOD_PRESET_OPTIONS, getPeriodRange, type PeriodPreset } from "@/lib/period-presets";
 import { cn, formatDateTime } from "@/lib/utils";
 import { Countdown } from "./countdown";
+import { AttachmentGallery, AttachmentPicker } from "./attachments";
+import { deleteAttachment, uploadAttachment } from "@/features/tasks/api";
+import { toast } from "@/stores/toast-store";
 import {
   useCreateEmployee,
   useCreateTaskBranch,
@@ -350,6 +354,11 @@ function TaskFormDialog({
   const [assignerId, setAssignerId] = useState("");
   const [assigneeId, setAssigneeId] = useState("");
   const [branchId, setBranchId] = useState("");
+  const queryClient = useQueryClient();
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [removedIds, setRemovedIds] = useState<string[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [progress, setProgress] = useState<string | null>(null);
   const [dueDate, setDueDate] = useState("");
   const [dueTime, setDueTime] = useState("");
   const [status, setStatus] = useState<TaskStatus>(TASK_STATUS.PENDING);
@@ -363,6 +372,10 @@ function TaskFormDialog({
     setAssigneeId(task?.assigneeId ?? "");
     setBranchId(task?.branchId ?? "");
     setDueDate(toLocalDate(task?.dueAt));
+    setPendingFiles([]);
+    setRemovedIds([]);
+    setSaving(false);
+    setProgress(null);
     setDueTime(toLocalTime(task?.dueAt));
     setStatus(task?.status ?? TASK_STATUS.PENDING);
     setError(null);
@@ -384,9 +397,10 @@ function TaskFormDialog({
       ),
     [assignees, task],
   );
-  const pending = createTask.isPending || updateTask.isPending;
+  const pending = saving;
+  const keptAttachments = (task?.attachments ?? []).filter((a) => !removedIds.includes(a.id));
 
-  function submit() {
+  async function submit() {
     let dueAt: string | null = null;
     if (dueDate || dueTime) {
       if (!dueDate) {
@@ -412,11 +426,35 @@ function TaskFormDialog({
       setError(parsed.error.issues[0]?.message ?? "Dữ liệu không hợp lệ");
       return;
     }
-    const onSuccess = () => onOpenChange(false);
-    if (task) {
-      updateTask.mutate({ id: task.id, input: { ...parsed.data, status } }, { onSuccess });
-    } else {
-      createTask.mutate(parsed.data, { onSuccess });
+    setSaving(true);
+    try {
+      const saved = task
+        ? await updateTask.mutateAsync({ id: task.id, input: { ...parsed.data, status } })
+        : await createTask.mutateAsync(parsed.data);
+      for (const id of removedIds) await deleteAttachment(id).catch(() => undefined);
+      let failed = 0;
+      for (const [i, file] of pendingFiles.entries()) {
+        setProgress(`Đang tải lên ${i + 1}/${pendingFiles.length}...`);
+        try {
+          await uploadAttachment(saved.id, file);
+        } catch {
+          failed += 1;
+        }
+      }
+      await queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      if (failed > 0) {
+        toast({
+          title: `Không tải lên được ${failed} tệp`,
+          description: "Mở lại công việc bằng nút sửa để thêm lại.",
+          variant: "destructive",
+        });
+      }
+      onOpenChange(false);
+    } catch {
+      // create/update already showed its own error toast
+    } finally {
+      setSaving(false);
+      setProgress(null);
     }
   }
 
@@ -485,6 +523,14 @@ function TaskFormDialog({
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Mô tả cụ thể việc cần làm..."
             />
+            <AttachmentPicker
+              existing={keptAttachments}
+              pending={pendingFiles}
+              onAddFiles={(files) => setPendingFiles((prev) => [...prev, ...files])}
+              onRemoveExisting={(id) => setRemovedIds((prev) => [...prev, id])}
+              onRemovePending={(i) => setPendingFiles((prev) => prev.filter((_, idx) => idx !== i))}
+              disabled={saving}
+            />
           </div>
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
@@ -522,7 +568,7 @@ function TaskFormDialog({
             Hủy
           </Button>
           <Button onClick={submit} disabled={pending}>
-            {pending ? "Đang lưu..." : task ? "Lưu" : "Giao việc"}
+            {pending ? (progress ?? "Đang lưu...") : task ? "Lưu" : "Giao việc"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -571,7 +617,15 @@ export function TasksPage() {
       id: "description",
       header: "Nội dung",
       cell: ({ row }) => (
-        <span className="block max-w-[320px] truncate text-muted-foreground">{row.original.description}</span>
+        <span className="flex max-w-[320px] items-center gap-2 text-muted-foreground">
+          <span className="truncate">{row.original.description}</span>
+          {row.original.attachments.length > 0 && (
+            <span className="flex shrink-0 items-center gap-0.5 text-xs">
+              <Paperclip className="h-3.5 w-3.5" />
+              {row.original.attachments.length}
+            </span>
+          )}
+        </span>
       ),
     },
     { id: "assigner", header: "Người giao", cell: ({ row }) => row.original.assignerName },
@@ -744,6 +798,7 @@ export function TasksPage() {
                 <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Nội dung chi tiết</p>
                 <p className="mt-1 whitespace-pre-wrap">{row.description || "Không có nội dung"}</p>
               </div>
+              <AttachmentGallery attachments={row.attachments} />
               <div className="flex flex-wrap gap-x-8 gap-y-1 text-muted-foreground">
                 <span>Giao lúc: {formatDateTime(row.createdAt)}</span>
                 {row.dueAt && <span>Hạn hoàn thành: {formatDateTime(row.dueAt)}</span>}

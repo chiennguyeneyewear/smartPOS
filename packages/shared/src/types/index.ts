@@ -140,6 +140,13 @@ export interface CurrentUser {
   defaultBranchId: string | null;
 }
 
+export interface TaskAttachmentSummary {
+  id: string;
+  fileName: string;
+  mimeType: string;
+  size: number;
+}
+
 export interface TaskSummary {
   id: string;
   title: string;
@@ -152,6 +159,7 @@ export interface TaskSummary {
   branchId: string | null;
   branchName: string | null;
   dueAt: string | null;
+  attachments: TaskAttachmentSummary[];
   createdAt: string;
   completedAt: string | null;
 }

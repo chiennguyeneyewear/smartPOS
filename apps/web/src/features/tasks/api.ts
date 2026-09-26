@@ -1,4 +1,4 @@
-import type { EmployeeInput, EmployeeKind, EmployeeSummary, TaskBranchSummary, TaskInput, TaskSummary, UpdateTaskInput } from "@smartpos/shared";
+import type { EmployeeInput, EmployeeKind, EmployeeSummary, TaskAttachmentSummary, TaskBranchSummary, TaskInput, TaskSummary, UpdateTaskInput } from "@smartpos/shared";
 import { apiClient } from "@/lib/api-client";
 
 export interface TaskQuery {
@@ -54,4 +54,22 @@ export async function createTaskBranch(name: string): Promise<TaskBranchSummary>
 
 export async function deleteTaskBranch(id: string): Promise<void> {
   await apiClient.delete(`/task-branches/${id}`);
+}
+
+export async function uploadAttachment(taskId: string, file: File): Promise<TaskAttachmentSummary> {
+  const { data } = await apiClient.post<TaskAttachmentSummary>(`/tasks/${taskId}/attachments`, file, {
+    params: { filename: file.name },
+    headers: { "Content-Type": file.type },
+  });
+  return data;
+}
+
+// Fetched through axios (not an <img src>) so the auth header goes along.
+export async function fetchAttachmentBlob(id: string): Promise<Blob> {
+  const { data } = await apiClient.get<Blob>(`/task-attachments/${id}`, { responseType: "blob" });
+  return data;
+}
+
+export async function deleteAttachment(id: string): Promise<void> {
+  await apiClient.delete(`/task-attachments/${id}`);
 }

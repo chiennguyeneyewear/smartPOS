@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { Prisma } from "@prisma/client";
 import {
   EMPLOYEE_KIND,
+  TASK_ATTACHMENT_LIMITS,
   TASK_STATUS,
   employeeSchema,
   taskBranchSchema,
@@ -15,6 +16,11 @@ const taskInclude = {
   assigner: { select: { id: true, name: true } },
   assignee: { select: { id: true, name: true } },
   branch: { select: { id: true, name: true } },
+  // Metadata only: the bytes live in the same table but are fetched one file at a time.
+  attachments: {
+    select: { id: true, fileName: true, mimeType: true, size: true },
+    orderBy: { createdAt: "asc" },
+  },
 } satisfies Prisma.TaskInclude;
 
 type TaskWithStaff = Prisma.TaskGetPayload<{ include: typeof taskInclude }>;
@@ -32,6 +38,7 @@ function toDto(task: TaskWithStaff) {
     branchId: task.branchId,
     branchName: task.branch?.name ?? null,
     dueAt: task.dueAt ? task.dueAt.toISOString() : null,
+    attachments: task.attachments,
     createdAt: task.createdAt.toISOString(),
     completedAt: task.completedAt ? task.completedAt.toISOString() : null,
   };
@@ -212,6 +219,66 @@ export function registerTaskRoutes(app: FastifyInstance) {
     const existing = await prisma.task.findUnique({ where: { id } });
     if (!existing) return reply.code(404).send({ message: "Không tìm thấy công việc" });
     await prisma.task.delete({ where: { id } });
+    return { success: true };
+  });
+}
+
+const ALLOWED_MIME = new Set<string>(TASK_ATTACHMENT_LIMITS.allowedMimeTypes);
+const MAX_UPLOAD_BYTES = Math.max(TASK_ATTACHMENT_LIMITS.maxImageBytes, TASK_ATTACHMENT_LIMITS.maxVideoBytes);
+
+// Photos/videos for a task. Each file is uploaded on its own as a raw request body (Content-Type is
+// the file's type, the name goes in ?filename=), which keeps this free of multipart parsing and lets the
+// browser send the picked File/Blob straight through.
+export function registerTaskAttachmentRoutes(app: FastifyInstance) {
+  app.addContentTypeParser(/^(image|video)\//, { parseAs: "buffer", bodyLimit: MAX_UPLOAD_BYTES }, (_req, body, done) =>
+    done(null, body),
+  );
+
+  app.post("/tasks/:id/attachments", { preHandler: authenticate, bodyLimit: MAX_UPLOAD_BYTES }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const { filename } = request.query as { filename?: string };
+    const mimeType = (request.headers["content-type"] ?? "").split(";")[0]!.trim().toLowerCase();
+    const data = request.body as Buffer;
+
+    if (!ALLOWED_MIME.has(mimeType) || !Buffer.isBuffer(data) || data.length === 0) {
+      return reply.code(415).send({ message: "Chỉ hỗ trợ ảnh (JPG, PNG, WebP, GIF) và video (MP4, MOV, WebM)" });
+    }
+    const isVideo = mimeType.startsWith("video/");
+    const limit = isVideo ? TASK_ATTACHMENT_LIMITS.maxVideoBytes : TASK_ATTACHMENT_LIMITS.maxImageBytes;
+    if (data.length > limit) {
+      return reply.code(413).send({ message: `${isVideo ? "Video" : "Ảnh"} vượt quá ${limit / 1024 / 1024} MB` });
+    }
+
+    const task = await prisma.task.findUnique({ where: { id }, select: { id: true } });
+    if (!task) return reply.code(404).send({ message: "Không tìm thấy công việc" });
+    const count = await prisma.taskAttachment.count({ where: { taskId: id } });
+    if (count >= TASK_ATTACHMENT_LIMITS.maxPerTask) {
+      return reply.code(400).send({ message: `Mỗi công việc tối đa ${TASK_ATTACHMENT_LIMITS.maxPerTask} tệp đính kèm` });
+    }
+
+    const attachment = await prisma.taskAttachment.create({
+      data: { taskId: id, fileName: (filename || "tep-dinh-kem").slice(0, 200), mimeType, size: data.length, data },
+      select: { id: true, fileName: true, mimeType: true, size: true },
+    });
+    return reply.code(201).send(attachment);
+  });
+
+  app.get("/task-attachments/:id", { preHandler: authenticate }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const attachment = await prisma.taskAttachment.findUnique({ where: { id } });
+    if (!attachment) return reply.code(404).send({ message: "Không tìm thấy tệp" });
+    return reply
+      .header("Content-Type", attachment.mimeType)
+      .header("Content-Length", attachment.size)
+      .header("Cache-Control", "private, max-age=86400")
+      .send(Buffer.from(attachment.data));
+  });
+
+  app.delete("/task-attachments/:id", { preHandler: authenticate }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const existing = await prisma.taskAttachment.findUnique({ where: { id }, select: { id: true } });
+    if (!existing) return reply.code(404).send({ message: "Không tìm thấy tệp" });
+    await prisma.taskAttachment.delete({ where: { id } });
     return { success: true };
   });
 }

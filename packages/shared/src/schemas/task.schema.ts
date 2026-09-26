@@ -31,3 +31,19 @@ export const employeeSchema = z.object({
   kind: z.nativeEnum(EMPLOYEE_KIND),
 });
 export type EmployeeInput = z.infer<typeof employeeSchema>;
+
+// Attachment rules shared by the upload endpoint and the picker, so both reject the same files.
+export const TASK_ATTACHMENT_LIMITS = {
+  maxPerTask: 10,
+  maxImageBytes: 8 * 1024 * 1024,
+  maxVideoBytes: 25 * 1024 * 1024,
+  allowedMimeTypes: [
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "image/gif",
+    "video/mp4",
+    "video/quicktime",
+    "video/webm",
+  ],
+} as const;
