@@ -23,6 +23,15 @@ import { useUsers } from "@/features/users/hooks";
 import { useAuthStore } from "@/stores/auth-store";
 import { useBranches } from "@/features/branches/hooks";
 
+type PayMethod = "CASH" | "BANK_TRANSFER" | "CARD" | "DEBT";
+const PAY_METHODS: { value: PayMethod; label: string }[] = [
+  { value: "CASH", label: "Tiền mặt" },
+  { value: "BANK_TRANSFER", label: "Chuyển khoản" },
+  { value: "CARD", label: "Quẹt thẻ" },
+  { value: "DEBT", label: "Ghi nợ" },
+];
+const PAY_LABEL = Object.fromEntries(PAY_METHODS.map((m) => [m.value, m.label])) as Record<PayMethod, string>;
+
 function toDateInputValue(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
@@ -34,6 +43,7 @@ export function OrdersPage() {
   const [customFrom, setCustomFrom] = useState(() => toDateInputValue(new Date()));
   const [customTo, setCustomTo] = useState(() => toDateInputValue(new Date()));
   const [sellerId, setSellerId] = useState<string>("all");
+  const [payMethods, setPayMethods] = useState<Set<PayMethod>>(new Set(PAY_METHODS.map((m) => m.value)));
   const [showCompleted, setShowCompleted] = useState(true);
   const [showCancelled, setShowCancelled] = useState(true);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -73,6 +83,8 @@ export function OrdersPage() {
       if (!((inv.status === "COMPLETED" && showCompleted) || (inv.status === "CANCELLED" && showCancelled))) {
         return false;
       }
+      // Payment-method filter only bites when at least one method is unticked.
+      if (payMethods.size < PAY_METHODS.length && !inv.payments.some((p) => payMethods.has(p.method))) return false;
       if (codeQ && !inv.code.toLowerCase().includes(codeQ)) return false;
       if (
         productQ &&
@@ -95,7 +107,26 @@ export function OrdersPage() {
       }
       return true;
     });
-  }, [invoices, showCompleted, showCancelled, appliedQuery]);
+  }, [invoices, showCompleted, showCancelled, appliedQuery, payMethods]);
+
+  // How much of the listed (completed) invoices was paid by each method.
+  const byMethod = useMemo(() => {
+    const sums = new Map<PayMethod, number>();
+    for (const inv of filteredInvoices) {
+      if (inv.status !== "COMPLETED") continue;
+      for (const p of inv.payments) sums.set(p.method, (sums.get(p.method) ?? 0) + p.amount);
+    }
+    return PAY_METHODS.filter((m) => sums.has(m.value)).map((m) => ({ ...m, amount: sums.get(m.value) ?? 0 }));
+  }, [filteredInvoices]);
+
+  function togglePayMethod(method: PayMethod) {
+    setPayMethods((prev) => {
+      const next = new Set(prev);
+      if (next.has(method)) next.delete(method);
+      else next.add(method);
+      return next;
+    });
+  }
 
   function applySearch() {
     setAppliedQuery({ code: codeQuery, product: productQuery, customer: customerQuery });
@@ -225,9 +256,17 @@ export function OrdersPage() {
     {
       id: "paidAmount",
       header: "Khách đã trả",
-      cell: ({ row }) => (
-        <span className="font-medium tabular-nums">{row.original.paidAmount.toLocaleString("en-US")}</span>
-      ),
+      cell: ({ row }) => {
+        const methods = [...new Set(row.original.payments.map((p) => p.method))];
+        return (
+          <div className="leading-tight">
+            <p className="font-medium tabular-nums">{row.original.paidAmount.toLocaleString("en-US")}</p>
+            {methods.length > 0 && (
+              <p className="mt-0.5 text-xs text-muted-foreground">{methods.map((m) => PAY_LABEL[m] ?? m).join(" + ")}</p>
+            )}
+          </div>
+        );
+      },
     },
   ];
 
@@ -278,6 +317,16 @@ export function OrdersPage() {
               </Select>
             </div>
             )}
+
+            <div className="space-y-2">
+              <p className="text-sm font-semibold">Phương thức thanh toán</p>
+              {PAY_METHODS.map((m) => (
+                <label key={m.value} className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={payMethods.has(m.value)} onChange={() => togglePayMethod(m.value)} />
+                  {m.label}
+                </label>
+              ))}
+            </div>
 
             <div className="space-y-2">
               <p className="text-sm font-semibold">Trạng thái hóa đơn</p>
@@ -361,7 +410,14 @@ export function OrdersPage() {
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
-            <span>{periodLabel}</span>
+            <span className="flex flex-wrap items-center gap-x-3">
+              <span>{periodLabel}</span>
+              {byMethod.map((m) => (
+                <span key={m.value}>
+                  {m.label}: <span className="font-medium text-foreground">{formatCurrency(m.amount)}</span>
+                </span>
+              ))}
+            </span>
             <div className="flex items-center gap-3">
               {selectedIds.size > 0 && (
                 <Button variant="destructive" size="sm" onClick={() => setConfirmingVoid(true)}>
