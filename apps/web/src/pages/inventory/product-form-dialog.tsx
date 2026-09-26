@@ -93,6 +93,58 @@ function Field({ label, children, action }: { label: string; children: ReactNode
 
 const numberInputClass = "text-right";
 
+// Digits shown with thousands commas ("3,000,000"); the parent keeps the plain string ("3000000").
+function formatThousands(raw: string): string {
+  if (raw === "") return "";
+  const [int = "", frac] = raw.split(".");
+  const grouped = int.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return frac === undefined ? grouped : `${grouped}.${frac}`;
+}
+
+function NumberInput({
+  value,
+  onChange,
+  suffix,
+  placeholder,
+  decimal,
+  disabled,
+}: {
+  value: string;
+  onChange?: (v: string) => void;
+  suffix?: string;
+  placeholder?: string;
+  decimal?: boolean;
+  disabled?: boolean;
+}) {
+  function handle(text: string) {
+    let clean = text.replace(decimal ? /[^\d.]/g : /\D/g, "");
+    if (decimal) {
+      const [head = "", ...rest] = clean.split(".");
+      clean = rest.length ? `${head}.${rest.join("").slice(0, 3)}` : head;
+    }
+    // "007" -> "7", but keep a lone "0" and "0.5"
+    clean = clean.replace(/^0+(?=\d)/, "");
+    onChange?.(clean);
+  }
+  return (
+    <div className="relative">
+      <Input
+        inputMode={decimal ? "decimal" : "numeric"}
+        value={formatThousands(value)}
+        onChange={(e) => handle(e.target.value)}
+        placeholder={placeholder}
+        disabled={disabled}
+        className={cn(numberInputClass, suffix && "pr-14")}
+      />
+      {suffix && (
+        <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-muted-foreground">
+          {suffix}
+        </span>
+      )}
+    </div>
+  );
+}
+
 export function ProductFormDialog({
   open,
   onOpenChange,
@@ -403,10 +455,10 @@ export function ProductFormDialog({
               <Section title="Giá vốn, giá bán">
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                   <Field label="Giá vốn">
-                    <Input type="number" min={0} value={costPrice} onChange={(e) => setCostPrice(e.target.value)} className={numberInputClass} />
+                    <NumberInput value={costPrice} onChange={setCostPrice} suffix="VNĐ" />
                   </Field>
                   <Field label="Giá bán">
-                    <Input type="number" min={0} value={sellPrice} onChange={(e) => setSellPrice(e.target.value)} className={numberInputClass} />
+                    <NumberInput value={sellPrice} onChange={setSellPrice} suffix="VNĐ" />
                   </Field>
                 </div>
               </Section>
@@ -418,16 +470,16 @@ export function ProductFormDialog({
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                   <Field label="Tồn kho">
                     {isEdit ? (
-                      <Input value={String(product?.stockQuantity ?? 0)} disabled className={numberInputClass} />
+                      <NumberInput value={String(product?.stockQuantity ?? 0)} disabled decimal />
                     ) : (
-                      <Input type="number" min={0} value={initialStock} onChange={(e) => setInitialStock(e.target.value)} className={numberInputClass} />
+                      <NumberInput value={initialStock} onChange={setInitialStock} decimal />
                     )}
                   </Field>
                   <Field label="Định mức tồn thấp nhất">
-                    <Input type="number" min={0} value={minStock} onChange={(e) => setMinStock(e.target.value)} placeholder="0" className={numberInputClass} />
+                    <NumberInput value={minStock} onChange={setMinStock} placeholder="0" decimal />
                   </Field>
                   <Field label="Định mức tồn cao nhất">
-                    <Input type="number" min={0} value={maxStock} onChange={(e) => setMaxStock(e.target.value)} placeholder="999,999,999" className={numberInputClass} />
+                    <NumberInput value={maxStock} onChange={setMaxStock} placeholder="999,999,999" decimal />
                   </Field>
                 </div>
               </Section>
