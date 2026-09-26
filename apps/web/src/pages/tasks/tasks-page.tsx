@@ -481,7 +481,7 @@ function TaskFormDialog({
             <Label>Tên công việc</Label>
             <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="VD: Kiểm kho gọng kính" />
           </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <Label>Chi nhánh</Label>
@@ -503,14 +503,19 @@ function TaskFormDialog({
           <div className="space-y-1.5">
             <Label>Thời hạn hoàn thành</Label>
             <div className="flex gap-2">
-              <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+              <Input
+                type="date"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+                className="min-w-0 flex-1"
+              />
               <Input
                 value={dueTime}
                 onChange={(e) => setDueTime(maskTime(e.target.value))}
                 inputMode="numeric"
                 placeholder="HH:mm"
                 maxLength={5}
-                className="w-[92px] shrink-0 text-center"
+                className="w-[84px] shrink-0 text-center"
               />
             </div>
           </div>
