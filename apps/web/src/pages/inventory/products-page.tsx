@@ -149,6 +149,9 @@ export function ProductsPage() {
               <th className="whitespace-nowrap p-3 text-left text-sm font-semibold text-muted-foreground">
                 Tên hàng
               </th>
+              <th className="whitespace-nowrap p-3 text-left text-sm font-semibold text-muted-foreground">
+                Nhóm hàng
+              </th>
               <th className="whitespace-nowrap p-3 text-right text-sm font-semibold text-muted-foreground">
                 Giá bán
               </th>
@@ -163,7 +166,7 @@ export function ProductsPage() {
           <tbody>
             {!isLoading && products.length > 0 && (
               <tr className="border-t bg-muted/20">
-                <td colSpan={4} />
+                <td colSpan={5} />
                 <td colSpan={2} className="whitespace-nowrap p-3 text-right font-semibold">
                   {formatNumber(totalStockValue)}
                 </td>
@@ -171,14 +174,14 @@ export function ProductsPage() {
             )}
             {isLoading && (
               <tr>
-                <td colSpan={6} className="p-6 text-center text-sm text-muted-foreground">
+                <td colSpan={7} className="p-6 text-center text-sm text-muted-foreground">
                   Đang tải dữ liệu...
                 </td>
               </tr>
             )}
             {!isLoading && products.length === 0 && (
               <tr>
-                <td colSpan={6} className="p-6 text-center text-sm text-muted-foreground">
+                <td colSpan={7} className="p-6 text-center text-sm text-muted-foreground">
                   Chưa có sản phẩm
                 </td>
               </tr>
@@ -202,6 +205,7 @@ export function ProductsPage() {
                       </td>
                       <td className="whitespace-nowrap p-3">{p.sku}</td>
                       <td className="min-w-[220px] p-3 font-medium">{p.name}</td>
+                      <td className="whitespace-nowrap p-3">{category?.name ?? "Chưa phân loại"}</td>
                       <td className="whitespace-nowrap p-3 text-right">{formatNumber(p.sellPrice)}</td>
                       <td className="whitespace-nowrap p-3 text-right">{formatNumber(p.costPrice)}</td>
                       <td className="whitespace-nowrap p-3 text-right">
@@ -210,7 +214,7 @@ export function ProductsPage() {
                     </tr>
                     {isExpanded && (
                       <tr className="border-l-[3px] border-l-primary bg-primary/5">
-                        <td colSpan={6} className="p-4">
+                        <td colSpan={7} className="p-4">
                           <div className="flex flex-wrap items-start justify-between gap-4">
                             <div className="grid flex-1 grid-cols-2 gap-x-8 gap-y-2 text-sm sm:grid-cols-4">
                               <div>
