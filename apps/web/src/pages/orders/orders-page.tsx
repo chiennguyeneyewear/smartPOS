@@ -269,7 +269,7 @@ export function OrdersPage() {
     <div className="space-y-4">
       <PageHeader title="Đơn hàng" description="Toàn bộ hóa đơn đã tạo" />
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[240px_1fr]">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[195px_1fr]">
         <Card className="h-fit">
           <CardContent className="space-y-4 pt-4">
             <div className="space-y-2">
@@ -314,7 +314,7 @@ export function OrdersPage() {
             )}
 
             <div className="space-y-2">
-              <p className="text-sm font-semibold">Phương thức thanh toán</p>
+              <p className="text-sm font-semibold leading-tight">Phương thức thanh toán</p>
               {PAY_METHODS.map((m) => (
                 <label key={m.value} className="flex items-center gap-2 text-sm">
                   <input type="checkbox" checked={payMethods.has(m.value)} onChange={() => togglePayMethod(m.value)} />
