@@ -18,6 +18,8 @@ interface DataTableProps<TData> {
   // selected row (e.g. the customer detail panel), instead of after the
   // whole table — matching KiotViet's inline row-expansion behavior.
   renderExpandedRow?: (row: TData) => ReactNode;
+  // Tighter cell padding, for tables that have to fit many columns without a sideways scrollbar.
+  compact?: boolean;
 }
 
 export function DataTable<TData>({
@@ -28,6 +30,7 @@ export function DataTable<TData>({
   onRowClick,
   isRowSelected,
   renderExpandedRow,
+  compact,
 }: DataTableProps<TData>) {
   const table = useReactTable({ data, columns, getCoreRowModel: getCoreRowModel() });
 
@@ -52,7 +55,13 @@ export function DataTable<TData>({
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>
               {headerGroup.headers.map((header) => (
-                <th key={header.id} className="whitespace-nowrap p-3 text-left text-sm font-semibold text-muted-foreground">
+                <th
+                  key={header.id}
+                  className={cn(
+                    "whitespace-nowrap text-left text-sm font-semibold text-muted-foreground",
+                    compact ? "px-2.5 py-3" : "p-3",
+                  )}
+                >
                   {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                 </th>
               ))}
@@ -92,8 +101,10 @@ export function DataTable<TData>({
                       <td
                         key={cell.id}
                         className={cn(
-                          "whitespace-nowrap p-3",
-                          i === 0 && selected && "border-l-[3px] border-l-primary pl-[9px]",
+                          "whitespace-nowrap",
+                          compact ? "px-2.5 py-3" : "p-3",
+                          i === 0 && selected && "border-l-[3px] border-l-primary",
+                          i === 0 && selected && (compact ? "pl-[7px]" : "pl-[9px]"),
                         )}
                       >
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}

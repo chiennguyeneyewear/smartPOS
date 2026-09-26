@@ -186,14 +186,16 @@ export function OrdersPage() {
       cell: ({ row }) => formatDateTime(row.original.createdAt),
     },
     {
-      id: "customerCode",
-      header: "Mã khách hàng",
-      cell: ({ row }) => row.original.customer?.code ?? "",
-    },
-    {
-      id: "customerName",
+      id: "customer",
       header: "Khách hàng",
-      cell: ({ row }) => row.original.customer?.name ?? "Khách lẻ",
+      cell: ({ row }) => (
+        <div className="min-w-[140px] max-w-[220px] whitespace-normal leading-tight">
+          <p className="font-medium">{row.original.customer?.name ?? "Khách lẻ"}</p>
+          {row.original.customer?.code && (
+            <p className="mt-0.5 text-xs text-muted-foreground">{row.original.customer.code}</p>
+          )}
+        </div>
+      ),
     },
     { accessorKey: "createdByName", header: "Người bán" },
     {
@@ -375,6 +377,7 @@ export function OrdersPage() {
           </div>
           <DataTable
             columns={columns}
+            compact
             data={filteredInvoices}
             isLoading={isLoading}
             emptyMessage="Không có hóa đơn nào"
