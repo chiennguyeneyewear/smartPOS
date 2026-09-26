@@ -187,6 +187,15 @@ export function InvoiceDetailPanel({
                 <TotalLine label={`Đã cọc trước (đơn ${invoice.preorder?.code ?? ""})`} value={fmt(invoice.depositAmount)} />
               )}
               <TotalLine label="Khách đã trả" value={fmt(invoice.paidAmount)} bold />
+              {invoice.payments.length > 0 &&
+                [...invoice.payments.reduce((m, p) => m.set(p.method, (m.get(p.method) ?? 0) + p.amount), new Map<string, number>())].map(
+                  ([method, amount]) => (
+                    <div key={method} className="flex justify-between text-xs text-muted-foreground">
+                      <span>· {PAYMENT_METHOD_LABELS[method] ?? method}</span>
+                      <span className="tabular-nums">{fmt(amount)}</span>
+                    </div>
+                  ),
+                )}
               {invoice.paymentStatus === "PENDING" && (
                 <p className="rounded-md bg-amber-50 px-2 py-1.5 text-xs text-amber-800">
                   Chờ xác nhận thanh toán: chưa ghi nhận khách trả bằng tiền mặt hay chuyển khoản.

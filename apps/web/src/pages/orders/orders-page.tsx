@@ -275,8 +275,20 @@ export function OrdersPage() {
             <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">Chờ xác nhận</span>
           );
         }
-        const methods = [...new Set(row.original.payments.map((p) => p.method))];
-        return methods.length > 0 ? methods.map((m) => PAY_LABEL[m] ?? m).join(" + ") : "";
+        // One line per method with its amount, so a split payment shows how much was cash and how much transfer.
+        const byMethod = new Map<string, number>();
+        for (const p of row.original.payments) byMethod.set(p.method, (byMethod.get(p.method) ?? 0) + p.amount);
+        if (byMethod.size === 0) return "";
+        if (byMethod.size === 1) return PAY_LABEL[[...byMethod.keys()][0] as PayMethod];
+        return (
+          <div className="leading-tight">
+            {[...byMethod.entries()].map(([m, amount]) => (
+              <p key={m}>
+                {PAY_LABEL[m as PayMethod] ?? m} <span className="tabular-nums">{amount.toLocaleString("en-US")}</span>
+              </p>
+            ))}
+          </div>
+        );
       },
     },
     {
