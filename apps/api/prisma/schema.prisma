@@ -359,6 +359,7 @@ model Task {
   assignerId  String
   assigneeId  String
   branchId    String?
+  dueAt       DateTime?
   completedAt DateTime?
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt

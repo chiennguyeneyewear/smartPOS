@@ -8,6 +8,11 @@ export const taskSchema = z
     assignerId: z.string().min(1, "Chọn người giao việc"),
     assigneeId: z.string().min(1, "Chọn người nhận việc"),
     branchId: z.string().min(1, "Chọn chi nhánh"),
+    dueAt: z
+      .string()
+      .nullable()
+      .optional()
+      .refine((v) => !v || !Number.isNaN(Date.parse(v)), "Thời hạn hoàn thành không hợp lệ"),
   });
 export type TaskInput = z.infer<typeof taskSchema>;
 

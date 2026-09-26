@@ -23,6 +23,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { PERIOD_PRESET_OPTIONS, getPeriodRange, type PeriodPreset } from "@/lib/period-presets";
 import { cn, formatDateTime } from "@/lib/utils";
 import { useBranches } from "@/features/branches/hooks";
+import { Countdown } from "./countdown";
 import {
   useCreateEmployee,
   useCreateTask,
@@ -42,6 +43,14 @@ const STATUS_TRIGGER_CLASS: Record<TaskStatus, string> = {
   PENDING: "border-amber-300 bg-amber-50 text-amber-700",
   DONE: "border-success/40 bg-success/10 text-success",
 };
+
+// <input type="datetime-local"> works in local time without a zone; convert to/from the ISO instant we store.
+function toLocalInput(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
 
 function sortedBranches<T extends { name: string }>(branches: T[] | undefined): T[] {
   return [...(branches ?? [])].sort((a, b) => a.name.localeCompare(b.name, "vi", { numeric: true }));
@@ -239,6 +248,7 @@ function TaskFormDialog({
   const [assignerId, setAssignerId] = useState("");
   const [assigneeId, setAssigneeId] = useState("");
   const [branchId, setBranchId] = useState("");
+  const [dueAt, setDueAt] = useState("");
   const [status, setStatus] = useState<TaskStatus>(TASK_STATUS.PENDING);
   const [error, setError] = useState<string | null>(null);
 
@@ -249,6 +259,7 @@ function TaskFormDialog({
     setAssignerId(task?.assignerId ?? "");
     setAssigneeId(task?.assigneeId ?? "");
     setBranchId(task?.branchId ?? "");
+    setDueAt(toLocalInput(task?.dueAt));
     setStatus(task?.status ?? TASK_STATUS.PENDING);
     setError(null);
   }, [open, task]);
@@ -272,7 +283,14 @@ function TaskFormDialog({
   const pending = createTask.isPending || updateTask.isPending;
 
   function submit() {
-    const parsed = taskSchema.safeParse({ title, description, assignerId, assigneeId, branchId });
+    const parsed = taskSchema.safeParse({
+      title,
+      description,
+      assignerId,
+      assigneeId,
+      branchId,
+      dueAt: dueAt ? new Date(dueAt).toISOString() : null,
+    });
     if (!parsed.success) {
       setError(parsed.error.issues[0]?.message ?? "Dữ liệu không hợp lệ");
       return;
@@ -308,6 +326,7 @@ function TaskFormDialog({
             <Label>Tên công việc</Label>
             <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="VD: Kiểm kho gọng kính" />
           </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label>Chi nhánh</Label>
             <Select value={branchId} onValueChange={setBranchId}>
@@ -322,6 +341,11 @@ function TaskFormDialog({
                 ))}
               </SelectContent>
             </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Thời hạn hoàn thành</Label>
+            <Input type="datetime-local" value={dueAt} onChange={(e) => setDueAt(e.target.value)} />
+          </div>
           </div>
           <div className="space-y-1.5">
             <Label>Nội dung chi tiết</Label>
@@ -422,6 +446,19 @@ export function TasksPage() {
     },
     { id: "assigner", header: "Người giao", cell: ({ row }) => row.original.assignerName },
     { id: "assignee", header: "Người nhận", cell: ({ row }) => row.original.assigneeName },
+    {
+      id: "dueAt",
+      header: "Thời hạn",
+      cell: ({ row }) => {
+        const t = row.original;
+        return (
+          <div className="leading-tight">
+            {t.dueAt && <div className="text-xs text-muted-foreground">{formatDateTime(t.dueAt)}</div>}
+            <Countdown dueAt={t.dueAt} done={t.status === TASK_STATUS.DONE} completedAt={t.completedAt} />
+          </div>
+        );
+      },
+    },
     {
       id: "status",
       header: "Trạng thái",
@@ -579,6 +616,7 @@ export function TasksPage() {
               </div>
               <div className="flex flex-wrap gap-x-8 gap-y-1 text-muted-foreground">
                 <span>Giao lúc: {formatDateTime(row.createdAt)}</span>
+                {row.dueAt && <span>Hạn hoàn thành: {formatDateTime(row.dueAt)}</span>}
                 {row.completedAt && <span>Hoàn thành lúc: {formatDateTime(row.completedAt)}</span>}
               </div>
             </CardContent>

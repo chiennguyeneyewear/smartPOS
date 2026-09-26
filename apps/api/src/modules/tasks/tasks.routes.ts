@@ -24,6 +24,7 @@ function toDto(task: TaskWithStaff) {
     assigneeName: task.assignee.name,
     branchId: task.branchId,
     branchName: task.branch?.name ?? null,
+    dueAt: task.dueAt ? task.dueAt.toISOString() : null,
     createdAt: task.createdAt.toISOString(),
     completedAt: task.completedAt ? task.completedAt.toISOString() : null,
   };
@@ -125,13 +126,17 @@ export function registerTaskRoutes(app: FastifyInstance) {
     if (!(await branchExists(input.branchId))) {
       return reply.code(400).send({ message: MISSING_BRANCH_MESSAGE });
     }
-    const task = await prisma.task.create({ data: input, include: taskInclude });
+    const { dueAt, ...rest } = input;
+    const task = await prisma.task.create({
+      data: { ...rest, dueAt: dueAt ? new Date(dueAt) : null },
+      include: taskInclude,
+    });
     return reply.code(201).send(toDto(task));
   });
 
   app.patch("/tasks/:id", { preHandler: authenticate }, async (request, reply) => {
     const { id } = request.params as { id: string };
-    const { status, ...fields } = updateTaskSchema.parse(request.body);
+    const { status, dueAt, ...fields } = updateTaskSchema.parse(request.body);
 
     const existing = await prisma.task.findUnique({ where: { id } });
     if (!existing) return reply.code(404).send({ message: "Không tìm thấy công việc" });
@@ -154,6 +159,7 @@ export function registerTaskRoutes(app: FastifyInstance) {
       where: { id },
       data: {
         ...fields,
+        ...(dueAt !== undefined ? { dueAt: dueAt ? new Date(dueAt) : null } : {}),
         ...(status !== undefined && status !== existing.status
           ? { status, completedAt: status === TASK_STATUS.DONE ? new Date() : null }
           : {}),
