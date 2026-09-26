@@ -4,11 +4,19 @@ import { authenticate } from "../../middleware/authenticate.js";
 import { requirePermission } from "../../middleware/require-permission.js";
 import { prisma } from "../../lib/prisma.js";
 import { generateCustomerCode } from "../../lib/codes.js";
+import { isAdminRole, isMasked, maskPhone } from "../../lib/mask-phone.js";
 import { importCustomers } from "./customers.service.js";
 
-function toDto(customer: { debtBalance: unknown; birthday: Date | null; [key: string]: unknown }) {
+function toDto(customer: { debtBalance: unknown; birthday: Date | null; [key: string]: unknown }, role?: string) {
+  const hidePhones = !isAdminRole(role);
   return {
     ...customer,
+    ...(hidePhones
+      ? {
+          phone: maskPhone(customer.phone as string | null),
+          phone2: maskPhone(customer.phone2 as string | null),
+        }
+      : {}),
     debtBalance: Number(customer.debtBalance),
     birthday: customer.birthday ? customer.birthday.toISOString() : null,
   };
@@ -52,7 +60,7 @@ export function registerCustomerRoutes(app: FastifyInstance) {
       prisma.customer.count({ where }),
     ]);
 
-    return { data: customers.map(toDto), meta: { total, page, pageSize } };
+    return { data: customers.map((c) => toDto(c, request.authUser!.role)), meta: { total, page, pageSize } };
   });
 
   // Used both by the back-office "Thêm khách hàng" page and the POS "+" quick-add dialog
@@ -62,7 +70,7 @@ export function registerCustomerRoutes(app: FastifyInstance) {
     const customer = await prisma.customer.create({
       data: { ...toPrismaData(input), code, createdById: request.authUser!.id },
     });
-    return reply.code(201).send(toDto(customer));
+    return reply.code(201).send(toDto(customer, request.authUser!.role));
   });
 
   app.post(
@@ -83,14 +91,17 @@ export function registerCustomerRoutes(app: FastifyInstance) {
       ? await prisma.user.findUnique({ where: { id: customer.createdById }, select: { username: true } })
       : null;
 
-    return { ...toDto(customer), createdByName: createdBy?.username ?? null };
+    return { ...toDto(customer, request.authUser!.role), createdByName: createdBy?.username ?? null };
   });
 
   app.patch("/customers/:id", { preHandler: authenticate }, async (request) => {
     const { id } = request.params as { id: string };
     const input = customerSchema.partial().parse(request.body);
+    // The edit form of a non-admin holds masked numbers; sending those back must not change the real ones.
+    if (isMasked(input.phone)) delete input.phone;
+    if (isMasked(input.phone2)) delete input.phone2;
     const customer = await prisma.customer.update({ where: { id }, data: toPrismaData(input) });
-    return toDto(customer);
+    return toDto(customer, request.authUser!.role);
   });
 
   app.get("/customers/:id/debt-history", { preHandler: authenticate }, async (request) => {

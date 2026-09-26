@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { PERMISSIONS, ROLES, saveInvoiceSchema, checkoutInvoiceSchema } from "@smartpos/shared";
 import { authenticate } from "../../middleware/authenticate.js";
 import { requirePermission } from "../../middleware/require-permission.js";
+import { maskPhone } from "../../lib/mask-phone.js";
 import { requireAdmin } from "../../middleware/require-admin.js";
 import * as salesService from "./sales.service.js";
 
@@ -75,6 +76,12 @@ export function registerSalesRoutes(app: FastifyInstance) {
     const data = await salesService.listInvoices(
       isAdmin ? query : { ...query, branchId: undefined, createdById: request.authUser!.id },
     );
+    // Non-admin accounts only see the last 6 digits of a customer's phone.
+    if (!isAdmin) {
+      for (const invoice of data) {
+        if (invoice.customer) invoice.customer = { ...invoice.customer, phone: maskPhone(invoice.customer.phone) ?? null };
+      }
+    }
     return { data };
   });
 }

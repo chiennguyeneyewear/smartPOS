@@ -3,6 +3,7 @@ import { Ban, FileDown, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn, formatDateTime } from "@/lib/utils";
 import type { InvoiceListItem } from "@/features/sales/api";
+import { useAuthStore } from "@/stores/auth-store";
 
 const fmt = (n: number) => n.toLocaleString("en-US");
 
@@ -76,6 +77,8 @@ export function InvoiceDetailPanel({
   // Only the admin gets to cancel an invoice; without it the Hủy button is not shown.
   onVoid?: () => void;
 }) {
+  // Exporting and re-printing an invoice are admin-only.
+  const isAdmin = useAuthStore((s) => s.user?.role === "admin");
   const [tab, setTab] = useState<Tab>("info");
   const isCompleted = invoice.status === "COMPLETED";
   const customer = invoice.customer;
@@ -219,11 +222,13 @@ export function InvoiceDetailPanel({
               <Ban className="h-4 w-4" /> Hủy
             </Button>
           )}
-          <Button variant="ghost" size="sm" className="gap-1.5" onClick={() => exportInvoice(invoice)}>
-            <FileDown className="h-4 w-4" /> Xuất file
-          </Button>
+          {isAdmin && (
+            <Button variant="ghost" size="sm" className="gap-1.5" onClick={() => exportInvoice(invoice)}>
+              <FileDown className="h-4 w-4" /> Xuất file
+            </Button>
+          )}
         </div>
-        {isCompleted && (
+        {isCompleted && isAdmin && (
           <Button variant="outline" size="sm" className="gap-1.5" onClick={onPrint}>
             <Printer className="h-4 w-4" /> In
           </Button>
