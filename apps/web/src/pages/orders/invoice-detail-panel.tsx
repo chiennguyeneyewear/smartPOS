@@ -73,7 +73,8 @@ export function InvoiceDetailPanel({
   invoice: InvoiceListItem;
   branchName?: string;
   onPrint: () => void;
-  onVoid: () => void;
+  // Only the admin gets to cancel an invoice; without it the Hủy button is not shown.
+  onVoid?: () => void;
 }) {
   const [tab, setTab] = useState<Tab>("info");
   const isCompleted = invoice.status === "COMPLETED";
@@ -213,7 +214,7 @@ export function InvoiceDetailPanel({
 
       <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-3">
         <div className="flex items-center gap-1">
-          {isCompleted && (
+          {isCompleted && onVoid && (
             <Button variant="ghost" size="sm" className="gap-1.5" onClick={onVoid}>
               <Ban className="h-4 w-4" /> Hủy
             </Button>

@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { PERMISSIONS, ROLES, saveInvoiceSchema, checkoutInvoiceSchema } from "@smartpos/shared";
 import { authenticate } from "../../middleware/authenticate.js";
 import { requirePermission } from "../../middleware/require-permission.js";
+import { requireAdmin } from "../../middleware/require-admin.js";
 import * as salesService from "./sales.service.js";
 
 export function registerSalesRoutes(app: FastifyInstance) {
@@ -37,7 +38,7 @@ export function registerSalesRoutes(app: FastifyInstance) {
 
   app.post(
     "/sales/invoices/:id/void",
-    { preHandler: [authenticate, requirePermission(PERMISSIONS.SALES_VOID)] },
+    { preHandler: [authenticate, requireAdmin] },
     async (request) => {
       const { id } = request.params as { id: string };
       return salesService.voidInvoice(id, request.authUser!.id);
@@ -46,7 +47,7 @@ export function registerSalesRoutes(app: FastifyInstance) {
 
   app.post(
     "/sales/invoices/void-bulk",
-    { preHandler: [authenticate, requirePermission(PERMISSIONS.SALES_VOID)] },
+    { preHandler: [authenticate, requireAdmin] },
     async (request, reply) => {
       const { ids } = request.body as { ids: string[] };
       if (!Array.isArray(ids) || ids.length === 0) {

@@ -414,7 +414,7 @@ export function OrdersPage() {
               ))}
             </span>
             <div className="flex items-center gap-3">
-              {selectedIds.size > 0 && (
+              {isAdmin && selectedIds.size > 0 && (
                 <Button variant="destructive" size="sm" onClick={() => setConfirmingVoid(true)}>
                   <Ban className="mr-1.5 h-4 w-4" />
                   Hủy đơn ({selectedIds.size})
@@ -427,7 +427,7 @@ export function OrdersPage() {
             </div>
           </div>
           <DataTable
-            columns={columns}
+            columns={isAdmin ? columns : columns.filter((c) => c.id !== "select")}
             compact
             data={filteredInvoices}
             isLoading={isLoading}
@@ -439,10 +439,14 @@ export function OrdersPage() {
                 invoice={row}
                 branchName={branches?.find((b) => b.id === row.branchId)?.name}
                 onPrint={() => setPrintInvoice(row)}
-                onVoid={() => {
-                  setSelectedIds(new Set([row.id]));
-                  setConfirmingVoid(true);
-                }}
+                onVoid={
+                  isAdmin
+                    ? () => {
+                        setSelectedIds(new Set([row.id]));
+                        setConfirmingVoid(true);
+                      }
+                    : undefined
+                }
               />
             )}
           />
