@@ -119,7 +119,7 @@ function PeriodSelect({
   return (
     <>
     <Dialog open={pickerOpen} onOpenChange={setPickerOpen}>
-      <DialogContent className="max-w-sm">
+      <DialogContent className="max-w-sm overflow-visible">
         <DialogHeader>
           <DialogTitle>Chọn khoảng thời gian</DialogTitle>
         </DialogHeader>
