@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DatePicker } from "@/components/shared/date-picker";
 import { PrintReceiptDialog } from "@/components/shared/print-receipt-dialog";
 import { InvoiceDetailPanel, goodsTotal } from "./invoice-detail-panel";
+import { ConfirmPaymentDialog } from "./confirm-payment-dialog";
 import { useSearchDropdown } from "@/hooks/use-search-dropdown";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
 import { PERIOD_PRESET_OPTIONS, formatPeriodLabel, getPeriodRange, type PeriodPreset } from "@/lib/period-presets";
@@ -23,12 +24,14 @@ import { useUsers } from "@/features/users/hooks";
 import { useAuthStore } from "@/stores/auth-store";
 import { useBranches } from "@/features/branches/hooks";
 
-type PayMethod = "CASH" | "BANK_TRANSFER" | "CARD" | "DEBT";
+// PENDING is not a real method: it stands for one-tap invoices whose payment is still to be confirmed.
+type PayMethod = "CASH" | "BANK_TRANSFER" | "CARD" | "DEBT" | "PENDING";
 const PAY_METHODS: { value: PayMethod; label: string }[] = [
   { value: "CASH", label: "Tiền mặt" },
   { value: "BANK_TRANSFER", label: "Chuyển khoản" },
   { value: "CARD", label: "Quẹt thẻ" },
   { value: "DEBT", label: "Ghi nợ" },
+  { value: "PENDING", label: "Chờ xác nhận" },
 ];
 const PAY_LABEL = Object.fromEntries(PAY_METHODS.map((m) => [m.value, m.label])) as Record<PayMethod, string>;
 
@@ -84,7 +87,12 @@ export function OrdersPage() {
         return false;
       }
       // Payment-method filter only bites when at least one method is unticked.
-      if (payMethods.size < PAY_METHODS.length && !inv.payments.some((p) => payMethods.has(p.method))) return false;
+      if (payMethods.size < PAY_METHODS.length) {
+        const matches =
+          inv.payments.some((p) => payMethods.has(p.method)) ||
+          (inv.paymentStatus === "PENDING" && payMethods.has("PENDING"));
+        if (!matches) return false;
+      }
       if (codeQ && !inv.code.toLowerCase().includes(codeQ)) return false;
       if (
         productQ &&
@@ -115,6 +123,9 @@ export function OrdersPage() {
     for (const inv of filteredInvoices) {
       if (inv.status !== "COMPLETED") continue;
       for (const p of inv.payments) sums.set(p.method, (sums.get(p.method) ?? 0) + p.amount);
+      if (inv.paymentStatus === "PENDING") {
+        sums.set("PENDING", (sums.get("PENDING") ?? 0) + inv.totalAmount - inv.depositAmount);
+      }
     }
     return PAY_METHODS.filter((m) => sums.has(m.value)).map((m) => ({ ...m, amount: sums.get(m.value) ?? 0 }));
   }, [filteredInvoices]);
@@ -187,6 +198,13 @@ export function OrdersPage() {
   }
 
   const voidInvoices = useVoidInvoices();
+  const userId = useAuthStore((s) => s.user?.id);
+  const [confirmInvoice, setConfirmInvoice] = useState<InvoiceListItem | null>(null);
+  const vnDay = (iso: string) => new Date(new Date(iso).getTime() + 7 * 3600_000).toISOString().slice(0, 10);
+  // Admin: any invoice, any time. Staff: only their own, on the day it was issued.
+  const canConfirmPayment = (inv: InvoiceListItem) =>
+    inv.status === "COMPLETED" &&
+    (isAdmin || (inv.createdById === userId && vnDay(inv.completedAt ?? inv.createdAt) === vnDay(new Date().toISOString())));
 
   function confirmVoid() {
     voidInvoices.mutate([...selectedIds], {
@@ -252,6 +270,11 @@ export function OrdersPage() {
       id: "paymentMethod",
       header: "Phương thức thanh toán",
       cell: ({ row }) => {
+        if (row.original.paymentStatus === "PENDING") {
+          return (
+            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">Chờ xác nhận</span>
+          );
+        }
         const methods = [...new Set(row.original.payments.map((p) => p.method))];
         return methods.length > 0 ? methods.map((m) => PAY_LABEL[m] ?? m).join(" + ") : "";
       },
@@ -439,6 +462,7 @@ export function OrdersPage() {
                 invoice={row}
                 branchName={branches?.find((b) => b.id === row.branchId)?.name}
                 onPrint={() => setPrintInvoice(row)}
+                onConfirmPayment={canConfirmPayment(row) ? () => setConfirmInvoice(row) : undefined}
                 onVoid={
                   isAdmin
                     ? () => {
@@ -473,6 +497,8 @@ export function OrdersPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmPaymentDialog invoice={confirmInvoice} isAdmin={isAdmin} onClose={() => setConfirmInvoice(null)} />
 
       <PrintReceiptDialog
         open={!!printInvoice}

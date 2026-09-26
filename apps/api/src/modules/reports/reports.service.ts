@@ -275,10 +275,10 @@ export async function getEndOfDay(date: string, branchId?: string) {
   const end = new Date(`${date}T23:59:59.999+07:00`);
   const branchFilter = branchId ? { branchId } : {};
 
-  const [completed, cancelledCount, payments] = await Promise.all([
+  const [completed, cancelledCount, payments, depositsTaken, depositsRefunded] = await Promise.all([
     prisma.invoice.findMany({
       where: { ...branchFilter, status: "COMPLETED", completedAt: { gte: start, lte: end } },
-      select: { totalAmount: true },
+      select: { totalAmount: true, depositAmount: true, paymentStatus: true },
     }),
     prisma.invoice.count({
       where: { ...branchFilter, status: "CANCELLED", updatedAt: { gte: start, lte: end } },
@@ -286,6 +286,15 @@ export async function getEndOfDay(date: string, branchId?: string) {
     prisma.payment.findMany({
       where: { invoice: { ...branchFilter, status: "COMPLETED", completedAt: { gte: start, lte: end } } },
       select: { method: true, amount: true },
+    }),
+    // Deposits are cash-in on the day they were taken, not revenue (that comes when the order is delivered).
+    prisma.preorder.findMany({
+      where: { ...branchFilter, createdAt: { gte: start, lte: end } },
+      select: { depositAmount: true, depositMethod: true },
+    }),
+    prisma.preorder.findMany({
+      where: { ...branchFilter, status: "CANCELLED", cancelledAt: { gte: start, lte: end } },
+      select: { refundAmount: true },
     }),
   ]);
 
@@ -298,6 +307,17 @@ export async function getEndOfDay(date: string, branchId?: string) {
     invoiceCount: completed.length,
     cancelledCount,
     paymentBreakdown: Array.from(byMethod.entries()).map(([method, amount]) => ({ method, amount })),
+    // Money of one-tap invoices whose payment method has not been confirmed yet.
+    pendingConfirmation: completed
+      .filter((inv) => inv.paymentStatus === "PENDING")
+      .reduce((sum, inv) => sum + Number(inv.totalAmount) - Number(inv.depositAmount), 0),
+    depositBreakdown: Array.from(
+      depositsTaken.reduce((map, d) => {
+        const key = d.depositMethod ?? "PENDING";
+        return map.set(key, (map.get(key) ?? 0) + Number(d.depositAmount));
+      }, new Map<string, number>()),
+    ).map(([method, amount]) => ({ method, amount })),
+    depositRefunded: depositsRefunded.reduce((sum, d) => sum + Number(d.refundAmount), 0),
   };
 }
 

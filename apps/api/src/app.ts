@@ -5,6 +5,7 @@ import jwt from "@fastify/jwt";
 import rateLimit from "@fastify/rate-limit";
 import Fastify from "fastify";
 import { config } from "./lib/config.js";
+import { registerPreorderRoutes } from "./modules/preorders/preorders.routes.js";
 import { bumpChangeEpoch } from "./lib/session-state.js";
 import { errorHandler } from "./middleware/error-handler.js";
 import { registerAuthRoutes } from "./modules/auth/auth.routes.js";
@@ -73,6 +74,7 @@ export function buildApp() {
       registerCustomerRoutes(api);
       registerSupplierRoutes(api);
       registerSalesRoutes(api);
+      registerPreorderRoutes(api);
       registerReportRoutes(api);
       registerEmployeeRoutes(api);
       registerTaskBranchRoutes(api);

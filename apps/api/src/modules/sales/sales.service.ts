@@ -1,5 +1,11 @@
-import { InvoiceStatus, PaymentMethod } from "@prisma/client";
-import { clampFlatLineDiscount, type CheckoutInvoiceInput, type SaveInvoiceInput } from "@smartpos/shared";
+import { InvoiceStatus, PaymentMethod, PaymentStatus, PreorderStatus } from "@prisma/client";
+import {
+  ROLES,
+  clampFlatLineDiscount,
+  type CheckoutInvoiceInput,
+  type ConfirmPaymentInput,
+  type SaveInvoiceInput,
+} from "@smartpos/shared";
 import { prisma } from "../../lib/prisma.js";
 import { generateInvoiceCode } from "../../lib/codes.js";
 
@@ -96,7 +102,17 @@ export async function updateDraftInvoice(id: string, input: SaveInvoiceInput) {
 
 // The most correctness-critical operation in the system: finalizing a sale must
 // atomically record the invoice + payments, deduct stock, and update customer debt.
-export async function checkoutInvoice(id: string, input: CheckoutInvoiceInput, createdById: string) {
+interface CheckoutOptions {
+  // Set when the invoice delivers a pre-order: the deposit already taken, and the pre-order to close.
+  preorder?: { id: string; depositAmount: number };
+}
+
+export async function checkoutInvoice(
+  id: string,
+  input: CheckoutInvoiceInput,
+  createdById: string,
+  options: CheckoutOptions = {},
+) {
   return prisma.$transaction(async (tx) => {
     const invoice = await tx.invoice.findUnique({
       where: { id },
@@ -124,9 +140,11 @@ export async function checkoutInvoice(id: string, input: CheckoutInvoiceInput, c
       }
     }
 
-    const paidAmount = input.payments.reduce((sum, p) => sum + p.amount, 0);
     const totalAmount = Number(invoice.totalAmount);
-    if (paidAmount < totalAmount) {
+    // No payment lines = one-tap invoice: how it was paid is confirmed afterwards.
+    const pendingPayment = input.payments.length === 0;
+    const paidAmount = pendingPayment ? totalAmount : input.payments.reduce((sum, p) => sum + p.amount, 0);
+    if (!pendingPayment && paidAmount < totalAmount) {
       const debtPortion = input.payments
         .filter((p) => p.method === PaymentMethod.DEBT)
         .reduce((sum, p) => sum + p.amount, 0);
@@ -135,9 +153,11 @@ export async function checkoutInvoice(id: string, input: CheckoutInvoiceInput, c
       }
     }
 
-    await tx.payment.createMany({
-      data: input.payments.map((p) => ({ invoiceId: id, method: p.method, amount: p.amount })),
-    });
+    if (!pendingPayment) {
+      await tx.payment.createMany({
+        data: input.payments.map((p) => ({ invoiceId: id, method: p.method, amount: p.amount })),
+      });
+    }
 
     await tx.stockMovement.create({
       data: {
@@ -181,15 +201,129 @@ export async function checkoutInvoice(id: string, input: CheckoutInvoiceInput, c
       });
     }
 
+    const preorder = options.preorder;
+    if (preorder) {
+      // Only one delivery per pre-order, even if two requests race.
+      const closed = await tx.preorder.updateMany({
+        where: { id: preorder.id, status: PreorderStatus.DEPOSITED },
+        data: { status: PreorderStatus.DELIVERED, deliveredAt: new Date() },
+      });
+      if (closed.count !== 1) throw new SalesError("Đơn đặt hàng đã được giao hoặc đã hủy");
+    }
+    // The deposit already covers part of a delivered pre-order; if nothing else is owed there is nothing to confirm.
+    const owedNow = totalAmount - (preorder?.depositAmount ?? 0);
+    const needsConfirmation = pendingPayment && owedNow > 0.5;
+
     return tx.invoice.update({
       where: { id },
       data: {
         status: InvoiceStatus.COMPLETED,
         paidAmount,
         completedAt: new Date(),
+        paymentStatus: needsConfirmation ? PaymentStatus.PENDING : PaymentStatus.CONFIRMED,
+        ...(needsConfirmation ? {} : { paymentConfirmedAt: new Date(), paymentConfirmedById: createdById }),
+        ...(preorder ? { preorderId: preorder.id, depositAmount: preorder.depositAmount } : {}),
       },
       include: { items: true, payments: true },
     });
+  });
+}
+
+const VN_OFFSET_MS = 7 * 60 * 60 * 1000;
+const vnDay = (d: Date) => new Date(d.getTime() + VN_OFFSET_MS).toISOString().slice(0, 10);
+
+interface Actor {
+  id: string;
+  username: string;
+  role: string;
+}
+
+// Confirms (or later corrects) how an invoice was paid. The lines only redistribute the amount still
+// owed across methods, so the invoice total never changes. Staff can do it for their own invoice on the
+// day it was issued; after that only the admin can. Every change is written to the payment log.
+export async function confirmInvoicePayment(id: string, input: ConfirmPaymentInput, actor: Actor) {
+  const isAdmin = actor.role === ROLES.ADMIN;
+  return prisma.$transaction(async (tx) => {
+    const invoice = await tx.invoice.findUnique({ where: { id }, include: { payments: true } });
+    if (!invoice) throw new SalesError("Không tìm thấy hóa đơn", 404);
+    if (invoice.status !== InvoiceStatus.COMPLETED) throw new SalesError("Chỉ xác nhận thanh toán cho hóa đơn đã hoàn tất");
+
+    const issuedAt = invoice.completedAt ?? invoice.createdAt;
+    if (!isAdmin) {
+      if (invoice.createdById !== actor.id) {
+        throw new SalesError("Bạn chỉ được xác nhận thanh toán hóa đơn của chính mình", 403);
+      }
+      if (vnDay(issuedAt) !== vnDay(new Date())) {
+        throw new SalesError("Đã qua ngày lập hóa đơn, chỉ admin mới được sửa thanh toán", 403);
+      }
+    }
+
+    const debtLines = input.payments.filter((p) => p.method === PaymentMethod.DEBT);
+    if (debtLines.length > 0) {
+      if (!isAdmin) throw new SalesError("Chỉ admin được chọn ghi nợ", 403);
+      if (!invoice.customerId) throw new SalesError("Ghi nợ cần có khách hàng");
+    }
+
+    const expected = Number(invoice.totalAmount) - Number(invoice.depositAmount);
+    const sum = input.payments.reduce((s, p) => s + p.amount, 0);
+    if (Math.abs(sum - expected) > 0.5) {
+      throw new SalesError(
+        sum < expected
+          ? `Còn thiếu ${Math.round(expected - sum).toLocaleString("en-US")} đ so với số tiền cần thanh toán`
+          : `Vượt ${Math.round(sum - expected).toLocaleString("en-US")} đ so với số tiền cần thanh toán`,
+      );
+    }
+
+    // Undo the previous debt (if any), then apply the debt of the new lines.
+    const oldDebt = invoice.payments
+      .filter((p) => p.method === PaymentMethod.DEBT)
+      .reduce((s, p) => s + Number(p.amount), 0);
+    const newDebt = debtLines.reduce((s, p) => s + p.amount, 0);
+    if (invoice.customerId && oldDebt !== newDebt) {
+      const delta = newDebt - oldDebt;
+      await tx.debtLedgerEntry.create({
+        data: {
+          customerId: invoice.customerId,
+          amount: delta,
+          invoiceId: invoice.id,
+          note: `Điều chỉnh thanh toán hóa đơn ${invoice.code}`,
+        },
+      });
+      await tx.customer.update({ where: { id: invoice.customerId }, data: { debtBalance: { increment: delta } } });
+    }
+
+    const before = {
+      paymentStatus: invoice.paymentStatus,
+      payments: invoice.payments.map((p) => ({ method: p.method, amount: Number(p.amount), reference: p.reference })),
+    };
+    await tx.payment.deleteMany({ where: { invoiceId: id } });
+    await tx.payment.createMany({
+      data: input.payments.map((p) => ({
+        invoiceId: id,
+        method: p.method,
+        amount: p.amount,
+        reference: p.reference || null,
+      })),
+    });
+    const updated = await tx.invoice.update({
+      where: { id },
+      data: { paymentStatus: PaymentStatus.CONFIRMED, paymentConfirmedAt: new Date(), paymentConfirmedById: actor.id },
+      include: { items: true, payments: true },
+    });
+    await tx.invoicePaymentLog.create({
+      data: {
+        invoiceId: id,
+        userId: actor.id,
+        username: actor.username,
+        action: invoice.paymentStatus === PaymentStatus.PENDING ? "CONFIRM" : "EDIT",
+        before,
+        after: {
+          paymentStatus: PaymentStatus.CONFIRMED,
+          payments: input.payments.map((p) => ({ method: p.method, amount: p.amount, reference: p.reference ?? null })),
+        },
+      },
+    });
+    return updated;
   });
 }
 
@@ -229,7 +363,17 @@ export async function voidInvoice(id: string, _voidedById: string) {
       });
     }
 
-    return tx.invoice.update({ where: { id }, data: { status: InvoiceStatus.CANCELLED } });
+    // Cancelling the invoice of a delivered pre-order puts the pre-order back to "Đã đặt cọc".
+    if (invoice.preorderId) {
+      await tx.preorder.update({
+        where: { id: invoice.preorderId },
+        data: { status: PreorderStatus.DEPOSITED, deliveredAt: null },
+      });
+    }
+    return tx.invoice.update({
+      where: { id },
+      data: { status: InvoiceStatus.CANCELLED, ...(invoice.preorderId ? { preorderId: null } : {}) },
+    });
   });
 }
 
@@ -275,6 +419,8 @@ export async function listInvoices(filters: {
       items: { include: { product: true } },
       payments: true,
       customer: { select: { code: true, name: true, phone: true, note: true } },
+      preorder: { select: { code: true, depositMethod: true } },
+      paymentLogs: { orderBy: { createdAt: "asc" } },
     },
     orderBy: { createdAt: "desc" },
     take: 200,
@@ -290,6 +436,7 @@ export async function listInvoices(filters: {
     discountAmount: Number(inv.discountAmount),
     totalAmount: Number(inv.totalAmount),
     paidAmount: Number(inv.paidAmount),
+    depositAmount: Number(inv.depositAmount),
     createdByName: userNameById.get(inv.createdById) ?? "N/A",
     items: inv.items.map((item) => ({
       ...item,

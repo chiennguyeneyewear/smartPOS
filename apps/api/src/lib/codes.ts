@@ -26,6 +26,15 @@ export async function generateSupplierCode() {
   return nextSequentialCode("NCC", last?.code ?? null);
 }
 
+export async function generatePreorderCode() {
+  const last = await prisma.preorder.findFirst({
+    where: { code: { startsWith: "DH" } },
+    orderBy: { code: "desc" },
+    select: { code: true },
+  });
+  return nextSequentialCode("DH", last?.code ?? null);
+}
+
 export async function generateInvoiceCode() {
   const last = await prisma.invoice.findFirst({
     where: { code: { startsWith: "HD" } },

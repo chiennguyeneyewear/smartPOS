@@ -70,10 +70,13 @@ export function InvoiceDetailPanel({
   branchName,
   onPrint,
   onVoid,
+  onConfirmPayment,
 }: {
   invoice: InvoiceListItem;
   branchName?: string;
   onPrint: () => void;
+  // Shown only to whoever may confirm or correct how this invoice was paid.
+  onConfirmPayment?: () => void;
   // Only the admin gets to cancel an invoice; without it the Hủy button is not shown.
   onVoid?: () => void;
 }) {
@@ -180,11 +183,20 @@ export function InvoiceDetailPanel({
               <TotalLine label={`Tổng tiền hàng (${invoice.items.length})`} value={fmt(goodsTotal(invoice))} />
               <TotalLine label="Giảm giá hóa đơn" value={fmt(invoice.discountAmount)} />
               <TotalLine label="Khách cần trả" value={fmt(invoice.totalAmount)} />
+              {invoice.depositAmount > 0 && (
+                <TotalLine label={`Đã cọc trước (đơn ${invoice.preorder?.code ?? ""})`} value={fmt(invoice.depositAmount)} />
+              )}
               <TotalLine label="Khách đã trả" value={fmt(invoice.paidAmount)} bold />
+              {invoice.paymentStatus === "PENDING" && (
+                <p className="rounded-md bg-amber-50 px-2 py-1.5 text-xs text-amber-800">
+                  Chờ xác nhận thanh toán: chưa ghi nhận khách trả bằng tiền mặt hay chuyển khoản.
+                </p>
+              )}
             </div>
           </div>
         </>
       ) : (
+        <div className="space-y-3">
         <div className="overflow-x-auto rounded-md border">
           <table className="w-full min-w-[420px]">
             <thead className="bg-muted/50">
@@ -205,13 +217,35 @@ export function InvoiceDetailPanel({
                 invoice.payments.map((p, i) => (
                   <tr key={i} className="border-t">
                     <td className="p-2.5">{formatDateTime(p.createdAt ?? invoice.completedAt ?? invoice.createdAt)}</td>
-                    <td className="p-2.5">{PAYMENT_METHOD_LABELS[p.method] ?? p.method}</td>
+                    <td className="p-2.5">
+                      {PAYMENT_METHOD_LABELS[p.method] ?? p.method}
+                      {p.reference && <span className="ml-2 text-xs text-muted-foreground">({p.reference})</span>}
+                    </td>
                     <td className="p-2.5 text-right font-medium tabular-nums">{fmt(p.amount)}</td>
                   </tr>
                 ))
               )}
             </tbody>
           </table>
+        </div>
+        {invoice.paymentLogs.length > 0 && (
+          <div className="rounded-md border p-2.5">
+            <p className="mb-1.5 text-xs font-semibold text-muted-foreground">Nhật ký thay đổi thanh toán</p>
+            {invoice.paymentLogs.map((log) => {
+              const fmtLines = (l?: { method: string; amount: number }[]) =>
+                l && l.length > 0
+                  ? l.map((x) => `${PAYMENT_METHOD_LABELS[x.method] ?? x.method} ${fmt(x.amount)}`).join(" + ")
+                  : "Chờ xác nhận";
+              return (
+                <p key={log.id} className="py-0.5 text-xs">
+                  <span className="text-muted-foreground">{formatDateTime(log.createdAt)} · </span>
+                  <span className="font-medium">{log.username}</span>: {fmtLines(log.before.payments)} →{" "}
+                  {fmtLines(log.after.payments)}
+                </p>
+              );
+            })}
+          </div>
+        )}
         </div>
       )}
 
@@ -220,6 +254,11 @@ export function InvoiceDetailPanel({
           {isCompleted && onVoid && (
             <Button variant="ghost" size="sm" className="gap-1.5" onClick={onVoid}>
               <Ban className="h-4 w-4" /> Hủy
+            </Button>
+          )}
+          {isCompleted && onConfirmPayment && (
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={onConfirmPayment}>
+              {invoice.paymentStatus === "PENDING" ? "Xác nhận thanh toán" : "Sửa thanh toán"}
             </Button>
           )}
           {isAdmin && (

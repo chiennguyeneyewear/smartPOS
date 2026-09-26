@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { ArrowDownRight, ArrowUpRight, ReceiptText, RotateCcw } from "lucide-react";
+import { Link } from "react-router-dom";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,8 @@ import {
   useTopCustomersReport,
   useTopProductsReport,
 } from "@/features/reports/hooks";
+import { usePreorders } from "@/features/preorders/hooks";
+import { ALERT_AFTER_DAYS, WARN_AFTER_DAYS, daysOpen } from "@/pages/preorders/preorders-page";
 import { PERIOD_PRESET_OPTIONS, formatPeriodLabel, getPeriodRange, type PeriodPreset } from "@/lib/period-presets";
 
 const LABEL_CLASS = "text-xs font-medium uppercase tracking-wider text-muted-foreground";
@@ -206,6 +209,10 @@ export function DashboardPage() {
     limit: 10,
   });
 
+  const { data: heldPreorders } = usePreorders({ status: "DEPOSITED" }, { enabled: isAdmin });
+  const holdTotal = (heldPreorders ?? []).reduce((sum, o) => sum + o.depositAmount, 0);
+  const holdAlert = (heldPreorders ?? []).filter((o) => daysOpen(o) >= ALERT_AFTER_DAYS).length;
+  const holdWarn = (heldPreorders ?? []).filter((o) => daysOpen(o) >= WARN_AFTER_DAYS && daysOpen(o) < ALERT_AFTER_DAYS).length;
   const { data: profit } = useProfitReport({ branchId: reportBranchId, from: fromIso, to: toIso });
   const { data: branchComparison } = useBranchComparisonReport({ from: branchPeriod.fromIso, to: branchPeriod.toIso });
   const { data: sellerPerformance } = useSellerPerformanceReport({
@@ -302,6 +309,33 @@ export function DashboardPage() {
           </StatTile>
         </CardContent>
       </Card>
+
+      {isAdmin && (heldPreorders?.length ?? 0) > 0 && (
+        <Link to="/preorders" className="block">
+          <Card className="transition-colors hover:bg-accent/40">
+            <CardContent className="flex flex-wrap items-center justify-between gap-3 pt-4">
+              <div>
+                <p className={LABEL_CLASS}>Cọc đang giữ</p>
+                <p className="mt-1 text-lg font-semibold tabular-nums">
+                  {formatFull(holdTotal)} <span className="text-sm font-normal text-muted-foreground">₫ · {heldPreorders?.length} đơn chờ giao</span>
+                </p>
+              </div>
+              <div className="flex gap-2 text-sm">
+                {holdWarn > 0 && (
+                  <span className="rounded-full bg-amber-100 px-2.5 py-1 font-medium text-amber-800">
+                    {holdWarn} đơn quá {WARN_AFTER_DAYS} ngày
+                  </span>
+                )}
+                {holdAlert > 0 && (
+                  <span className="rounded-full bg-destructive/10 px-2.5 py-1 font-medium text-destructive">
+                    {holdAlert} đơn quá {ALERT_AFTER_DAYS} ngày
+                  </span>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+      )}
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">

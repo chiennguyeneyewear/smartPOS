@@ -1,4 +1,10 @@
-import type { CheckoutInvoiceInput, InvoiceSummary, PaymentMethod, SaveInvoiceInput } from "@smartpos/shared";
+import type {
+  CheckoutInvoiceInput,
+  ConfirmPaymentInput,
+  InvoiceSummary,
+  PaymentMethod,
+  SaveInvoiceInput,
+} from "@smartpos/shared";
 import { apiClient } from "@/lib/api-client";
 
 export async function createDraftInvoice(input: SaveInvoiceInput): Promise<InvoiceSummary> {
@@ -16,6 +22,11 @@ export async function checkoutInvoice(id: string, input: CheckoutInvoiceInput): 
   return data;
 }
 
+export async function confirmInvoicePayment(id: string, input: ConfirmPaymentInput): Promise<InvoiceSummary> {
+  const { data } = await apiClient.post<InvoiceSummary>(`/sales/invoices/${id}/confirm-payment`, input);
+  return data;
+}
+
 export async function voidInvoice(id: string): Promise<InvoiceSummary> {
   const { data } = await apiClient.post<InvoiceSummary>(`/sales/invoices/${id}/void`);
   return data;
@@ -30,7 +41,17 @@ export interface InvoiceListItem extends Omit<InvoiceSummary, "items"> {
     lineTotal: number;
     product: { name: string; sku: string };
   }[];
-  payments: { method: PaymentMethod; amount: number; createdAt?: string }[];
+  payments: { method: PaymentMethod; amount: number; reference?: string | null; createdAt?: string }[];
+  paymentLogs: {
+    id: string;
+    username: string;
+    action: string;
+    before: { paymentStatus?: string; payments?: { method: PaymentMethod; amount: number }[] };
+    after: { paymentStatus?: string; payments?: { method: PaymentMethod; amount: number }[] };
+    createdAt: string;
+  }[];
+  preorder: { code: string; depositMethod: PaymentMethod | null } | null;
+  createdById: string;
   createdByName: string;
   customer: { code: string; name: string; phone: string | null; note: string | null } | null;
 }

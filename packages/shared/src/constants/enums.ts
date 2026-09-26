@@ -37,6 +37,20 @@ export const PAYMENT_METHOD = {
 } as const;
 export type PaymentMethod = (typeof PAYMENT_METHOD)[keyof typeof PAYMENT_METHOD];
 
+// CONFIRMED = the payment method(s) are recorded; PENDING = invoice issued in one tap, method still to be confirmed.
+export const PAYMENT_STATUS = {
+  CONFIRMED: "CONFIRMED",
+  PENDING: "PENDING",
+} as const;
+export type PaymentStatus = (typeof PAYMENT_STATUS)[keyof typeof PAYMENT_STATUS];
+
+export const PREORDER_STATUS = {
+  DEPOSITED: "DEPOSITED",
+  DELIVERED: "DELIVERED",
+  CANCELLED: "CANCELLED",
+} as const;
+export type PreorderStatus = (typeof PREORDER_STATUS)[keyof typeof PREORDER_STATUS];
+
 export const TASK_STATUS = {
   PENDING: "PENDING",
   DONE: "DONE",

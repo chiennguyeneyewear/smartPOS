@@ -32,6 +32,7 @@ model Branch {
   users          UserBranch[]
   stockItems     StockItem[]
   invoices       Invoice[]
+  preorders      Preorder[]
   stockMovements StockMovement[] @relation("MovementBranch")
 
   @@map("branches")
@@ -130,6 +131,7 @@ model Product {
 
   stockItems         StockItem[]
   invoiceItems       InvoiceItem[]
+  preorderItems      PreorderItem[]
   stockMovementLines StockMovementLine[]
   images             ProductImage[]
 
@@ -236,6 +238,7 @@ model Customer {
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
   invoices    Invoice[]
+  preorders   Preorder[]
   debtEntries DebtLedgerEntry[]
 
   @@map("customers")
@@ -284,25 +287,34 @@ enum SaleMode {
 }
 
 model Invoice {
-  id             String        @id @default(cuid())
-  code           String        @unique
-  branchId       String
-  customerId     String?
-  saleMode       SaleMode      @default(NORMAL)
-  status         InvoiceStatus @default(DRAFT)
-  note           String?
-  subTotal       Decimal       @default(0) @db.Decimal(14, 2)
-  discountAmount Decimal       @default(0) @db.Decimal(14, 2)
-  totalAmount    Decimal       @default(0) @db.Decimal(14, 2)
-  paidAmount     Decimal       @default(0) @db.Decimal(14, 2)
-  createdById    String
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
-  completedAt    DateTime?
-  branch         Branch        @relation(fields: [branchId], references: [id])
-  customer       Customer?     @relation(fields: [customerId], references: [id])
-  items          InvoiceItem[]
-  payments       Payment[]
+  id                   String              @id @default(cuid())
+  code                 String              @unique
+  branchId             String
+  customerId           String?
+  saleMode             SaleMode            @default(NORMAL)
+  status               InvoiceStatus       @default(DRAFT)
+  note                 String?
+  subTotal             Decimal             @default(0) @db.Decimal(14, 2)
+  discountAmount       Decimal             @default(0) @db.Decimal(14, 2)
+  totalAmount          Decimal             @default(0) @db.Decimal(14, 2)
+  paidAmount           Decimal             @default(0) @db.Decimal(14, 2)
+  createdById          String
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+  completedAt          DateTime?
+  // PENDING = issued in one tap, the payment method is filled in afterwards ("Chờ xác nhận").
+  paymentStatus        PaymentStatus       @default(CONFIRMED)
+  paymentConfirmedAt   DateTime?
+  paymentConfirmedById String?
+  // Deposit already taken on the pre-order this invoice delivers (the money itself is on the pre-order).
+  depositAmount        Decimal             @default(0) @db.Decimal(14, 2)
+  preorderId           String?             @unique
+  branch               Branch              @relation(fields: [branchId], references: [id])
+  customer             Customer?           @relation(fields: [customerId], references: [id])
+  items                InvoiceItem[]
+  payments             Payment[]
+  paymentLogs          InvoicePaymentLog[]
+  preorder             Preorder?           @relation(fields: [preorderId], references: [id])
 
   @@map("invoices")
 }
@@ -333,6 +345,8 @@ model Payment {
   invoiceId String
   method    PaymentMethod
   amount    Decimal       @db.Decimal(14, 2)
+  // Bank transfer code / receipt note, so transfers can be checked against the statement.
+  reference String?
   createdAt DateTime      @default(now())
   invoice   Invoice       @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 
@@ -427,4 +441,75 @@ model AppState {
   changeEpoch   Int    @default(1)
 
   @@map("app_state")
+}
+
+enum PaymentStatus {
+  CONFIRMED
+  PENDING
+}
+
+// Every change to how an invoice was paid: who, when, and the before/after lines.
+model InvoicePaymentLog {
+  id        String   @id @default(cuid())
+  invoiceId String
+  userId    String
+  username  String
+  action    String
+  before    Json
+  after     Json
+  createdAt DateTime @default(now())
+  invoice   Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+  @@map("invoice_payment_logs")
+}
+
+enum PreorderStatus {
+  DEPOSITED
+  DELIVERED
+  CANCELLED
+}
+
+// A customer order taken with a deposit (custom lenses, etc.). Not revenue until it is delivered
+// and turned into an invoice.
+model Preorder {
+  id                   String         @id @default(cuid())
+  code                 String         @unique
+  branchId             String
+  customerId           String
+  status               PreorderStatus @default(DEPOSITED)
+  note                 String?
+  prescription         String?
+  subTotal             Decimal        @db.Decimal(14, 2)
+  depositAmount        Decimal        @db.Decimal(14, 2)
+  // null method = deposit not confirmed yet ("Chờ xác nhận")
+  depositMethod        PaymentMethod?
+  depositReference     String?
+  depositConfirmedAt   DateTime?
+  depositConfirmedById String?
+  createdById          String
+  createdAt            DateTime       @default(now())
+  deliveredAt          DateTime?
+  cancelledAt          DateTime?
+  cancelReason         String?
+  refundAmount         Decimal        @default(0) @db.Decimal(14, 2)
+  branch               Branch         @relation(fields: [branchId], references: [id])
+  customer             Customer       @relation(fields: [customerId], references: [id])
+  items                PreorderItem[]
+  invoice              Invoice?
+
+  @@index([status])
+  @@map("preorders")
+}
+
+model PreorderItem {
+  id         String   @id @default(cuid())
+  preorderId String
+  productId  String
+  quantity   Decimal  @db.Decimal(14, 3)
+  unitPrice  Decimal  @db.Decimal(14, 2)
+  preorder   Preorder @relation(fields: [preorderId], references: [id], onDelete: Cascade)
+  product    Product  @relation(fields: [productId], references: [id])
+
+  @@map("preorder_items")
 }

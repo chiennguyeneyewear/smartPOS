@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { LayoutGrid, Printer } from "lucide-react";
-import type { CustomerSummary, PaymentMethod } from "@smartpos/shared";
+import type { CustomerSummary } from "@smartpos/shared";
 import { useAuthStore } from "@/stores/auth-store";
 import { usePosStore, getActiveTab, getLineTotal, getLineUnitDiscount } from "@/stores/pos-store";
 import { useCreateDraftInvoice, useCheckoutInvoice } from "@/features/sales/hooks";
@@ -17,7 +17,8 @@ import { InvoiceTabsBar } from "./invoice-tabs-bar";
 import { ProductQuickSearch } from "./product-quick-search";
 import { ProductGridPanel } from "./product-grid-panel";
 import { CartPanel } from "./cart-panel";
-import { CheckoutDialog } from "./checkout-dialog";
+import { DepositDialog } from "./deposit-dialog";
+import { useCreatePreorder } from "@/features/preorders/hooks";
 import { CustomerFormDialog } from "@/components/shared/customer-form-dialog";
 import { PrintSettingsPopover } from "./print-settings-popover";
 
@@ -32,9 +33,8 @@ export function PosPage() {
 
   const tab = tabs.find((t) => t.id === activeTabId) ?? tabs[0]!;
 
-  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [depositOpen, setDepositOpen] = useState(false);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
-  const [pendingInvoiceId, setPendingInvoiceId] = useState<string | null>(null);
   const [receiptOpen, setReceiptOpen] = useState(false);
   const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
   const [printSettingsOpen, setPrintSettingsOpen] = useState(false);
@@ -44,6 +44,7 @@ export function PosPage() {
 
   const createDraft = useCreateDraftInvoice();
   const checkout = useCheckoutInvoice();
+  const createPreorder = useCreatePreorder();
   const { data: branches } = useBranches();
   const printReceipt = usePrintReceiptStore((s) => s.print);
   const { autoPrint, mergeSameItems, receiptBranchId } = usePrintSettingsStore();
@@ -88,10 +89,7 @@ export function PosPage() {
         })),
       },
       {
-        onSuccess: (invoice) => {
-          setPendingInvoiceId(invoice.id);
-          setCheckoutOpen(true);
-        },
+        onSuccess: (invoice) => finishCheckout(invoice.id),
         onError: () => {
           toast({ title: "Không thể tạo hóa đơn", variant: "destructive" });
         },
@@ -99,10 +97,11 @@ export function PosPage() {
     );
   }
 
-  function handleConfirmCheckout(payments: { method: PaymentMethod; amount: number }[]) {
-    if (!pendingInvoiceId) return;
+  // One tap: the invoice is issued straight away with no payment questions. How it was paid
+  // (cash, transfer, split...) is confirmed afterwards from Đơn hàng.
+  function finishCheckout(invoiceId: string) {
     checkout.mutate(
-      { id: pendingInvoiceId, input: { payments } },
+      { id: invoiceId, input: { payments: [] } },
       {
         onSuccess: (invoice) => {
           let items = tab.items.map((line) => ({
@@ -128,14 +127,12 @@ export function PosPage() {
             subTotal: tab.items.reduce((sum, line) => sum + line.unitPrice * line.quantity, 0),
             discountAmount: tab.discountAmount,
             totalAmount: total,
-            payments,
+            payments: [],
           };
-          setCheckoutOpen(false);
-          setPendingInvoiceId(null);
           resetTab(tab.id);
           if (autoPrint) {
             printReceipt(receipt);
-            toast({ title: "Thanh toán thành công", description: "Đã in hóa đơn tự động", variant: "success" });
+            toast({ title: "Đã ra hóa đơn", description: "Đã in hóa đơn tự động", variant: "success" });
           } else {
             setReceiptData(receipt);
             setReceiptOpen(true);
@@ -146,6 +143,40 @@ export function PosPage() {
   }
 
   const total = Math.max(0, tab.items.reduce((sum, item) => sum + getLineTotal(item), 0) - tab.discountAmount);
+
+  function handleOpenDeposit() {
+    if (tab.items.length === 0) return;
+    if (!tab.customer) {
+      toast({ title: "Chọn khách hàng trước khi đặt cọc", description: "Nhấn F4 để tìm khách hàng", variant: "destructive" });
+      return;
+    }
+    setDepositOpen(true);
+  }
+
+  function handleConfirmDeposit(input: { depositAmount: number; prescription: string; note: string }) {
+    if (!activeBranchId || !tab.customer) return;
+    createPreorder.mutate(
+      {
+        branchId: activeBranchId,
+        customerId: tab.customer.id,
+        items: tab.items.map((line) => ({
+          productId: line.productId,
+          quantity: line.quantity,
+          // the price the customer actually agreed to (line discount included) is locked into the order
+          unitPrice: line.quantity > 0 ? getLineTotal(line) / line.quantity : line.unitPrice,
+        })),
+        depositAmount: input.depositAmount,
+        prescription: input.prescription || null,
+        note: input.note || null,
+      },
+      {
+        onSuccess: () => {
+          setDepositOpen(false);
+          resetTab(tab.id);
+        },
+      },
+    );
+  }
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -208,17 +239,18 @@ export function PosPage() {
           customerInputRef={customerSearchRef}
           onRequestQuickAddCustomer={() => setQuickAddOpen(true)}
           onRequestCheckout={handleOpenCheckout}
+          onRequestDeposit={handleOpenDeposit}
           checkoutDisabled={tab.items.length === 0}
         />
       </div>
 
-      <CheckoutDialog
-        open={checkoutOpen}
-        onOpenChange={setCheckoutOpen}
+      <DepositDialog
+        open={depositOpen}
+        onOpenChange={setDepositOpen}
+        customerName={tab.customer?.name}
         totalAmount={total}
-        hasCustomer={!!tab.customer}
-        isSubmitting={checkout.isPending}
-        onConfirm={handleConfirmCheckout}
+        isSubmitting={createPreorder.isPending}
+        onConfirm={handleConfirmDeposit}
       />
 
       <CustomerFormDialog

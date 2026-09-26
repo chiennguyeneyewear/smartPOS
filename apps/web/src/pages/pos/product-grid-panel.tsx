@@ -15,6 +15,7 @@ interface ProductGridPanelProps {
   customerInputRef: React.Ref<HTMLInputElement>;
   onRequestQuickAddCustomer: () => void;
   onRequestCheckout: () => void;
+  onRequestDeposit: () => void;
   checkoutDisabled: boolean;
 }
 
@@ -27,6 +28,7 @@ export function ProductGridPanel({
   customerInputRef,
   onRequestQuickAddCustomer,
   onRequestCheckout,
+  onRequestDeposit,
   checkoutDisabled,
 }: ProductGridPanelProps) {
   const [page, setPage] = useState(1);
@@ -93,9 +95,12 @@ export function ProductGridPanel({
         </button>
       </div>
 
-      <div className="p-2 pt-0">
-        <Button size="lg" className="w-full text-base" disabled={checkoutDisabled} onClick={onRequestCheckout}>
-          THANH TOÁN
+      <div className="flex gap-2 p-2 pt-0">
+        <Button size="lg" variant="outline" className="text-base" disabled={checkoutDisabled} onClick={onRequestDeposit}>
+          ĐẶT CỌC
+        </Button>
+        <Button size="lg" className="flex-1 text-base" disabled={checkoutDisabled} onClick={onRequestCheckout}>
+          RA HÓA ĐƠN
         </Button>
       </div>
     </div>

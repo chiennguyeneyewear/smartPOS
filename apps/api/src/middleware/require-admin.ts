@@ -7,6 +7,6 @@ export async function requireAdmin(request: FastifyRequest, reply: FastifyReply)
     return reply.code(401).send({ error: "Unauthorized" });
   }
   if (request.authUser.role !== ROLES.ADMIN) {
-    return reply.code(403).send({ error: "Forbidden", message: "Chỉ admin mới được hủy hóa đơn" });
+    return reply.code(403).send({ error: "Forbidden", message: "Chỉ admin mới được thực hiện thao tác này" });
   }
 }

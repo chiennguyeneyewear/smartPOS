@@ -1,8 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { CheckoutInvoiceInput, SaveInvoiceInput } from "@smartpos/shared";
+import type { CheckoutInvoiceInput, ConfirmPaymentInput, SaveInvoiceInput } from "@smartpos/shared";
+import { errorMessage } from "@/lib/error-message";
 import { toast } from "@/stores/toast-store";
 import {
   checkoutInvoice,
+  confirmInvoicePayment,
   createDraftInvoice,
   fetchInvoices,
   updateDraftInvoice,
@@ -39,7 +41,7 @@ export function useCheckoutInvoice() {
       queryClient.invalidateQueries({ queryKey: ["invoices"] });
       queryClient.invalidateQueries({ queryKey: ["inventory"] });
       queryClient.invalidateQueries({ queryKey: ["customers"] });
-      toast({ title: "Thanh toán thành công", variant: "success" });
+      toast({ title: "Đã ra hóa đơn", variant: "success" });
     },
     onError: (error: unknown) => {
       const message =
@@ -48,6 +50,19 @@ export function useCheckoutInvoice() {
           : undefined;
       toast({ title: "Thanh toán thất bại", description: message, variant: "destructive" });
     },
+  });
+}
+
+export function useConfirmInvoicePayment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: ConfirmPaymentInput }) => confirmInvoicePayment(id, input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["invoices"] });
+      toast({ title: "Đã lưu thanh toán", variant: "success" });
+    },
+    onError: (error: unknown) =>
+      toast({ title: "Không lưu được thanh toán", description: errorMessage(error), variant: "destructive" }),
   });
 }
 

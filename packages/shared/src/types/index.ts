@@ -1,4 +1,4 @@
-import type { Gender, InvoiceStatus, PaymentMethod, SaleMode, StockMovementType, TaskStatus, EmployeeKind } from "../constants/enums.js";
+import type { Gender, InvoiceStatus, PaymentMethod, PaymentStatus, PreorderStatus, SaleMode, StockMovementType, TaskStatus, EmployeeKind } from "../constants/enums.js";
 
 export interface PageMeta {
   total: number;
@@ -111,6 +111,8 @@ export interface InvoiceSummary {
   discountAmount: number;
   totalAmount: number;
   paidAmount: number;
+  paymentStatus: PaymentStatus;
+  depositAmount: number;
   items: InvoiceItemSummary[];
   createdAt: string;
   completedAt: string | null;
@@ -179,4 +181,38 @@ export interface EmployeeSummary {
   id: string;
   name: string;
   kind: EmployeeKind;
+}
+
+export interface PreorderItemSummary {
+  id: string;
+  productId: string;
+  quantity: number;
+  unitPrice: number;
+  product: { name: string; sku: string };
+}
+
+export interface PreorderSummary {
+  id: string;
+  code: string;
+  branchId: string;
+  customerId: string;
+  status: PreorderStatus;
+  note: string | null;
+  prescription: string | null;
+  subTotal: number;
+  depositAmount: number;
+  // null = the deposit is still "Chờ xác nhận"
+  depositMethod: PaymentMethod | null;
+  depositReference: string | null;
+  depositConfirmedAt: string | null;
+  createdById: string;
+  createdByName: string;
+  createdAt: string;
+  deliveredAt: string | null;
+  cancelledAt: string | null;
+  cancelReason: string | null;
+  refundAmount: number;
+  invoiceCode: string | null;
+  customer: { code: string; name: string; phone: string | null };
+  items: PreorderItemSummary[];
 }

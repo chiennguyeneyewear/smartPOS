@@ -25,7 +25,25 @@ export const paymentInputSchema = z.object({
 });
 export type PaymentInput = z.infer<typeof paymentInputSchema>;
 
+// No payments = one-tap invoice: the payment method is confirmed afterwards (see confirmPaymentSchema).
 export const checkoutInvoiceSchema = z.object({
-  payments: z.array(paymentInputSchema).min(1, "Phải có ít nhất 1 phương thức thanh toán"),
+  payments: z.array(paymentInputSchema).default([]),
 });
+export const MAX_PAYMENT_LINES = 4;
+
+// Confirming (or correcting) how an invoice was paid: the lines must add up to what is still owed.
+export const confirmPaymentSchema = z.object({
+  payments: z
+    .array(
+      z.object({
+        method: z.nativeEnum(PAYMENT_METHOD),
+        amount: z.coerce.number().positive("Số tiền phải > 0"),
+        reference: z.string().trim().max(200).optional().nullable(),
+      }),
+    )
+    .min(1, "Phải có ít nhất 1 dòng thanh toán")
+    .max(MAX_PAYMENT_LINES, `Tối đa ${MAX_PAYMENT_LINES} dòng thanh toán`),
+});
+export type ConfirmPaymentInput = z.infer<typeof confirmPaymentSchema>;
+
 export type CheckoutInvoiceInput = z.infer<typeof checkoutInvoiceSchema>;

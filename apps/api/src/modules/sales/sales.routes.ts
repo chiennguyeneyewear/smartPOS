@@ -1,9 +1,19 @@
 import type { FastifyInstance } from "fastify";
-import { PERMISSIONS, ROLES, saveInvoiceSchema, checkoutInvoiceSchema } from "@smartpos/shared";
+import { PERMISSIONS, ROLES, saveInvoiceSchema, checkoutInvoiceSchema, confirmPaymentSchema } from "@smartpos/shared";
+import { prisma } from "../../lib/prisma.js";
 import { authenticate } from "../../middleware/authenticate.js";
 import { requirePermission } from "../../middleware/require-permission.js";
 import { requireAdmin } from "../../middleware/require-admin.js";
 import * as salesService from "./sales.service.js";
+
+// Staff can only touch invoices they created themselves; the admin can touch any.
+async function assertOwnsInvoice(id: string, user: { id: string; role: string }) {
+  if (user.role === ROLES.ADMIN) return;
+  const invoice = await prisma.invoice.findUnique({ where: { id }, select: { createdById: true } });
+  if (invoice && invoice.createdById !== user.id) {
+    throw new salesService.SalesError("Bạn chỉ được thao tác trên hóa đơn của chính mình", 403);
+  }
+}
 
 export function registerSalesRoutes(app: FastifyInstance) {
   app.post(
@@ -22,6 +32,7 @@ export function registerSalesRoutes(app: FastifyInstance) {
     async (request) => {
       const { id } = request.params as { id: string };
       const input = saveInvoiceSchema.parse(request.body);
+      await assertOwnsInvoice(id, request.authUser!);
       return salesService.updateDraftInvoice(id, input);
     },
   );
@@ -32,7 +43,19 @@ export function registerSalesRoutes(app: FastifyInstance) {
     async (request) => {
       const { id } = request.params as { id: string };
       const input = checkoutInvoiceSchema.parse(request.body);
+      await assertOwnsInvoice(id, request.authUser!);
       return salesService.checkoutInvoice(id, input, request.authUser!.id);
+    },
+  );
+
+  // Confirms (or corrects) how an invoice was paid, e.g. after a one-tap invoice.
+  app.post(
+    "/sales/invoices/:id/confirm-payment",
+    { preHandler: [authenticate, requirePermission(PERMISSIONS.SALES_CREATE)] },
+    async (request) => {
+      const { id } = request.params as { id: string };
+      const input = confirmPaymentSchema.parse(request.body);
+      return salesService.confirmInvoicePayment(id, input, request.authUser!);
     },
   );
 
