@@ -249,24 +249,19 @@ export function OrdersPage() {
       cell: ({ row }) => <span className="tabular-nums">{goodsTotal(row.original).toLocaleString("en-US")}</span>,
     },
     {
-      id: "discountAmount",
-      header: "Giảm giá",
-      cell: ({ row }) => <span className="tabular-nums">{row.original.discountAmount.toLocaleString("en-US")}</span>,
+      id: "paymentMethod",
+      header: "Phương thức thanh toán",
+      cell: ({ row }) => {
+        const methods = [...new Set(row.original.payments.map((p) => p.method))];
+        return methods.length > 0 ? methods.map((m) => PAY_LABEL[m] ?? m).join(" + ") : "";
+      },
     },
     {
       id: "paidAmount",
       header: "Khách đã trả",
-      cell: ({ row }) => {
-        const methods = [...new Set(row.original.payments.map((p) => p.method))];
-        return (
-          <div className="leading-tight">
-            <p className="font-medium tabular-nums">{row.original.paidAmount.toLocaleString("en-US")}</p>
-            {methods.length > 0 && (
-              <p className="mt-0.5 text-xs text-muted-foreground">{methods.map((m) => PAY_LABEL[m] ?? m).join(" + ")}</p>
-            )}
-          </div>
-        );
-      },
+      cell: ({ row }) => (
+        <span className="font-medium tabular-nums">{row.original.paidAmount.toLocaleString("en-US")}</span>
+      ),
     },
   ];
 
