@@ -8,13 +8,14 @@ function nextSequentialCode(prefix: string, currentMax: string | null): string {
   return `${prefix}${String(currentNumber + 1).padStart(6, "0")}`;
 }
 
+// Next auto customer code (KH000123). Only purely numeric KH-codes count: imported customers carry codes
+// like "KHTTS7495..." and one of those used to win the alphabetical "highest code" lookup, which made the
+// next code "KHNaN" and every new customer fail.
 export async function generateCustomerCode() {
-  const last = await prisma.customer.findFirst({
-    where: { code: { startsWith: "KH" } },
-    orderBy: { code: "desc" },
-    select: { code: true },
-  });
-  return nextSequentialCode("KH", last?.code ?? null);
+  const rows = await prisma.$queryRaw<{ max: number | null }[]>`
+    SELECT MAX(CAST(SUBSTRING(code FROM 3) AS INTEGER)) AS max FROM customers WHERE code ~ '^KH[0-9]{1,9}$'
+  `;
+  return `KH${String((rows[0]?.max ?? 0) + 1).padStart(6, "0")}`;
 }
 
 export async function generateSupplierCode() {
