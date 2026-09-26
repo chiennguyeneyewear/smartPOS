@@ -8,8 +8,8 @@ function errorMessage(error: unknown): string | undefined {
     : undefined;
 }
 
-export function useUsers() {
-  return useQuery({ queryKey: ["users"], queryFn: fetchUsers });
+export function useUsers(options: { enabled?: boolean } = {}) {
+  return useQuery({ queryKey: ["users"], queryFn: fetchUsers, enabled: options.enabled ?? true });
 }
 
 export function useRoles() {

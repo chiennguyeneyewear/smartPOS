@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { PERMISSIONS, saveInvoiceSchema, checkoutInvoiceSchema } from "@smartpos/shared";
+import { PERMISSIONS, ROLES, saveInvoiceSchema, checkoutInvoiceSchema } from "@smartpos/shared";
 import { authenticate } from "../../middleware/authenticate.js";
 import { requirePermission } from "../../middleware/require-permission.js";
 import { branchScope } from "../../middleware/branch-scope.js";
@@ -67,7 +67,12 @@ export function registerSalesRoutes(app: FastifyInstance) {
       from?: string;
       to?: string;
     };
-    const data = await salesService.listInvoices(query);
+    // Admin sees every invoice and may filter by seller. Everyone else only ever sees the invoices
+    // they created themselves, whatever branch or seller the request asks for.
+    const isAdmin = request.authUser!.role === ROLES.ADMIN;
+    const data = await salesService.listInvoices(
+      isAdmin ? query : { ...query, branchId: undefined, createdById: request.authUser!.id },
+    );
     return { data };
   });
 }

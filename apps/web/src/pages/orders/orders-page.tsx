@@ -20,6 +20,7 @@ import { usePrintSettingsStore } from "@/stores/print-settings-store";
 import { useInvoices, useVoidInvoices } from "@/features/sales/hooks";
 import type { InvoiceListItem } from "@/features/sales/api";
 import { useUsers } from "@/features/users/hooks";
+import { useAuthStore } from "@/stores/auth-store";
 import { useBranches } from "@/features/branches/hooks";
 
 function toDateInputValue(d: Date) {
@@ -52,11 +53,13 @@ export function OrdersPage() {
   );
   const periodLabel = formatPeriodLabel(preset, range);
 
-  const { data: sellers } = useUsers();
+  const isAdmin = useAuthStore((s) => s.user?.role === "admin");
+  // Only the admin can look at other people's invoices; everyone else is limited to their own by the API.
+  const { data: sellers } = useUsers({ enabled: isAdmin });
   const { data: branches } = useBranches();
   const { data: invoices, isLoading } = useInvoices({
     branchId: reportBranchId,
-    createdById: sellerId === "all" ? undefined : sellerId,
+    createdById: isAdmin && sellerId !== "all" ? sellerId : undefined,
     from: range.from.toISOString(),
     to: range.to.toISOString(),
   });
@@ -255,6 +258,7 @@ export function OrdersPage() {
               )}
             </div>
 
+            {isAdmin && (
             <div className="space-y-2">
               <p className="text-sm font-semibold">Người bán</p>
               <Select value={sellerId} onValueChange={setSellerId}>
@@ -271,6 +275,7 @@ export function OrdersPage() {
                 </SelectContent>
               </Select>
             </div>
+            )}
 
             <div className="space-y-2">
               <p className="text-sm font-semibold">Trạng thái hóa đơn</p>
