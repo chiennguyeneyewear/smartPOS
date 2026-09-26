@@ -30,6 +30,7 @@ export interface CategorySummary {
   id: string;
   name: string;
   parentId: string | null;
+  productCount?: number;
 }
 
 export interface ProductSummary {

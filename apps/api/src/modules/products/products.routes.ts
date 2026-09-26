@@ -53,7 +53,8 @@ export function registerProductRoutes(app: FastifyInstance) {
     const where: Prisma.ProductWhereInput = {
       deletedAt: null,
       isActive: true,
-      ...(query.categoryId ? { categoryId: query.categoryId } : {}),
+      // categoryId may be a comma-separated list (multi-select filter on the product list).
+      ...(query.categoryId ? { categoryId: { in: query.categoryId.split(",").filter(Boolean) } } : {}),
       // POS only offers products marked "Bán trực tiếp"; the back-office list shows everything.
       ...(query.sellable === "true" ? { sellDirectly: true } : {}),
       ...(query.barcode ? { barcode: query.barcode } : {}),
@@ -241,8 +242,11 @@ export function registerProductRoutes(app: FastifyInstance) {
   );
 
   app.get("/categories", { preHandler: authenticate }, async () => {
-    const data = await prisma.category.findMany({ orderBy: { name: "asc" } });
-    return { data };
+    const rows = await prisma.category.findMany({
+      orderBy: { name: "asc" },
+      include: { _count: { select: { products: { where: { deletedAt: null, isActive: true } } } } },
+    });
+    return { data: rows.map(({ _count, ...c }) => ({ ...c, productCount: _count.products })) };
   });
 
   app.post(

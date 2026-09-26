@@ -36,6 +36,7 @@ export function useCreateProduct() {
     mutationFn: createProduct,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["categories"] });
       toast({ title: "Đã thêm sản phẩm", variant: "success" });
     },
   });
@@ -47,6 +48,7 @@ export function useUpdateProduct() {
     mutationFn: ({ id, input }: { id: string; input: Partial<ProductInput> }) => updateProduct(id, input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["categories"] });
       toast({ title: "Đã cập nhật sản phẩm", variant: "success" });
     },
   });
@@ -58,6 +60,7 @@ export function useDeleteProduct() {
     mutationFn: deleteProduct,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["categories"] });
       toast({ title: "Đã xóa sản phẩm", variant: "success" });
     },
   });

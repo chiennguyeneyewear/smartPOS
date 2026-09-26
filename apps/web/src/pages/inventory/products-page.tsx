@@ -15,6 +15,7 @@ import { useAuthStore } from "@/stores/auth-store";
 import { useCategories, useDeleteProduct, useProducts } from "@/features/products/hooks";
 import { ProductFormDialog, ProductPhoto } from "./product-form-dialog";
 import { ProductImportDialog } from "./product-import-dialog";
+import { CategoryFilter } from "./category-filter";
 
 function formatNumber(value: number): string {
   return value.toLocaleString("en-US");
@@ -23,6 +24,7 @@ function formatNumber(value: number): string {
 export function ProductsPage() {
   const activeBranchId = useAuthStore((s) => s.activeBranchId);
   const [search, setSearch] = useState("");
+  const [categoryIds, setCategoryIds] = useState<string[]>([]);
   const [page, setPage] = useState(1);
   const pageSize = 50;
   const [open, setOpen] = useState(false);
@@ -31,13 +33,19 @@ export function ProductsPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editingProduct, setEditingProduct] = useState<ProductSummary | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ ids: string[]; label: string } | null>(null);
-  const { data, isLoading } = useProducts({ search, branchId: activeBranchId ?? undefined, page, pageSize });
+  const { data, isLoading } = useProducts({
+    search,
+    categoryId: categoryIds.length > 0 ? categoryIds.join(",") : undefined,
+    branchId: activeBranchId ?? undefined,
+    page,
+    pageSize,
+  });
   const { data: categories } = useCategories();
   const deleteProduct = useDeleteProduct();
 
   useEffect(() => {
     setPage(1);
-  }, [search]);
+  }, [search, categoryIds]);
 
   const products = data?.data ?? [];
   const total = data?.meta?.total ?? 0;
@@ -90,7 +98,8 @@ export function ProductsPage() {
       <PageHeader title="Hàng hóa" description="Quản lý danh mục sản phẩm" />
 
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <div className="relative max-w-sm flex-1">
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+        <div className="relative w-full max-w-sm flex-1">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={search}
@@ -99,6 +108,8 @@ export function ProductsPage() {
             className="pl-8 pr-9"
           />
           <SlidersHorizontal className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        </div>
+        <CategoryFilter categories={categories ?? []} value={categoryIds} onApply={setCategoryIds} />
         </div>
 
         <div className="flex items-center gap-2">
