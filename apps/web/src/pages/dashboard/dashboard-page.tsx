@@ -82,7 +82,7 @@ function PeriodSelect({
   const options = PERIOD_PRESET_OPTIONS.filter((o) => o.value !== "custom" || period.preset === "custom");
   return (
     <Select value={period.preset} onValueChange={(v) => period.setPreset(v as PeriodPreset)}>
-      <SelectTrigger className="h-8 w-[150px] shrink-0 text-xs">
+      <SelectTrigger className="h-8 w-auto min-w-[150px] shrink-0 gap-2 whitespace-nowrap text-xs">
         <SelectValue>{period.label}</SelectValue>
       </SelectTrigger>
       <SelectContent>
