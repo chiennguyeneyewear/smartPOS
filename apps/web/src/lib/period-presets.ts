@@ -14,6 +14,8 @@ export type PeriodPreset =
   | "all_time"
   | "custom";
 
+// The one list every period dropdown offers, so they all match. Quarter / all-time presets still
+// resolve to a range (see getPeriodRange) but are no longer offered; use "Tùy chỉnh" instead.
 export const PERIOD_PRESET_OPTIONS: { value: PeriodPreset; label: string }[] = [
   { value: "today", label: "Hôm nay" },
   { value: "yesterday", label: "Hôm qua" },
@@ -23,17 +25,17 @@ export const PERIOD_PRESET_OPTIONS: { value: PeriodPreset; label: string }[] = [
   { value: "last_30_days", label: "30 ngày qua" },
   { value: "this_month", label: "Tháng này" },
   { value: "last_month", label: "Tháng trước" },
-  { value: "this_quarter", label: "Quý này" },
-  { value: "last_quarter", label: "Quý trước" },
   { value: "this_year", label: "Năm này" },
   { value: "last_year", label: "Năm trước" },
-  { value: "all_time", label: "Tất cả thời gian" },
   { value: "custom", label: "Tùy chỉnh" },
 ];
 
-export const PERIOD_PRESET_LABELS: Record<PeriodPreset, string> = Object.fromEntries(
-  PERIOD_PRESET_OPTIONS.map((o) => [o.value, o.label]),
-) as Record<PeriodPreset, string>;
+export const PERIOD_PRESET_LABELS: Record<PeriodPreset, string> = {
+  ...(Object.fromEntries(PERIOD_PRESET_OPTIONS.map((o) => [o.value, o.label])) as Record<PeriodPreset, string>),
+  this_quarter: "Quý này",
+  last_quarter: "Quý trước",
+  all_time: "Tất cả thời gian",
+};
 
 function startOfDay(d: Date) {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());

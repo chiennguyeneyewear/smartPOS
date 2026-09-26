@@ -22,6 +22,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { DatePicker } from "@/components/shared/date-picker";
 import { PERIOD_PRESET_OPTIONS, getPeriodRange, type PeriodPreset } from "@/lib/period-presets";
 import { cn, formatDateTime } from "@/lib/utils";
 import { Countdown } from "./countdown";
@@ -40,6 +41,9 @@ import {
   useTasks,
   useUpdateTask,
 } from "@/features/tasks/hooks";
+
+const toDateInput = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
 const STATUS_LABELS: Record<TaskStatus, string> = {
   PENDING: "Chưa hoàn thành",
@@ -599,7 +603,9 @@ export function TasksPage() {
   const [editing, setEditing] = useState<TaskSummary | null>(null);
   const [deleting, setDeleting] = useState<TaskSummary | null>(null);
 
-  const range = useMemo(() => getPeriodRange(preset), [preset]);
+  const [customFrom, setCustomFrom] = useState(() => toDateInput(new Date()));
+  const [customTo, setCustomTo] = useState(() => toDateInput(new Date()));
+  const range = useMemo(() => getPeriodRange(preset, { from: customFrom, to: customTo }), [preset, customFrom, customTo]);
   const { data: tasks, isLoading } = useTasks({
     status: statusFilter === "all" ? undefined : statusFilter,
     assigneeId: assigneeFilter === "all" ? undefined : assigneeFilter,
@@ -735,13 +741,21 @@ export function TasksPage() {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {PERIOD_PRESET_OPTIONS.filter((o) => o.value !== "custom").map((o) => (
+            <SelectItem value="all_time">Tất cả</SelectItem>
+            {PERIOD_PRESET_OPTIONS.map((o) => (
               <SelectItem key={o.value} value={o.value}>
                 {o.label}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
+        {preset === "custom" && (
+          <div className="flex items-center gap-2">
+            <DatePicker value={customFrom} onChange={setCustomFrom} className="w-[130px]" />
+            <span className="text-sm text-muted-foreground">-</span>
+            <DatePicker value={customTo} onChange={setCustomTo} className="w-[130px]" />
+          </div>
+        )}
         <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as "all" | TaskStatus)}>
           <SelectTrigger className="w-[180px]">
             <SelectValue />

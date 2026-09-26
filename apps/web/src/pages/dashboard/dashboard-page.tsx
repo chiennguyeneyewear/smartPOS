@@ -3,6 +3,8 @@ import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { ArrowDownRight, ArrowUpRight, ReceiptText, RotateCcw } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DatePicker } from "@/components/shared/date-picker";
@@ -62,12 +64,25 @@ function StatTile({
 // changing the page-wide selector resets every widget back to following it.
 function useCardPeriod(globalPreset: PeriodPreset, customFrom: string, customTo: string) {
   const [override, setOverride] = useState<PeriodPreset | null>(null);
-  useEffect(() => setOverride(null), [globalPreset, customFrom, customTo]);
+  // Dates picked for this card alone; null = use the page-wide custom dates.
+  const [own, setOwn] = useState<{ from: string; to: string } | null>(null);
+  useEffect(() => {
+    setOverride(null);
+    setOwn(null);
+  }, [globalPreset, customFrom, customTo]);
   const preset = override ?? globalPreset;
-  const range = useMemo(() => getPeriodRange(preset, { from: customFrom, to: customTo }), [preset, customFrom, customTo]);
+  const from = own?.from ?? customFrom;
+  const to = own?.to ?? customTo;
+  const range = useMemo(() => getPeriodRange(preset, { from, to }), [preset, from, to]);
   return {
     preset,
     setPreset: setOverride,
+    customFrom: from,
+    customTo: to,
+    setCustom: (f: string, t: string) => {
+      setOwn({ from: f, to: t });
+      setOverride("custom");
+    },
     fromIso: range.from.toISOString(),
     toIso: range.to.toISOString(),
     label: formatPeriodLabel(preset, range),
@@ -77,11 +92,59 @@ function useCardPeriod(globalPreset: PeriodPreset, customFrom: string, customTo:
 function PeriodSelect({
   period,
 }: {
-  period: { preset: PeriodPreset; setPreset: (p: PeriodPreset) => void; label: string };
+  period: {
+    preset: PeriodPreset;
+    setPreset: (p: PeriodPreset) => void;
+    label: string;
+    customFrom: string;
+    customTo: string;
+    setCustom: (from: string, to: string) => void;
+  };
 }) {
-  const options = PERIOD_PRESET_OPTIONS.filter((o) => o.value !== "custom" || period.preset === "custom");
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [draftFrom, setDraftFrom] = useState(period.customFrom);
+  const [draftTo, setDraftTo] = useState(period.customTo);
+  const options = PERIOD_PRESET_OPTIONS;
+
+  function choose(value: PeriodPreset) {
+    if (value === "custom") {
+      setDraftFrom(period.customFrom);
+      setDraftTo(period.customTo);
+      setPickerOpen(true);
+    } else {
+      period.setPreset(value);
+    }
+  }
+
   return (
-    <Select value={period.preset} onValueChange={(v) => period.setPreset(v as PeriodPreset)}>
+    <>
+    <Dialog open={pickerOpen} onOpenChange={setPickerOpen}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Chọn khoảng thời gian</DialogTitle>
+        </DialogHeader>
+        <div className="flex items-center gap-2">
+          <DatePicker value={draftFrom} onChange={setDraftFrom} className="flex-1" />
+          <span className="text-sm text-muted-foreground">-</span>
+          <DatePicker value={draftTo} onChange={setDraftTo} className="flex-1" />
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setPickerOpen(false)}>
+            Bỏ qua
+          </Button>
+          <Button
+            disabled={draftFrom > draftTo}
+            onClick={() => {
+              period.setCustom(draftFrom, draftTo);
+              setPickerOpen(false);
+            }}
+          >
+            Áp dụng
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    <Select value={period.preset} onValueChange={(v) => choose(v as PeriodPreset)}>
       <SelectTrigger className="h-8 w-auto min-w-[150px] shrink-0 gap-2 whitespace-nowrap text-xs">
         <SelectValue>{period.label}</SelectValue>
       </SelectTrigger>
@@ -93,6 +156,7 @@ function PeriodSelect({
         ))}
       </SelectContent>
     </Select>
+    </>
   );
 }
 
