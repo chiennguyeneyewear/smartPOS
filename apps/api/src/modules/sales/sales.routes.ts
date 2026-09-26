@@ -2,7 +2,6 @@ import type { FastifyInstance } from "fastify";
 import { PERMISSIONS, ROLES, saveInvoiceSchema, checkoutInvoiceSchema } from "@smartpos/shared";
 import { authenticate } from "../../middleware/authenticate.js";
 import { requirePermission } from "../../middleware/require-permission.js";
-import { branchScope } from "../../middleware/branch-scope.js";
 import * as salesService from "./sales.service.js";
 
 export function registerSalesRoutes(app: FastifyInstance) {
@@ -58,7 +57,9 @@ export function registerSalesRoutes(app: FastifyInstance) {
     },
   );
 
-  app.get("/sales/invoices", { preHandler: [authenticate, branchScope] }, async (request) => {
+  // No branchScope: access is decided by who created the invoice, not by the branch header, so a stale
+  // or foreign X-Branch-Id can no longer turn a seller's own list into a 403/empty page.
+  app.get("/sales/invoices", { preHandler: [authenticate] }, async (request) => {
     const query = request.query as {
       branchId?: string;
       status?: string;

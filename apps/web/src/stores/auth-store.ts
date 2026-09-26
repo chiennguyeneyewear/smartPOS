@@ -19,11 +19,18 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       activeBranchId: null,
       setAccessToken: (accessToken, user) =>
-        set((state) => ({
-          accessToken,
-          user,
-          activeBranchId: state.activeBranchId ?? user.defaultBranchId ?? user.branches[0]?.id ?? null,
-        })),
+        set((state) => {
+          // Keep the branch chosen in the switcher only while it still belongs to this account; after
+          // a different user logs in on the same browser it would otherwise be someone else's branch.
+          const stillAllowed = user.branches.some((b) => b.id === state.activeBranchId);
+          return {
+            accessToken,
+            user,
+            activeBranchId: stillAllowed
+              ? state.activeBranchId
+              : (user.defaultBranchId ?? user.branches[0]?.id ?? null),
+          };
+        }),
       setActiveBranch: (activeBranchId) => set({ activeBranchId }),
       logout: () => {
         // Clear any manually-chosen "Chọn mẫu in" branch override so it can't leak
