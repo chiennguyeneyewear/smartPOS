@@ -137,7 +137,7 @@ function EmployeeSelect({
 
 function ManageLink({ onClick, children }: { onClick: () => void; children: string }) {
   return (
-    <button type="button" onClick={onClick} className="text-xs font-medium text-primary hover:underline">
+    <button type="button" onClick={onClick} className="whitespace-nowrap text-xs font-medium text-primary hover:underline">
       {children}
     </button>
   );
@@ -460,14 +460,14 @@ function TaskFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>{task ? "Sửa công việc" : "Giao công việc mới"}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <Label>Người giao việc</Label>
+              <Label className="whitespace-nowrap">Người giao việc</Label>
               <ManageLink onClick={() => onManage(EMPLOYEE_KIND.ASSIGNER)}>+ Thêm / xóa người giao việc</ManageLink>
             </div>
             <EmployeeSelect
@@ -481,10 +481,10 @@ function TaskFormDialog({
             <Label>Tên công việc</Label>
             <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="VD: Kiểm kho gọng kính" />
           </div>
-          <div className="grid grid-cols-1 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <Label>Chi nhánh</Label>
+              <Label className="whitespace-nowrap">Chi nhánh</Label>
               <ManageLink onClick={() => onManage("BRANCH")}>+ Thêm / xóa chi nhánh</ManageLink>
             </div>
             <Select value={branchId} onValueChange={setBranchId}>
@@ -501,7 +501,7 @@ function TaskFormDialog({
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label>Thời hạn hoàn thành</Label>
+            <Label className="whitespace-nowrap">Thời hạn hoàn thành</Label>
             <div className="flex gap-2">
               <Input
                 type="date"
@@ -539,7 +539,7 @@ function TaskFormDialog({
           </div>
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <Label>Người nhận việc</Label>
+              <Label className="whitespace-nowrap">Người nhận việc</Label>
               <ManageLink onClick={() => onManage(EMPLOYEE_KIND.ASSIGNEE)}>+ Thêm / xóa nhân viên</ManageLink>
             </div>
             <EmployeeSelect
