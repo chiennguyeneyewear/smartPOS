@@ -151,7 +151,7 @@ function PeriodSelect({
       <SelectContent>
         {options.map((option) => (
           <SelectItem key={option.value} value={option.value}>
-            {option.value === "custom" ? period.label : option.label}
+            {option.label}
           </SelectItem>
         ))}
       </SelectContent>
