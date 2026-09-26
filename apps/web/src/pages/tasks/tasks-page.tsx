@@ -466,7 +466,7 @@ function TaskFormDialog({
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
+            <div className="flex h-5 items-center justify-between">
               <Label className="whitespace-nowrap">Người giao việc</Label>
               <ManageLink onClick={() => onManage(EMPLOYEE_KIND.ASSIGNER)}>+ Thêm / xóa người giao việc</ManageLink>
             </div>
@@ -483,7 +483,7 @@ function TaskFormDialog({
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
+            <div className="flex h-5 items-center justify-between">
               <Label className="whitespace-nowrap">Chi nhánh</Label>
               <ManageLink onClick={() => onManage("BRANCH")}>+ Thêm / xóa chi nhánh</ManageLink>
             </div>
@@ -501,7 +501,9 @@ function TaskFormDialog({
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label className="whitespace-nowrap">Thời hạn hoàn thành</Label>
+            <div className="flex h-5 items-center">
+              <Label className="whitespace-nowrap">Thời hạn hoàn thành</Label>
+            </div>
             <div className="flex gap-2">
               <Input
                 type="date"
@@ -538,7 +540,7 @@ function TaskFormDialog({
             />
           </div>
           <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
+            <div className="flex h-5 items-center justify-between">
               <Label className="whitespace-nowrap">Người nhận việc</Label>
               <ManageLink onClick={() => onManage(EMPLOYEE_KIND.ASSIGNEE)}>+ Thêm / xóa nhân viên</ManageLink>
             </div>
