@@ -95,7 +95,9 @@ export function CategoryFilter({
       ? "Nhóm hàng"
       : value.length === 1
         ? (categories.find((c) => c.id === value[0])?.name ?? "1 nhóm hàng")
-        : `${value.length} nhóm hàng`;
+        : value.length >= categories.length
+          ? `Tất cả nhóm hàng (${categories.length})`
+          : `${value.length} nhóm hàng`;
 
   return (
     <div ref={rootRef} className="relative">
@@ -162,10 +164,15 @@ export function CategoryFilter({
             )}
           </div>
 
-          <div className="mt-3 flex items-center justify-between border-t pt-3">
-            <button type="button" onClick={toggleAll} className="text-sm font-medium text-primary hover:underline">
-              {allVisibleChecked ? "Bỏ chọn tất cả" : "Chọn tất cả"}
-            </button>
+          <div className="mt-3 flex items-center justify-between gap-2 border-t pt-3">
+            <div className="flex flex-col items-start">
+              <button type="button" onClick={toggleAll} className="text-sm font-medium text-primary hover:underline">
+                {allVisibleChecked ? "Bỏ chọn tất cả" : "Chọn tất cả"}
+              </button>
+              <span className="text-xs text-muted-foreground">
+                Đã chọn {draft.size}/{categories.length} nhóm
+              </span>
+            </div>
             <Button
               type="button"
               size="sm"
@@ -174,7 +181,7 @@ export function CategoryFilter({
                 setOpen(false);
               }}
             >
-              Áp dụng
+              Áp dụng{draft.size > 0 ? ` (${draft.size})` : ""}
             </Button>
           </div>
         </div>
