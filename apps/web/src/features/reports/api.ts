@@ -121,3 +121,31 @@ export async function fetchSellerPerformance(params: ReportRange) {
   const { data } = await apiClient.get<{ data: SellerPerformance[] }>("/reports/seller-performance", { params });
   return data.data;
 }
+
+export interface ProductAnalysis {
+  product: { id: string; sku: string; name: string };
+  days: number;
+  granularity: "day" | "week" | "month";
+  totals: {
+    revenue: number;
+    quantity: number;
+    averagePerUnit: number;
+    cost: number;
+    averageCostPerUnit: number;
+    profit: number;
+    averageProfitPerUnit: number;
+    margin: number;
+    returnValue: number;
+    returnQuantity: number;
+    returnRate: number;
+  };
+  series: { period: string; revenue: number; cost: number; profit: number; quantity: number; price: number; unitCost: number }[];
+  channels: { name: string; quantity: number; revenue: number; share: number; trend: number[] }[];
+  customers: { id: string; name: string; quantity: number; revenue: number; lastPurchase: string }[];
+  generatedAt: string;
+}
+
+export async function fetchProductAnalysis(params: { productId: string; days: number; branchId?: string }) {
+  const { data } = await apiClient.get<ProductAnalysis>("/reports/product-analysis", { params });
+  return data;
+}

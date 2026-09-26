@@ -38,6 +38,21 @@ export function registerReportRoutes(app: FastifyInstance) {
     return { data };
   });
 
+  // Opened from the product list ("Xem phân tích"), so any signed-in user may call it; branchScope
+  // still confines a non-admin to their own branches.
+  app.get(
+    "/reports/product-analysis",
+    { preHandler: [authenticate, branchScope] },
+    async (request, reply) => {
+      const query = request.query as { productId?: string; days?: string; branchId?: string };
+      if (!query.productId) return reply.code(400).send({ error: "BadRequest", message: "Thiếu productId" });
+      const days = [30, 90, 180, 365].includes(Number(query.days)) ? Number(query.days) : 30;
+      const data = await reportsService.getProductAnalysis(query.productId, days, query.branchId);
+      if (!data) return reply.code(404).send({ error: "NotFound", message: "Không tìm thấy hàng hóa" });
+      return data;
+    },
+  );
+
   app.get("/reports/top-customers", { preHandler: guard }, async (request) => {
     const query = request.query as { branchId?: string; from?: string; to?: string; limit?: string };
     const data = await reportsService.getTopCustomers(query, Number(query.limit ?? 10));

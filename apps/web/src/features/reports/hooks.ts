@@ -5,6 +5,7 @@ import {
   fetchCustomerInsights,
   fetchDashboardSummary,
   fetchEndOfDay,
+  fetchProductAnalysis,
   fetchProfit,
   fetchRevenue,
   fetchSellerPerformance,
@@ -75,4 +76,12 @@ export function useCustomerInsightsReport(params: ReportRange) {
 
 export function useSellerPerformanceReport(params: ReportRange) {
   return useQuery({ queryKey: ["reports", "seller-performance", params], queryFn: () => fetchSellerPerformance(params) });
+}
+
+export function useProductAnalysis(params: { productId: string; days: number; branchId?: string }, enabled: boolean) {
+  return useQuery({
+    queryKey: ["reports", "product-analysis", params],
+    queryFn: () => fetchProductAnalysis(params),
+    enabled,
+  });
 }

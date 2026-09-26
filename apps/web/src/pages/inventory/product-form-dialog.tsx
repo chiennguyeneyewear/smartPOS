@@ -340,7 +340,7 @@ export function ProductFormDialog({
             {(
               [
                 ["info", "Thông tin"],
-                ["desc", "Mô tả"],
+                ["desc", "Ghi chú"],
               ] as const
             ).map(([key, label]) => (
               <button
@@ -489,7 +489,7 @@ export function ProductFormDialog({
               rows={12}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Mô tả hàng hóa..."
+              placeholder="Ghi chú về hàng hóa..."
             />
           )}
 

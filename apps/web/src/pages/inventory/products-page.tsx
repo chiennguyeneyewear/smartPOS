@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useState } from "react";
-import { ChevronDown, ChevronLeft, ChevronRight, Pencil, Search, SlidersHorizontal, Trash2, Upload } from "lucide-react";
+import { ChartNoAxesCombined, ChevronDown, ChevronLeft, ChevronRight, Pencil, Search, SlidersHorizontal, Trash2, Upload } from "lucide-react";
 import type { ProductSummary } from "@smartpos/shared";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ import { useCategories, useDeleteProduct, useProducts } from "@/features/product
 import { ProductFormDialog, ProductPhoto } from "./product-form-dialog";
 import { ProductImportDialog } from "./product-import-dialog";
 import { CategoryFilter } from "./category-filter";
+import { ProductAnalysisDialog } from "./product-analysis-dialog";
 
 function formatNumber(value: number): string {
   return value.toLocaleString("en-US");
@@ -31,6 +32,7 @@ export function ProductsPage() {
   const [importOpen, setImportOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [analysisProduct, setAnalysisProduct] = useState<ProductSummary | null>(null);
   const [editingProduct, setEditingProduct] = useState<ProductSummary | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ ids: string[]; label: string } | null>(null);
   const { data, isLoading } = useProducts({
@@ -277,8 +279,20 @@ export function ProductsPage() {
                                   ))}
                                 </div>
                               )}
+                              <div className="col-span-full">
+                                <button
+                                  type="button"
+                                  onClick={() => setAnalysisProduct(p)}
+                                  className="flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
+                                >
+                                  <ChartNoAxesCombined className="h-4 w-4" /> Xem phân tích
+                                </button>
+                              </div>
                               {p.description && (
-                                <p className="col-span-full whitespace-pre-wrap text-muted-foreground">{p.description}</p>
+                                <div className="col-span-full">
+                                  <p className="text-xs text-muted-foreground">Ghi chú</p>
+                                  <p className="whitespace-pre-wrap">{p.description}</p>
+                                </div>
                               )}
                             </div>
                             <div className="flex shrink-0 items-center gap-2">
@@ -340,6 +354,8 @@ export function ProductsPage() {
           </div>
         </div>
       )}
+
+      <ProductAnalysisDialog product={analysisProduct} onClose={() => setAnalysisProduct(null)} />
 
       <ProductFormDialog
         open={open}

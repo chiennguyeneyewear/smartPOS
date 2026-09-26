@@ -396,3 +396,155 @@ export async function getProfit(range: DateRange) {
   }
   return { revenue, cost, profit: revenue - cost };
 }
+
+// ---------------------------------------------------------------------------
+// Per-product analysis ("Xem phân tích" on the product list)
+// ---------------------------------------------------------------------------
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+const pad2 = (n: number) => String(n).padStart(2, "0");
+
+// "YYYY-MM-DD" of the Vietnam-local calendar day containing `date`.
+function vnDayKey(date: Date): string {
+  const p = toVnParts(date);
+  return `${p.year}-${pad2(p.month + 1)}-${pad2(p.date)}`;
+}
+
+// Bucket a Vietnam-local day: itself, its week (keyed by Monday), or its month.
+function bucketKey(dayKey: string, granularity: "day" | "week" | "month"): string {
+  if (granularity === "day") return dayKey;
+  if (granularity === "month") return dayKey.slice(0, 7);
+  const d = new Date(`${dayKey}T00:00:00Z`);
+  const sinceMonday = (d.getUTCDay() + 6) % 7;
+  return new Date(d.getTime() - sinceMonday * DAY_MS).toISOString().slice(0, 10);
+}
+
+export async function getProductAnalysis(productId: string, days: number, branchId?: string) {
+  const product = await prisma.product.findUnique({
+    where: { id: productId },
+    select: { id: true, sku: true, name: true, costPrice: true, sellPrice: true },
+  });
+  if (!product) return null;
+
+  const now = new Date();
+  const todayKey = vnDayKey(now);
+  const startKey = vnDayKey(new Date(now.getTime() - (days - 1) * DAY_MS));
+  const from = new Date(`${startKey}T00:00:00+07:00`);
+  const granularity = days <= 31 ? "day" : days <= 200 ? "week" : "month";
+  const unitCost = Number(product.costPrice);
+
+  const items = await prisma.invoiceItem.findMany({
+    where: {
+      productId,
+      invoice: { status: "COMPLETED", completedAt: { gte: from, lte: now }, ...(branchId ? { branchId } : {}) },
+    },
+    select: {
+      quantity: true,
+      lineTotal: true,
+      invoice: {
+        select: {
+          completedAt: true,
+          saleMode: true,
+          customer: { select: { id: true, name: true } },
+        },
+      },
+    },
+  });
+
+  // Every bucket in the window exists (zero-filled) so the charts are continuous.
+  const keys: string[] = [];
+  for (let t = from.getTime(); vnDayKey(new Date(t)) <= todayKey; t += DAY_MS) {
+    const key = bucketKey(vnDayKey(new Date(t)), granularity);
+    if (keys[keys.length - 1] !== key) keys.push(key);
+  }
+  const blank = () => ({ revenue: 0, quantity: 0 });
+  const buckets = new Map(keys.map((k) => [k, blank()]));
+  const channels = new Map<string, { quantity: number; revenue: number; trend: Map<string, number> }>();
+  const customers = new Map<string, { name: string; quantity: number; revenue: number; lastPurchase: Date }>();
+
+  let revenue = 0;
+  let quantity = 0;
+  for (const item of items) {
+    const at = item.invoice.completedAt;
+    if (!at) continue;
+    const qty = Number(item.quantity);
+    const line = Number(item.lineTotal);
+    revenue += line;
+    quantity += qty;
+
+    const key = bucketKey(vnDayKey(at), granularity);
+    const b = buckets.get(key);
+    if (b) {
+      b.revenue += line;
+      b.quantity += qty;
+    }
+
+    const channelName = item.invoice.saleMode === "DELIVERY" ? "Giao hàng" : "Bán trực tiếp";
+    const ch = channels.get(channelName) ?? { quantity: 0, revenue: 0, trend: new Map<string, number>() };
+    ch.quantity += qty;
+    ch.revenue += line;
+    ch.trend.set(key, (ch.trend.get(key) ?? 0) + line);
+    channels.set(channelName, ch);
+
+    const c = item.invoice.customer;
+    if (c) {
+      const cur = customers.get(c.id) ?? { name: c.name, quantity: 0, revenue: 0, lastPurchase: at };
+      cur.quantity += qty;
+      cur.revenue += line;
+      if (at > cur.lastPurchase) cur.lastPurchase = at;
+      customers.set(c.id, cur);
+    }
+  }
+
+  const cost = quantity * unitCost;
+  const profit = revenue - cost;
+  const series = keys.map((period) => {
+    const b = buckets.get(period)!;
+    const bucketCost = b.quantity * unitCost;
+    return {
+      period,
+      revenue: b.revenue,
+      cost: bucketCost,
+      profit: b.revenue - bucketCost,
+      quantity: b.quantity,
+      // average selling price in the bucket; cost line only where something sold
+      price: b.quantity > 0 ? b.revenue / b.quantity : 0,
+      unitCost: b.quantity > 0 ? unitCost : 0,
+    };
+  });
+
+  return {
+    product: { id: product.id, sku: product.sku, name: product.name },
+    days,
+    granularity,
+    totals: {
+      revenue,
+      quantity,
+      averagePerUnit: quantity > 0 ? revenue / quantity : 0,
+      cost,
+      averageCostPerUnit: quantity > 0 ? unitCost : 0,
+      profit,
+      averageProfitPerUnit: quantity > 0 ? profit / quantity : 0,
+      margin: revenue > 0 ? profit / revenue : 0,
+      // Returns aren't recorded by the system yet.
+      returnValue: 0,
+      returnQuantity: 0,
+      returnRate: 0,
+    },
+    series,
+    channels: Array.from(channels.entries())
+      .map(([name, ch]) => ({
+        name,
+        quantity: ch.quantity,
+        revenue: ch.revenue,
+        share: revenue > 0 ? ch.revenue / revenue : 0,
+        trend: keys.map((k) => ch.trend.get(k) ?? 0),
+      }))
+      .sort((a, b) => b.revenue - a.revenue),
+    customers: Array.from(customers.entries())
+      .map(([id, c]) => ({ id, name: c.name, quantity: c.quantity, revenue: c.revenue, lastPurchase: c.lastPurchase.toISOString() }))
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 10),
+    generatedAt: now.toISOString(),
+  };
+}
