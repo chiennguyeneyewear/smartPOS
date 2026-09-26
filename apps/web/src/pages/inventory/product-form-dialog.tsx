@@ -156,7 +156,7 @@ export function ProductFormDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, product]);
 
-  // New products default to the first/"Cái" unit so the field is never blank by accident.
+  // The unit isn't shown in the form; new products get "Cái" (the API requires a unit).
   useEffect(() => {
     if (open && !isEdit && !unitId && units?.length) {
       setUnitId((units.find((u) => u.name === "Cái") ?? units[0]!).id);
@@ -317,7 +317,7 @@ export function ProductFormDialog({
                   <Field label="Tên hàng">
                     <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Bắt buộc" />
                   </Field>
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div>
                     <Field
                       label="Nhóm hàng"
                       action={
@@ -338,20 +338,6 @@ export function ProductFormDialog({
                           {sortedCategories.map((c) => (
                             <SelectItem key={c.id} value={c.id}>
                               {c.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </Field>
-                    <Field label="Đơn vị tính">
-                      <Select value={unitId} onValueChange={setUnitId}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Chọn đơn vị tính" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {units?.map((u) => (
-                            <SelectItem key={u.id} value={u.id}>
-                              {u.name}
                             </SelectItem>
                           ))}
                         </SelectContent>
