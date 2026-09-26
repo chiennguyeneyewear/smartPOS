@@ -33,7 +33,6 @@ model Branch {
   stockItems     StockItem[]
   invoices       Invoice[]
   stockMovements StockMovement[] @relation("MovementBranch")
-  tasks          Task[]
 
   @@map("branches")
 }
@@ -351,21 +350,33 @@ model Employee {
   @@map("employees")
 }
 
+// Branch labels for tasks. A separate, freely editable list (soft-deleted so old tasks keep the
+// name) rather than the real sales branches, so managing it can't affect invoices or stock.
+model TaskBranch {
+  id        String    @id @default(cuid())
+  name      String
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  tasks     Task[]
+
+  @@map("task_branches")
+}
+
 model Task {
-  id          String     @id @default(cuid())
+  id          String      @id @default(cuid())
   title       String
-  description String     @default("")
-  status      TaskStatus @default(PENDING)
+  description String      @default("")
+  status      TaskStatus  @default(PENDING)
   assignerId  String
   assigneeId  String
   branchId    String?
   dueAt       DateTime?
   completedAt DateTime?
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-  assigner    Employee   @relation("TaskAssigner", fields: [assignerId], references: [id])
-  assignee    Employee   @relation("TaskAssignee", fields: [assigneeId], references: [id])
-  branch      Branch?    @relation(fields: [branchId], references: [id])
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  assigner    Employee    @relation("TaskAssigner", fields: [assignerId], references: [id])
+  assignee    Employee    @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  branch      TaskBranch? @relation(fields: [branchId], references: [id])
 
   @@index([assigneeId, status])
   @@index([createdAt])

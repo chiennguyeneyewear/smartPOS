@@ -1,6 +1,13 @@
 import type { FastifyInstance } from "fastify";
 import { Prisma } from "@prisma/client";
-import { EMPLOYEE_KIND, TASK_STATUS, employeeSchema, taskSchema, updateTaskSchema } from "@smartpos/shared";
+import {
+  EMPLOYEE_KIND,
+  TASK_STATUS,
+  employeeSchema,
+  taskBranchSchema,
+  taskSchema,
+  updateTaskSchema,
+} from "@smartpos/shared";
 import { authenticate } from "../../middleware/authenticate.js";
 import { prisma } from "../../lib/prisma.js";
 
@@ -43,7 +50,7 @@ async function staffAreValid(staff: { assignerId?: string; assigneeId?: string }
 }
 
 async function branchExists(id: string) {
-  return (await prisma.branch.count({ where: { id, isActive: true } })) === 1;
+  return (await prisma.taskBranch.count({ where: { id, deletedAt: null } })) === 1;
 }
 
 const MISSING_BRANCH_MESSAGE = "Chi nhánh không tồn tại";
@@ -81,6 +88,37 @@ export function registerEmployeeRoutes(app: FastifyInstance) {
     const existing = await prisma.employee.findFirst({ where: { id, deletedAt: null } });
     if (!existing) return reply.code(404).send({ message: "Không tìm thấy nhân viên" });
     await prisma.employee.update({ where: { id }, data: { deletedAt: new Date() } });
+    return { success: true };
+  });
+}
+
+// Branch labels used only by tasks; every signed-in user can maintain the list.
+export function registerTaskBranchRoutes(app: FastifyInstance) {
+  app.get("/task-branches", { preHandler: authenticate }, async () => {
+    const branches = await prisma.taskBranch.findMany({
+      where: { deletedAt: null },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    });
+    return { data: branches };
+  });
+
+  app.post("/task-branches", { preHandler: authenticate }, async (request, reply) => {
+    const { name } = taskBranchSchema.parse(request.body);
+    const duplicate = await prisma.taskBranch.findFirst({
+      where: { deletedAt: null, name: { equals: name, mode: "insensitive" } },
+    });
+    if (duplicate) return reply.code(409).send({ message: "Chi nhánh này đã có trong danh sách" });
+    const branch = await prisma.taskBranch.create({ data: { name }, select: { id: true, name: true } });
+    return reply.code(201).send(branch);
+  });
+
+  // Soft delete: tasks already tagged with this branch keep its name.
+  app.delete("/task-branches/:id", { preHandler: authenticate }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const existing = await prisma.taskBranch.findFirst({ where: { id, deletedAt: null } });
+    if (!existing) return reply.code(404).send({ message: "Không tìm thấy chi nhánh" });
+    await prisma.taskBranch.update({ where: { id }, data: { deletedAt: new Date() } });
     return { success: true };
   });
 }

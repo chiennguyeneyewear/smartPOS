@@ -4,9 +4,12 @@ import { toast } from "@/stores/toast-store";
 import {
   createEmployee,
   createTask,
+  createTaskBranch,
   deleteEmployee,
   deleteTask,
+  deleteTaskBranch,
   fetchEmployees,
+  fetchTaskBranches,
   fetchTasks,
   updateTask,
   type TaskQuery,
@@ -88,5 +91,35 @@ export function useDeleteEmployee() {
     },
     onError: (error: unknown) =>
       toast({ title: "Không thể xóa khỏi danh sách", description: errorMessage(error), variant: "destructive" }),
+  });
+}
+
+export function useTaskBranches() {
+  return useQuery({ queryKey: ["task-branches"], queryFn: fetchTaskBranches });
+}
+
+export function useCreateTaskBranch() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: createTaskBranch,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["task-branches"] });
+      toast({ title: "Đã thêm chi nhánh", variant: "success" });
+    },
+    onError: (error: unknown) =>
+      toast({ title: "Không thể thêm chi nhánh", description: errorMessage(error), variant: "destructive" }),
+  });
+}
+
+export function useDeleteTaskBranch() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: deleteTaskBranch,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["task-branches"] });
+      toast({ title: "Đã xóa chi nhánh", variant: "success" });
+    },
+    onError: (error: unknown) =>
+      toast({ title: "Không thể xóa chi nhánh", description: errorMessage(error), variant: "destructive" }),
   });
 }

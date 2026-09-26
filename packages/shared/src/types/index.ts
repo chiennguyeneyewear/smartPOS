@@ -156,6 +156,11 @@ export interface TaskSummary {
   completedAt: string | null;
 }
 
+export interface TaskBranchSummary {
+  id: string;
+  name: string;
+}
+
 export interface EmployeeSummary {
   id: string;
   name: string;

@@ -5,6 +5,7 @@ import {
   EMPLOYEE_KIND,
   TASK_STATUS,
   employeeSchema,
+  taskBranchSchema,
   taskSchema,
   type EmployeeKind,
   type EmployeeSummary,
@@ -22,14 +23,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { PERIOD_PRESET_OPTIONS, getPeriodRange, type PeriodPreset } from "@/lib/period-presets";
 import { cn, formatDateTime } from "@/lib/utils";
-import { useBranches } from "@/features/branches/hooks";
 import { Countdown } from "./countdown";
 import {
   useCreateEmployee,
+  useCreateTaskBranch,
   useCreateTask,
   useDeleteEmployee,
+  useDeleteTaskBranch,
   useDeleteTask,
   useEmployees,
+  useTaskBranches,
   useTasks,
   useUpdateTask,
 } from "@/features/tasks/hooks";
@@ -69,6 +72,8 @@ function maskTime(raw: string): string {
 function sortedBranches<T extends { name: string }>(branches: T[] | undefined): T[] {
   return [...(branches ?? [])].sort((a, b) => a.name.localeCompare(b.name, "vi", { numeric: true }));
 }
+
+type ManagerTarget = EmployeeKind | "BRANCH";
 
 const KIND_TEXT: Record<
   EmployeeKind,
@@ -134,22 +139,49 @@ function ManageLink({ onClick, children }: { onClick: () => void; children: stri
   );
 }
 
-function EmployeeManagerDialog({
-  kind,
+interface ListText {
+  manageTitle: string;
+  addLabel: string;
+  placeholder: string;
+  deleteTitle: string;
+  noun: string;
+}
+
+const BRANCH_TEXT: ListText = {
+  manageTitle: "Quản lý chi nhánh",
+  addLabel: "Thêm chi nhánh",
+  placeholder: "Tên chi nhánh",
+  deleteTitle: "Xóa chi nhánh",
+  noun: "chi nhánh",
+};
+
+type NameCheck = { ok: true; name: string } | { ok: false; error: string };
+
+// Add / remove entries of a simple name list; removal always asks for confirmation first.
+function NameListDialog({
   open,
   onOpenChange,
+  text,
+  items,
+  checkName,
+  onAdd,
+  adding,
+  onDelete,
+  deleting,
 }: {
-  kind: EmployeeKind;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  text: ListText;
+  items: { id: string; name: string }[] | undefined;
+  checkName: (name: string) => NameCheck;
+  onAdd: (name: string, done: () => void) => void;
+  adding: boolean;
+  onDelete: (id: string, done: () => void) => void;
+  deleting: boolean;
 }) {
-  const text = KIND_TEXT[kind];
-  const { data: employees } = useEmployees(kind);
-  const createEmployee = useCreateEmployee();
-  const deleteEmployee = useDeleteEmployee();
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [deleting, setDeleting] = useState<EmployeeSummary | null>(null);
+  const [toDelete, setToDelete] = useState<{ id: string; name: string } | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -159,13 +191,13 @@ function EmployeeManagerDialog({
   }, [open]);
 
   function add() {
-    const parsed = employeeSchema.safeParse({ name, kind });
-    if (!parsed.success) {
-      setError(parsed.error.issues[0]?.message ?? "Tên không hợp lệ");
+    const result = checkName(name);
+    if (!result.ok) {
+      setError(result.error);
       return;
     }
     setError(null);
-    createEmployee.mutate(parsed.data, { onSuccess: () => setName("") });
+    onAdd(result.name, () => setName(""));
   }
 
   return (
@@ -185,22 +217,22 @@ function EmployeeManagerDialog({
                   onKeyDown={(e) => e.key === "Enter" && add()}
                   placeholder={text.placeholder}
                 />
-                <Button onClick={add} disabled={createEmployee.isPending} className="shrink-0 gap-1.5">
+                <Button onClick={add} disabled={adding} className="shrink-0 gap-1.5">
                   <Plus className="h-4 w-4" /> Thêm
                 </Button>
               </div>
               {error && <p className="text-sm text-destructive">{error}</p>}
             </div>
             <div className="max-h-72 divide-y overflow-y-auto rounded-md border">
-              {employees?.length ? (
-                employees.map((e) => (
-                  <div key={e.id} className="flex items-center justify-between gap-2 px-3 py-2 text-sm">
-                    <span>{e.name}</span>
+              {items?.length ? (
+                items.map((item) => (
+                  <div key={item.id} className="flex items-center justify-between gap-2 px-3 py-2 text-sm">
+                    <span>{item.name}</span>
                     <Button
                       variant="ghost"
                       size="icon"
                       className="h-8 w-8 text-destructive hover:text-destructive"
-                      onClick={() => setDeleting(e)}
+                      onClick={() => setToDelete(item)}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -214,30 +246,86 @@ function EmployeeManagerDialog({
         </DialogContent>
       </Dialog>
 
-      <Dialog open={!!deleting} onOpenChange={(o) => !o && setDeleting(null)}>
+      <Dialog open={!!toDelete} onOpenChange={(o) => !o && setToDelete(null)}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{text.deleteTitle}</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            Bạn có chắc muốn xóa {text.noun} <span className="font-medium text-foreground">{deleting?.name}</span> khỏi
-            danh sách? Các công việc đã giao hoặc đã nhận của người này vẫn được giữ lại.
+            Bạn có chắc muốn xóa {text.noun} <span className="font-medium text-foreground">{toDelete?.name}</span>{" "}
+            khỏi danh sách? Các công việc đã gắn với mục này vẫn được giữ lại.
           </p>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleting(null)}>
+            <Button variant="outline" onClick={() => setToDelete(null)}>
               Hủy
             </Button>
             <Button
               variant="destructive"
-              disabled={deleteEmployee.isPending}
-              onClick={() => deleting && deleteEmployee.mutate(deleting.id, { onSuccess: () => setDeleting(null) })}
+              disabled={deleting}
+              onClick={() => toDelete && onDelete(toDelete.id, () => setToDelete(null))}
             >
-              {deleteEmployee.isPending ? "Đang xóa..." : "Xóa"}
+              {deleting ? "Đang xóa..." : "Xóa"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+function EmployeeManagerDialog({
+  kind,
+  open,
+  onOpenChange,
+}: {
+  kind: EmployeeKind;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const { data: employees } = useEmployees(kind);
+  const createEmployee = useCreateEmployee();
+  const deleteEmployee = useDeleteEmployee();
+  return (
+    <NameListDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      text={KIND_TEXT[kind]}
+      items={employees}
+      checkName={(name) => {
+        const parsed = employeeSchema.safeParse({ name, kind });
+        return parsed.success
+          ? { ok: true, name: parsed.data.name }
+          : { ok: false, error: parsed.error.issues[0]?.message ?? "Tên không hợp lệ" };
+      }}
+      onAdd={(name, done) => createEmployee.mutate({ name, kind }, { onSuccess: done })}
+      adding={createEmployee.isPending}
+      onDelete={(id, done) => deleteEmployee.mutate(id, { onSuccess: done })}
+      deleting={deleteEmployee.isPending}
+    />
+  );
+}
+
+function BranchManagerDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+  const { data: branches } = useTaskBranches();
+  const createBranch = useCreateTaskBranch();
+  const deleteBranch = useDeleteTaskBranch();
+  return (
+    <NameListDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      text={BRANCH_TEXT}
+      items={branches}
+      checkName={(name) => {
+        const parsed = taskBranchSchema.safeParse({ name });
+        return parsed.success
+          ? { ok: true, name: parsed.data.name }
+          : { ok: false, error: parsed.error.issues[0]?.message ?? "Tên không hợp lệ" };
+      }}
+      onAdd={(name, done) => createBranch.mutate(name, { onSuccess: done })}
+      adding={createBranch.isPending}
+      onDelete={(id, done) => deleteBranch.mutate(id, { onSuccess: done })}
+      deleting={deleteBranch.isPending}
+    />
   );
 }
 
@@ -250,11 +338,11 @@ function TaskFormDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   task: TaskSummary | null;
-  onManage: (kind: EmployeeKind) => void;
+  onManage: (target: ManagerTarget) => void;
 }) {
   const { data: assigners } = useEmployees(EMPLOYEE_KIND.ASSIGNER);
   const { data: assignees } = useEmployees(EMPLOYEE_KIND.ASSIGNEE);
-  const { data: branches } = useBranches();
+  const { data: branches } = useTaskBranches();
   const createTask = useCreateTask();
   const updateTask = useUpdateTask();
   const [title, setTitle] = useState("");
@@ -357,7 +445,10 @@ function TaskFormDialog({
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <Label>Chi nhánh</Label>
+            <div className="flex items-center justify-between">
+              <Label>Chi nhánh</Label>
+              <ManageLink onClick={() => onManage("BRANCH")}>+ Thêm / xóa chi nhánh</ManageLink>
+            </div>
             <Select value={branchId} onValueChange={setBranchId}>
               <SelectTrigger>
                 <SelectValue placeholder="Chọn chi nhánh" />
@@ -441,7 +532,7 @@ function TaskFormDialog({
 
 export function TasksPage() {
   const { data: employees } = useEmployees(EMPLOYEE_KIND.ASSIGNEE);
-  const { data: branches } = useBranches();
+  const { data: branches } = useTaskBranches();
   const updateTask = useUpdateTask();
   const deleteTask = useDeleteTask();
 
@@ -451,7 +542,7 @@ export function TasksPage() {
   const [branchFilter, setBranchFilter] = useState("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
-  const [managerKind, setManagerKind] = useState<EmployeeKind | null>(null);
+  const [manager, setManager] = useState<ManagerTarget | null>(null);
   const [editing, setEditing] = useState<TaskSummary | null>(null);
   const [deleting, setDeleting] = useState<TaskSummary | null>(null);
 
@@ -561,7 +652,7 @@ export function TasksPage() {
         description="Giao việc và theo dõi công việc hằng ngày"
         actions={
           <div className="flex items-center gap-2">
-            <Button variant="outline" className="gap-1.5" onClick={() => setManagerKind(EMPLOYEE_KIND.ASSIGNEE)}>
+            <Button variant="outline" className="gap-1.5" onClick={() => setManager(EMPLOYEE_KIND.ASSIGNEE)}>
               <Users className="h-4 w-4" /> Nhân viên
             </Button>
             <Button
@@ -667,14 +758,15 @@ export function TasksPage() {
         open={formOpen}
         onOpenChange={setFormOpen}
         task={editing}
-        onManage={setManagerKind}
+        onManage={setManager}
       />
 
       <EmployeeManagerDialog
-        kind={managerKind ?? EMPLOYEE_KIND.ASSIGNEE}
-        open={managerKind !== null}
-        onOpenChange={(o) => !o && setManagerKind(null)}
+        kind={manager === EMPLOYEE_KIND.ASSIGNER ? EMPLOYEE_KIND.ASSIGNER : EMPLOYEE_KIND.ASSIGNEE}
+        open={manager === EMPLOYEE_KIND.ASSIGNER || manager === EMPLOYEE_KIND.ASSIGNEE}
+        onOpenChange={(o) => !o && setManager(null)}
       />
+      <BranchManagerDialog open={manager === "BRANCH"} onOpenChange={(o) => !o && setManager(null)} />
 
       <Dialog open={!!deleting} onOpenChange={(o) => !o && setDeleting(null)}>
         <DialogContent>

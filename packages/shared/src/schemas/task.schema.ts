@@ -21,6 +21,11 @@ export const updateTaskSchema = taskSchema.partial().extend({
 });
 export type UpdateTaskInput = z.infer<typeof updateTaskSchema>;
 
+export const taskBranchSchema = z.object({
+  name: z.string().trim().min(1, "Nhập tên chi nhánh").max(100, "Tên chi nhánh tối đa 100 ký tự"),
+});
+export type TaskBranchInput = z.infer<typeof taskBranchSchema>;
+
 export const employeeSchema = z.object({
   name: z.string().trim().min(1, "Nhập tên").max(100, "Tên tối đa 100 ký tự"),
   kind: z.nativeEnum(EMPLOYEE_KIND),
