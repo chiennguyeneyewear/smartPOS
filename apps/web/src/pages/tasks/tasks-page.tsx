@@ -44,12 +44,26 @@ const STATUS_TRIGGER_CLASS: Record<TaskStatus, string> = {
   DONE: "border-success/40 bg-success/10 text-success",
 };
 
-// <input type="datetime-local"> works in local time without a zone; convert to/from the ISO instant we store.
-function toLocalInput(iso: string | null | undefined): string {
+// The deadline is entered as a date plus a 24-hour "HH:mm" text field: the browser's own time picker
+// follows the OS locale and shows 12-hour AM/PM, which can't be forced to 24h.
+const pad2 = (n: number) => String(n).padStart(2, "0");
+
+function toLocalDate(iso: string | null | undefined): string {
   if (!iso) return "";
   const d = new Date(iso);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+}
+
+function toLocalTime(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+}
+
+// "1730" -> "17:30" as the user types.
+function maskTime(raw: string): string {
+  const digits = raw.replace(/\D/g, "").slice(0, 4);
+  return digits.length > 2 ? `${digits.slice(0, 2)}:${digits.slice(2)}` : digits;
 }
 
 function sortedBranches<T extends { name: string }>(branches: T[] | undefined): T[] {
@@ -248,7 +262,8 @@ function TaskFormDialog({
   const [assignerId, setAssignerId] = useState("");
   const [assigneeId, setAssigneeId] = useState("");
   const [branchId, setBranchId] = useState("");
-  const [dueAt, setDueAt] = useState("");
+  const [dueDate, setDueDate] = useState("");
+  const [dueTime, setDueTime] = useState("");
   const [status, setStatus] = useState<TaskStatus>(TASK_STATUS.PENDING);
   const [error, setError] = useState<string | null>(null);
 
@@ -259,7 +274,8 @@ function TaskFormDialog({
     setAssignerId(task?.assignerId ?? "");
     setAssigneeId(task?.assigneeId ?? "");
     setBranchId(task?.branchId ?? "");
-    setDueAt(toLocalInput(task?.dueAt));
+    setDueDate(toLocalDate(task?.dueAt));
+    setDueTime(toLocalTime(task?.dueAt));
     setStatus(task?.status ?? TASK_STATUS.PENDING);
     setError(null);
   }, [open, task]);
@@ -283,13 +299,26 @@ function TaskFormDialog({
   const pending = createTask.isPending || updateTask.isPending;
 
   function submit() {
+    let dueAt: string | null = null;
+    if (dueDate || dueTime) {
+      if (!dueDate) {
+        setError("Chọn ngày cho thời hạn hoàn thành");
+        return;
+      }
+      const time = dueTime || "23:59";
+      if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) {
+        setError("Giờ không hợp lệ, nhập theo 24 giờ (VD: 17:30)");
+        return;
+      }
+      dueAt = new Date(`${dueDate}T${time}`).toISOString();
+    }
     const parsed = taskSchema.safeParse({
       title,
       description,
       assignerId,
       assigneeId,
       branchId,
-      dueAt: dueAt ? new Date(dueAt).toISOString() : null,
+      dueAt,
     });
     if (!parsed.success) {
       setError(parsed.error.issues[0]?.message ?? "Dữ liệu không hợp lệ");
@@ -344,7 +373,17 @@ function TaskFormDialog({
           </div>
           <div className="space-y-1.5">
             <Label>Thời hạn hoàn thành</Label>
-            <Input type="datetime-local" value={dueAt} onChange={(e) => setDueAt(e.target.value)} />
+            <div className="flex gap-2">
+              <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+              <Input
+                value={dueTime}
+                onChange={(e) => setDueTime(maskTime(e.target.value))}
+                inputMode="numeric"
+                placeholder="HH:mm"
+                maxLength={5}
+                className="w-[92px] shrink-0 text-center"
+              />
+            </div>
           </div>
           </div>
           <div className="space-y-1.5">
