@@ -58,8 +58,8 @@ export function DataTable<TData>({
                 <th
                   key={header.id}
                   className={cn(
-                    "text-left text-sm font-semibold text-muted-foreground",
-                    compact ? "px-2.5 py-3 leading-tight" : "whitespace-nowrap p-3",
+                    "whitespace-nowrap text-left text-sm font-semibold text-muted-foreground",
+                    compact ? "px-2.5 py-3" : "p-3",
                   )}
                 >
                   {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}

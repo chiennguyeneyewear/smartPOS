@@ -12,7 +12,7 @@ import { DatePicker } from "@/components/shared/date-picker";
 import { PrintReceiptDialog } from "@/components/shared/print-receipt-dialog";
 import { InvoiceDetailPanel, goodsTotal } from "./invoice-detail-panel";
 import { useSearchDropdown } from "@/hooks/use-search-dropdown";
-import { cn, formatCurrency, formatDateTime } from "@/lib/utils";
+import { formatCurrency, formatDateTime } from "@/lib/utils";
 import { PERIOD_PRESET_OPTIONS, formatPeriodLabel, getPeriodRange, type PeriodPreset } from "@/lib/period-presets";
 import { useReportBranchId } from "@/hooks/use-report-branch-id";
 import { mergeSameProductItems, type ReceiptData } from "@/stores/print-receipt-store";
@@ -31,34 +31,6 @@ const PAY_METHODS: { value: PayMethod; label: string }[] = [
   { value: "DEBT", label: "Ghi nợ" },
 ];
 const PAY_LABEL = Object.fromEntries(PAY_METHODS.map((m) => [m.value, m.label])) as Record<PayMethod, string>;
-
-function FilterGroup({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="space-y-1.5">
-      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
-      {children}
-    </div>
-  );
-}
-
-// Toggle pill used for the payment-method and status filters.
-function FilterChip({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button
-      type="button"
-      aria-pressed={active}
-      onClick={onClick}
-      className={cn(
-        "h-9 rounded-full border px-3.5 text-sm transition-colors",
-        active
-          ? "border-primary bg-primary/10 font-medium text-primary"
-          : "border-input text-muted-foreground hover:bg-accent",
-      )}
-    >
-      {children}
-    </button>
-  );
-}
 
 function toDateInputValue(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -242,22 +214,13 @@ export function OrdersPage() {
     {
       id: "createdAt",
       header: "Thời gian",
-      cell: ({ row }) => {
-        // "18:32 26/09/2026" -> time over date, so the column stays narrow
-        const [time = "", date = ""] = formatDateTime(row.original.createdAt).split(" ");
-        return (
-          <div className="leading-tight">
-            <p>{time}</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">{date}</p>
-          </div>
-        );
-      },
+      cell: ({ row }) => formatDateTime(row.original.createdAt),
     },
     {
       id: "customer",
       header: "Khách hàng",
       cell: ({ row }) => (
-        <div className="min-w-[130px] max-w-[190px] whitespace-normal leading-tight">
+        <div className="min-w-[140px] max-w-[220px] whitespace-normal leading-tight">
           <p className="font-medium">{row.original.customer?.name ?? "Khách lẻ"}</p>
           {row.original.customer?.code && (
             <p className="mt-0.5 text-xs text-muted-foreground">{row.original.customer.code}</p>
@@ -302,87 +265,83 @@ export function OrdersPage() {
     },
   ];
 
-  const renderDetail = (row: InvoiceListItem) => (
-              <InvoiceDetailPanel
-                invoice={row}
-                branchName={branches?.find((b) => b.id === row.branchId)?.name}
-                onPrint={() => setPrintInvoice(row)}
-                onVoid={() => {
-                  setSelectedIds(new Set([row.id]));
-                  setConfirmingVoid(true);
-                }}
-              />
-            );
-
   return (
     <div className="space-y-4">
       <PageHeader title="Đơn hàng" description="Toàn bộ hóa đơn đã tạo" />
 
-      <div className="space-y-3">
-        <Card>
-          <CardContent className="flex flex-wrap items-end gap-x-6 gap-y-4 pt-4">
-            <FilterGroup label="Thời gian">
-              <div className="flex flex-wrap items-center gap-2">
-                <Select value={preset} onValueChange={(v) => setPreset(v as PeriodPreset)}>
-                  <SelectTrigger className="h-9 w-[160px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {PERIOD_PRESET_OPTIONS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {preset === "custom" && (
-                  <>
-                    <DatePicker value={customFrom} onChange={setCustomFrom} className="w-[130px]" />
-                    <span className="text-sm text-muted-foreground">-</span>
-                    <DatePicker value={customTo} onChange={setCustomTo} className="w-[130px]" />
-                  </>
-                )}
-              </div>
-            </FilterGroup>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[240px_1fr]">
+        <Card className="h-fit">
+          <CardContent className="space-y-4 pt-4">
+            <div className="space-y-2">
+              <p className="text-sm font-semibold">Thời gian</p>
+              <Select value={preset} onValueChange={(v) => setPreset(v as PeriodPreset)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {PERIOD_PRESET_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {preset === "custom" && (
+                <div className="space-y-2">
+                  <DatePicker value={customFrom} onChange={setCustomFrom} className="w-full" />
+                  <DatePicker value={customTo} onChange={setCustomTo} className="w-full" />
+                </div>
+              )}
+            </div>
 
             {isAdmin && (
-              <FilterGroup label="Người bán">
-                <Select value={sellerId} onValueChange={setSellerId}>
-                  <SelectTrigger className="h-9 w-[150px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Tất cả</SelectItem>
-                    {sellers?.map((seller) => (
-                      <SelectItem key={seller.id} value={seller.id}>
-                        {seller.username}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </FilterGroup>
+            <div className="space-y-2">
+              <p className="text-sm font-semibold">Người bán</p>
+              <Select value={sellerId} onValueChange={setSellerId}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tất cả</SelectItem>
+                  {sellers?.map((seller) => (
+                    <SelectItem key={seller.id} value={seller.id}>
+                      {seller.username}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             )}
 
-            <FilterGroup label="Phương thức thanh toán">
-              <div className="flex flex-wrap gap-2">
-                {PAY_METHODS.map((m) => (
-                  <FilterChip key={m.value} active={payMethods.has(m.value)} onClick={() => togglePayMethod(m.value)}>
-                    {m.label}
-                  </FilterChip>
-                ))}
-              </div>
-            </FilterGroup>
+            <div className="space-y-2">
+              <p className="text-sm font-semibold">Phương thức thanh toán</p>
+              {PAY_METHODS.map((m) => (
+                <label key={m.value} className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={payMethods.has(m.value)} onChange={() => togglePayMethod(m.value)} />
+                  {m.label}
+                </label>
+              ))}
+            </div>
 
-            <FilterGroup label="Trạng thái hóa đơn">
-              <div className="flex flex-wrap gap-2">
-                <FilterChip active={showCompleted} onClick={() => setShowCompleted((v) => !v)}>
-                  Hoàn thành
-                </FilterChip>
-                <FilterChip active={showCancelled} onClick={() => setShowCancelled((v) => !v)}>
-                  Đã hủy
-                </FilterChip>
-              </div>
-            </FilterGroup>
+            <div className="space-y-2">
+              <p className="text-sm font-semibold">Trạng thái hóa đơn</p>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={showCompleted}
+                  onChange={(e) => setShowCompleted(e.target.checked)}
+                />
+                Hoàn thành
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={showCancelled}
+                  onChange={(e) => setShowCancelled(e.target.checked)}
+                />
+                Đã hủy
+              </label>
+            </div>
           </CardContent>
         </Card>
 
@@ -467,70 +426,26 @@ export function OrdersPage() {
               </span>
             </div>
           </div>
-          {/* Phones: one card per invoice instead of a wide table. */}
-          <div className="space-y-2 xl:hidden">
-            {isLoading ? (
-              <p className="py-6 text-center text-sm text-muted-foreground">Đang tải dữ liệu...</p>
-            ) : filteredInvoices.length === 0 ? (
-              <p className="py-6 text-center text-sm text-muted-foreground">Không có hóa đơn nào</p>
-            ) : (
-              filteredInvoices.map((inv) => {
-                const methods = [...new Set(inv.payments.map((p) => p.method))];
-                return (
-                  <div key={inv.id} className={cn("rounded-lg border bg-card", inv.id === expandedId && "border-primary")}>
-                    <div
-                      className="flex cursor-pointer items-start gap-3 p-3"
-                      onClick={() => setExpandedId((prev) => (prev === inv.id ? null : inv.id))}
-                    >
-                      <input
-                        type="checkbox"
-                        className="mt-1"
-                        checked={selectedIds.has(inv.id)}
-                        onClick={(e) => e.stopPropagation()}
-                        onChange={() => toggleOne(inv.id)}
-                      />
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="font-semibold">{inv.code}</span>
-                          {inv.status === "CANCELLED" ? (
-                            <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive">
-                              Đã hủy
-                            </span>
-                          ) : (
-                            <span className="rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success">
-                              Hoàn thành
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-xs text-muted-foreground">{formatDateTime(inv.createdAt)}</p>
-                        <p className="mt-1 text-sm">{inv.customer?.name ?? "Khách lẻ"}</p>
-                        <div className="mt-1 flex items-end justify-between gap-2 text-sm">
-                          <span className="text-muted-foreground">
-                            {inv.createdByName}
-                            {methods.length > 0 && ` · ${methods.map((m) => PAY_LABEL[m] ?? m).join(" + ")}`}
-                          </span>
-                          <span className="font-semibold tabular-nums">{inv.paidAmount.toLocaleString("en-US")}</span>
-                        </div>
-                      </div>
-                    </div>
-                    {inv.id === expandedId && <div className="border-t bg-primary/5 p-3">{renderDetail(inv)}</div>}
-                  </div>
-                );
-              })
+          <DataTable
+            columns={columns}
+            compact
+            data={filteredInvoices}
+            isLoading={isLoading}
+            emptyMessage="Không có hóa đơn nào"
+            onRowClick={(row) => setExpandedId((prev) => (prev === row.id ? null : row.id))}
+            isRowSelected={(row) => row.id === expandedId}
+            renderExpandedRow={(row) => (
+              <InvoiceDetailPanel
+                invoice={row}
+                branchName={branches?.find((b) => b.id === row.branchId)?.name}
+                onPrint={() => setPrintInvoice(row)}
+                onVoid={() => {
+                  setSelectedIds(new Set([row.id]));
+                  setConfirmingVoid(true);
+                }}
+              />
             )}
-          </div>
-          <div className="hidden xl:block">
-            <DataTable
-              columns={columns}
-              compact
-              data={filteredInvoices}
-              isLoading={isLoading}
-              emptyMessage="Không có hóa đơn nào"
-              onRowClick={(row) => setExpandedId((prev) => (prev === row.id ? null : row.id))}
-              isRowSelected={(row) => row.id === expandedId}
-              renderExpandedRow={renderDetail}
-            />
-          </div>
+          />
         </div>
       </div>
 
