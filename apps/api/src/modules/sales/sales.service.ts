@@ -459,7 +459,11 @@ export async function listPaymentsOnDay(date: string, actor: Actor, sellerId?: s
       const paidOnFirstDay = all.filter((p) => vnDay(p.createdAt) === firstDay).reduce((s, p) => s + Number(p.amount), 0);
       const wholeSale = isFirstDay && Math.abs(paidOnFirstDay - owed) <= 0.5 && Math.abs(paidTotal - owed) <= 0.5;
       const kind = wholeSale ? "Bán hàng" : isFirstDay ? "Cọc" : "Thu nốt";
+      // what the customer still owed right after this payment came in
+      const paidUpToHere = all.filter((p) => p.createdAt.getTime() <= r.createdAt.getTime()).reduce((s, p) => s + Number(p.amount), 0);
       return {
+        remainingAfter: Math.max(0, owed - paidUpToHere),
+        firstPaidAt: (all[0]?.createdAt ?? r.createdAt).toISOString(),
         id: r.id,
         paidAt: r.createdAt.toISOString(),
         invoiceCode: r.invoice.code,

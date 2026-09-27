@@ -41,6 +41,8 @@ export interface DayPayment {
   amount: number;
   reference: string | null;
   kind: "Bán hàng" | "Cọc" | "Thu nốt";
+  remainingAfter: number;
+  firstPaidAt: string;
   sellerName: string;
 }
 
