@@ -29,39 +29,40 @@ interface Row {
   expenseNote: string;
 }
 
-// One line per payment received that day, laid out like the paper sheet:
-//  - a sale, or the deposit on one, goes under the method it was paid with; a deposit also shows what is
+// One line per invoice, like the paper sheet: everything the customer paid on it that day goes on the same
+// line, each amount under its own method (e.g. 1,000,000 cash and 728,000 transfer side by side).
+//  - a sale, or the deposit on one, goes under the methods it was paid with; a deposit also shows what is
 //    still owed in "Sau cọc còn";
 //  - the balance collected later on an earlier deposit is written in "Sau cọc còn" as "Trả cọc còn <amount> <method>".
 function buildRows(payments: DayPayment[]): Row[] {
-  // if an invoice took several deposit payments in the day, only the last row carries the amount still owed
-  const lastDeposit = new Map<string, string>();
-  for (const p of payments) if (p.kind === "Cọc") lastDeposit.set(p.invoiceCode, p.id);
-
-  return payments.map((p) => {
-    if (p.kind === "Thu nốt") {
-      return {
-        key: p.id,
-        cash: 0,
-        transfer: 0,
-        card: 0,
-        owedAfter: 0,
-        paidBalance: `Trả cọc còn ${p.amount.toLocaleString("en-US")} ${SHORT[p.method] ?? ""}`,
-        expenseText: "",
-        expenseNote: "",
-      };
-    }
-    return {
-      key: p.id,
-      cash: p.method === "CASH" ? p.amount : 0,
-      transfer: p.method === "BANK_TRANSFER" ? p.amount : 0,
-      card: p.method === "CARD" ? p.amount : 0,
-      owedAfter: p.kind === "Cọc" && lastDeposit.get(p.invoiceCode) === p.id ? p.remainingAfter : 0,
+  const byInvoice = new Map<string, Row>();
+  for (const p of payments) {
+    const balance = p.kind === "Thu nốt";
+    // a balance payment gets its own line even if the same invoice also had a sale line that day
+    const key = `${p.invoiceCode}|${balance ? "balance" : "sale"}`;
+    const row = byInvoice.get(key) ?? {
+      key,
+      cash: 0,
+      transfer: 0,
+      card: 0,
+      owedAfter: 0,
       paidBalance: "",
       expenseText: "",
       expenseNote: "",
     };
-  });
+    if (balance) {
+      const part = `${p.amount.toLocaleString("en-US")} ${SHORT[p.method] ?? ""}`;
+      row.paidBalance = row.paidBalance ? `${row.paidBalance} + ${part}` : `Trả cọc còn ${part}`;
+    } else {
+      if (p.method === "CASH") row.cash += p.amount;
+      else if (p.method === "BANK_TRANSFER") row.transfer += p.amount;
+      else if (p.method === "CARD") row.card += p.amount;
+      // what is still owed after the last deposit payment of the day
+      row.owedAfter = p.kind === "Cọc" ? p.remainingAfter : 0;
+    }
+    byInvoice.set(key, row);
+  }
+  return [...byInvoice.values()];
 }
 
 // Equal-width columns, so the sheet reads as an even grid; Ghi chú takes the rest.
