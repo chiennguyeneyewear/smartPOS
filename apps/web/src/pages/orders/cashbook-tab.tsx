@@ -23,6 +23,8 @@ interface Row {
   card: number;
   // Deposit rows: what the customer still owes after paying it. Balance rows: text "Trả cọc còn ...".
   owedAfter: number;
+  // "740,000 - Em Đạt": what is still owed after the deposit, then whose order it is
+  owedText: string;
   paidBalance: string;
   // the expense written on this line (columns "Chi tiêu" and "Ghi chú" are independent of the receipts)
   expenseText: string;
@@ -46,6 +48,7 @@ function buildRows(payments: DayPayment[]): Row[] {
       transfer: 0,
       card: 0,
       owedAfter: 0,
+      owedText: "",
       paidBalance: "",
       expenseText: "",
       expenseNote: "",
@@ -59,6 +62,7 @@ function buildRows(payments: DayPayment[]): Row[] {
       else if (p.method === "CARD") row.card += p.amount;
       // what is still owed after the last deposit payment of the day
       row.owedAfter = p.kind === "Cọc" ? p.remainingAfter : 0;
+      row.owedText = row.owedAfter > 0 ? `${row.owedAfter.toLocaleString("en-US")} - ${p.customerName}` : "";
     }
     byInvoice.set(key, row);
   }
@@ -96,7 +100,7 @@ export function CashbookTab({
   // receipts and expenses are independent columns, so line i carries the i-th receipt and the i-th expense
   const lineCount = Math.max(MIN_ROWS, receiptRows.length, expenses.length);
   const shown: Row[] = Array.from({ length: lineCount }, (_, i) => {
-    const base = receiptRows[i] ?? { key: `blank-${i}`, cash: 0, transfer: 0, card: 0, owedAfter: 0, paidBalance: "", expenseText: "", expenseNote: "" };
+    const base = receiptRows[i] ?? { key: `blank-${i}`, cash: 0, transfer: 0, card: 0, owedAfter: 0, owedText: "", paidBalance: "", expenseText: "", expenseNote: "" };
     const e = expenses[i];
     return { ...base, expenseText: e ? `${e.amount.toLocaleString("en-US")} - ${e.payer}` : "", expenseNote: e?.content ?? "" };
   });
@@ -212,7 +216,7 @@ export function CashbookTab({
                     <td className={cn(cell, num)}>{money(r.transfer)}</td>
                     <td className={cn(cell, num)}>{money(r.card)}</td>
                     <td className={cn(cell, r.paidBalance ? "text-center" : num)}>
-                      {r.paidBalance || money(r.owedAfter)}
+                      {r.paidBalance || r.owedText}
                     </td>
                     <td className={cn(cell, num)}>{r.expenseText}</td>
                     <td className={cn(cell, "text-center")}>{r.expenseNote}</td>
