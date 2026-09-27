@@ -25,7 +25,9 @@ interface Row {
   owedAfter: number;
   // "740,000 - Em Đạt": what is still owed after the deposit, then whose order it is
   owedText: string;
+  // "500,000 TM - Em Đạt": balance a customer paid on an earlier deposit (own column "Khách trả cọc")
   paidBalance: string;
+  balanceParts: string[];
   // the expense written on this line (columns "Chi tiêu" and "Ghi chú" are independent of the receipts)
   expenseText: string;
   expenseNote: string;
@@ -35,7 +37,8 @@ interface Row {
 // line, each amount under its own method (e.g. 1,000,000 cash and 728,000 transfer side by side).
 //  - a sale, or the deposit on one, goes under the methods it was paid with; a deposit also shows what is
 //    still owed in "Sau cọc còn";
-//  - the balance collected later on an earlier deposit is written in "Sau cọc còn" as "Trả cọc còn <amount> <method>".
+//  - the balance collected later on an earlier deposit goes in its own column "Khách trả cọc", written
+//    "<amount> <method> - <customer>".
 function buildRows(payments: DayPayment[]): Row[] {
   const byInvoice = new Map<string, Row>();
   for (const p of payments) {
@@ -50,12 +53,13 @@ function buildRows(payments: DayPayment[]): Row[] {
       owedAfter: 0,
       owedText: "",
       paidBalance: "",
+      balanceParts: [],
       expenseText: "",
       expenseNote: "",
     };
     if (balance) {
-      const part = `${p.amount.toLocaleString("en-US")} ${SHORT[p.method] ?? ""}`;
-      row.paidBalance = row.paidBalance ? `${row.paidBalance} + ${part}` : `Trả cọc còn ${part}`;
+      row.balanceParts.push(`${p.amount.toLocaleString("en-US")} ${SHORT[p.method] ?? ""}`);
+      row.paidBalance = `${row.balanceParts.join(" + ")} - ${p.customerName}`;
     } else {
       if (p.method === "CASH") row.cash += p.amount;
       else if (p.method === "BANK_TRANSFER") row.transfer += p.amount;
@@ -70,7 +74,7 @@ function buildRows(payments: DayPayment[]): Row[] {
 }
 
 // Equal-width columns, so the sheet reads as an even grid; Ghi chú takes the rest.
-const COLS = ["w-[16%]", "w-[16%]", "w-[16%]", "w-[16%]", "w-[16%]", "w-[20%]"];
+const COLS = Array.from({ length: 7 }, () => "w-[14.28%]");
 const cell = "border-r border-black/80 px-3 py-2 last:border-r-0";
 const num = "text-center tabular-nums";
 
@@ -100,7 +104,7 @@ export function CashbookTab({
   // receipts and expenses are independent columns, so line i carries the i-th receipt and the i-th expense
   const lineCount = Math.max(MIN_ROWS, receiptRows.length, expenses.length);
   const shown: Row[] = Array.from({ length: lineCount }, (_, i) => {
-    const base = receiptRows[i] ?? { key: `blank-${i}`, cash: 0, transfer: 0, card: 0, owedAfter: 0, owedText: "", paidBalance: "", expenseText: "", expenseNote: "" };
+    const base = receiptRows[i] ?? { key: `blank-${i}`, cash: 0, transfer: 0, card: 0, owedAfter: 0, owedText: "", paidBalance: "", balanceParts: [], expenseText: "", expenseNote: "" };
     const e = expenses[i];
     return { ...base, expenseText: e ? `${e.amount.toLocaleString("en-US")} - ${e.payer}` : "", expenseNote: e?.content ?? "" };
   });
@@ -113,6 +117,7 @@ export function CashbookTab({
   const totalExpenses = expenses.reduce((s, e) => s + e.amount, 0);
   const ds = data?.salesTotal ?? 0;
   // Only balances paid in cash count towards the cash handed over; balances paid by transfer or card do not.
+  const totalBalancePaid = payments.filter((p) => p.kind === "Thu nốt").reduce((s, p) => s + p.amount, 0);
   const balanceCash = payments.filter((p) => p.kind === "Thu nốt" && p.method === "CASH").reduce((s, p) => s + p.amount, 0);
   const handover = ds - totalTransfer - totalCard - totalOwed - totalExpenses + balanceCash;
 
@@ -169,7 +174,7 @@ export function CashbookTab({
       </div>
 
       <div className="overflow-x-auto">
-        <div ref={sheetRef} className="min-w-[860px] rounded-md border-2 border-black/80 bg-white text-sm text-black">
+        <div ref={sheetRef} className="min-w-[1000px] rounded-md border-2 border-black/80 bg-white text-sm text-black">
           {/* header: four equal cells */}
           <div className="grid grid-cols-4 divide-x divide-black/80 border-b-2 border-black/80">
             {[
@@ -197,6 +202,7 @@ export function CashbookTab({
                 <th className={cell}>Chuyển khoản</th>
                 <th className={cell}>Quẹt thẻ</th>
                 <th className={cell}>Sau cọc còn</th>
+                <th className={cell}>Khách trả cọc</th>
                 <th className={cell}>Chi tiêu</th>
                 <th className={cell}>Ghi chú</th>
               </tr>
@@ -204,7 +210,7 @@ export function CashbookTab({
             <tbody>
               {isLoading && (
                 <tr>
-                  <td colSpan={6} className="p-6 text-center text-black/50">
+                  <td colSpan={7} className="p-6 text-center text-black/50">
                     Đang tải dữ liệu...
                   </td>
                 </tr>
@@ -215,9 +221,8 @@ export function CashbookTab({
                     <td className={cn(cell, num)}>{money(r.cash)}</td>
                     <td className={cn(cell, num)}>{money(r.transfer)}</td>
                     <td className={cn(cell, num)}>{money(r.card)}</td>
-                    <td className={cn(cell, r.paidBalance ? "text-center" : num)}>
-                      {r.paidBalance || r.owedText}
-                    </td>
+                    <td className={cn(cell, num)}>{r.owedText}</td>
+                    <td className={cn(cell, num)}>{r.paidBalance}</td>
                     <td className={cn(cell, num)}>{r.expenseText}</td>
                     <td className={cn(cell, "text-center")}>{r.expenseNote}</td>
                   </tr>
@@ -227,6 +232,7 @@ export function CashbookTab({
                 <td className={cn(cell, num)}>{money(totalTransfer)}</td>
                 <td className={cn(cell, num)}>{money(totalCard)}</td>
                 <td className={cn(cell, num)}>{money(totalOwed)}</td>
+                <td className={cn(cell, num)}>{money(totalBalancePaid)}</td>
                 <td className={cn(cell, num)}>{money(totalExpenses)}</td>
                 <td className={cell} />
               </tr>
