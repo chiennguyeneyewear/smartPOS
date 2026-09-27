@@ -48,6 +48,26 @@ export function registerSalesRoutes(app: FastifyInstance) {
     },
   );
 
+  // Collects more money on a partly paid invoice (for example the balance when the goods are picked up).
+  app.post(
+    "/sales/invoices/:id/add-payment",
+    { preHandler: [authenticate, requirePermission(PERMISSIONS.SALES_CREATE)] },
+    async (request) => {
+      const { id } = request.params as { id: string };
+      const input = confirmPaymentSchema.parse(request.body);
+      return salesService.addInvoicePayment(id, input, request.authUser!);
+    },
+  );
+
+  // The day's money book: payments received on a given day (staff see only their own invoices).
+  app.get("/sales/payments", { preHandler: authenticate }, async (request, reply) => {
+    const { date, sellerId } = request.query as { date?: string; sellerId?: string };
+    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return reply.code(400).send({ error: "BadRequest", message: "Thiếu ngày (YYYY-MM-DD)" });
+    }
+    return salesService.listPaymentsOnDay(date, request.authUser!, sellerId);
+  });
+
   // Confirms (or corrects) how an invoice was paid, e.g. after a one-tap invoice.
   app.post(
     "/sales/invoices/:id/confirm-payment",
@@ -89,6 +109,7 @@ export function registerSalesRoutes(app: FastifyInstance) {
       status?: string;
       customerId?: string;
       createdById?: string;
+      paymentStatus?: string;
       from?: string;
       to?: string;
     };

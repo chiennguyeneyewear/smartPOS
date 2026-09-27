@@ -266,13 +266,11 @@ export async function confirmInvoicePayment(id: string, input: ConfirmPaymentInp
 
     const expected = Number(invoice.totalAmount) - Number(invoice.depositAmount);
     const sum = input.payments.reduce((s, p) => s + p.amount, 0);
-    if (Math.abs(sum - expected) > 0.5) {
-      throw new SalesError(
-        sum < expected
-          ? `Còn thiếu ${Math.round(expected - sum).toLocaleString("en-US")} đ so với số tiền cần thanh toán`
-          : `Vượt ${Math.round(sum - expected).toLocaleString("en-US")} đ so với số tiền cần thanh toán`,
-      );
+    if (sum > expected + 0.5) {
+      throw new SalesError(`Vượt ${Math.round(sum - expected).toLocaleString("en-US")} đ so với số tiền cần thanh toán`);
     }
+    // Less than owed is fine: the rest is collected later with addInvoicePayment (deposit now, balance at pickup).
+    const settled = Math.abs(sum - expected) <= 0.5;
 
     // Undo the previous debt (if any), then apply the debt of the new lines.
     const oldDebt = invoice.payments
@@ -296,18 +294,32 @@ export async function confirmInvoicePayment(id: string, input: ConfirmPaymentInp
       paymentStatus: invoice.paymentStatus,
       payments: invoice.payments.map((p) => ({ method: p.method, amount: Number(p.amount), reference: p.reference })),
     };
+    // A line that is unchanged (same method and amount) keeps the date it was really received.
+    const unused = [...invoice.payments];
+    const dated = input.payments.map((p) => {
+      const at = unused.findIndex((o) => o.method === p.method && Number(o.amount) === p.amount);
+      const createdAt = at >= 0 ? unused.splice(at, 1)[0]!.createdAt : new Date();
+      return { ...p, createdAt };
+    });
     await tx.payment.deleteMany({ where: { invoiceId: id } });
     await tx.payment.createMany({
-      data: input.payments.map((p) => ({
+      data: dated.map((p) => ({
         invoiceId: id,
         method: p.method,
         amount: p.amount,
         reference: p.reference || null,
+        createdAt: p.createdAt,
       })),
     });
+    const nextStatus = settled ? PaymentStatus.CONFIRMED : PaymentStatus.PARTIAL;
     const updated = await tx.invoice.update({
       where: { id },
-      data: { paymentStatus: PaymentStatus.CONFIRMED, paymentConfirmedAt: new Date(), paymentConfirmedById: actor.id },
+      data: {
+        paymentStatus: nextStatus,
+        paidAmount: sum + Number(invoice.depositAmount),
+        paymentConfirmedAt: new Date(),
+        paymentConfirmedById: actor.id,
+      },
       include: { items: true, payments: true },
     });
     await tx.invoicePaymentLog.create({
@@ -318,13 +330,153 @@ export async function confirmInvoicePayment(id: string, input: ConfirmPaymentInp
         action: invoice.paymentStatus === PaymentStatus.PENDING ? "CONFIRM" : "EDIT",
         before,
         after: {
-          paymentStatus: PaymentStatus.CONFIRMED,
+          paymentStatus: nextStatus,
           payments: input.payments.map((p) => ({ method: p.method, amount: p.amount, reference: p.reference ?? null })),
         },
       },
     });
     return updated;
   });
+}
+
+// Collects more of what is still owed on a partly paid invoice (for example the balance when the customer
+// picks the goods up). The new lines are dated today, and the invoice becomes fully paid once nothing is left.
+export async function addInvoicePayment(id: string, input: ConfirmPaymentInput, actor: Actor) {
+  const isAdmin = actor.role === ROLES.ADMIN;
+  return prisma.$transaction(async (tx) => {
+    const invoice = await tx.invoice.findUnique({ where: { id }, include: { payments: true } });
+    if (!invoice) throw new SalesError("Không tìm thấy hóa đơn", 404);
+    if (invoice.status !== InvoiceStatus.COMPLETED) throw new SalesError("Chỉ thu tiền cho hóa đơn đã hoàn tất");
+    if (!isAdmin && invoice.createdById !== actor.id) {
+      throw new SalesError("Bạn chỉ được thu tiền hóa đơn của chính mình", 403);
+    }
+    if (invoice.paymentStatus === PaymentStatus.PENDING) {
+      throw new SalesError("Hóa đơn này chưa xác nhận thanh toán lần đầu");
+    }
+    if (input.payments.some((p) => p.method === PaymentMethod.DEBT)) {
+      throw new SalesError("Không dùng ghi nợ khi thu thêm tiền");
+    }
+
+    const paid = invoice.payments.reduce((s, p) => s + Number(p.amount), 0);
+    const remaining = Number(invoice.totalAmount) - Number(invoice.depositAmount) - paid;
+    if (remaining <= 0.5) throw new SalesError("Hóa đơn đã thu đủ tiền");
+    const sum = input.payments.reduce((s, p) => s + p.amount, 0);
+    if (sum > remaining + 0.5) {
+      throw new SalesError(`Chỉ còn phải thu ${Math.round(remaining).toLocaleString("en-US")} đ`);
+    }
+
+    await tx.payment.createMany({
+      data: input.payments.map((p) => ({
+        invoiceId: id,
+        method: p.method,
+        amount: p.amount,
+        reference: p.reference || null,
+      })),
+    });
+    const settled = Math.abs(sum - remaining) <= 0.5;
+    const nextStatus = settled ? PaymentStatus.CONFIRMED : PaymentStatus.PARTIAL;
+    const updated = await tx.invoice.update({
+      where: { id },
+      data: { paymentStatus: nextStatus, paidAmount: { increment: sum } },
+      include: { items: true, payments: true },
+    });
+    const beforeLines = invoice.payments.map((p) => ({
+      method: p.method,
+      amount: Number(p.amount),
+      reference: p.reference,
+    }));
+    await tx.invoicePaymentLog.create({
+      data: {
+        invoiceId: id,
+        userId: actor.id,
+        username: actor.username,
+        action: "ADD",
+        before: { paymentStatus: invoice.paymentStatus, payments: beforeLines },
+        after: {
+          paymentStatus: nextStatus,
+          payments: [
+            ...beforeLines,
+            ...input.payments.map((p) => ({ method: p.method, amount: p.amount, reference: p.reference ?? null })),
+          ],
+        },
+      },
+    });
+    return updated;
+  });
+}
+
+// The day's money book (what used to be the paper thu-chi sheet): every payment received on a Vietnam-local
+// day, labelled as a whole sale, a deposit (first part of a partly paid invoice) or the balance collected later.
+export async function listPaymentsOnDay(date: string, actor: Actor, sellerId?: string) {
+  const start = new Date(`${date}T00:00:00+07:00`);
+  const end = new Date(`${date}T23:59:59.999+07:00`);
+  const isAdmin = actor.role === ROLES.ADMIN;
+  const ownerFilter = isAdmin ? (sellerId ? { createdById: sellerId } : {}) : { createdById: actor.id };
+
+  const rows = await prisma.payment.findMany({
+    where: { createdAt: { gte: start, lte: end }, invoice: { status: InvoiceStatus.COMPLETED, ...ownerFilter } },
+    include: {
+      invoice: {
+        select: {
+          id: true,
+          code: true,
+          totalAmount: true,
+          depositAmount: true,
+          createdById: true,
+          customer: { select: { name: true } },
+          payments: { select: { id: true, createdAt: true, amount: true }, orderBy: { createdAt: "asc" } },
+        },
+      },
+    },
+    orderBy: { createdAt: "asc" },
+  });
+
+  const pendingInvoices = await prisma.invoice.findMany({
+    where: {
+      status: InvoiceStatus.COMPLETED,
+      paymentStatus: PaymentStatus.PENDING,
+      completedAt: { gte: start, lte: end },
+      ...ownerFilter,
+    },
+    select: { code: true, totalAmount: true, depositAmount: true, customer: { select: { name: true } } },
+    orderBy: { completedAt: "asc" },
+  });
+
+  const userIds = [...new Set(rows.map((r) => r.invoice.createdById))];
+  const users = await prisma.user.findMany({ where: { id: { in: userIds } }, select: { id: true, username: true } });
+  const nameById = new Map(users.map((u) => [u.id, u.username]));
+
+  return {
+    date,
+    payments: rows.map((r) => {
+      const all = r.invoice.payments;
+      const owed = Number(r.invoice.totalAmount) - Number(r.invoice.depositAmount);
+      const paidTotal = all.reduce((s, p) => s + Number(p.amount), 0);
+      const firstDay = all[0] ? vnDay(all[0].createdAt) : vnDay(r.createdAt);
+      const isFirstDay = vnDay(r.createdAt) === firstDay;
+      // Everything paid on the very first day = an ordinary sale. Otherwise the first day's money is the
+      // deposit and later days are the balance.
+      const paidOnFirstDay = all.filter((p) => vnDay(p.createdAt) === firstDay).reduce((s, p) => s + Number(p.amount), 0);
+      const wholeSale = isFirstDay && Math.abs(paidOnFirstDay - owed) <= 0.5 && Math.abs(paidTotal - owed) <= 0.5;
+      const kind = wholeSale ? "Bán hàng" : isFirstDay ? "Cọc" : "Thu nốt";
+      return {
+        id: r.id,
+        paidAt: r.createdAt.toISOString(),
+        invoiceCode: r.invoice.code,
+        customerName: r.invoice.customer?.name ?? "Khách lẻ",
+        method: r.method,
+        amount: Number(r.amount),
+        reference: r.reference,
+        kind,
+        sellerName: nameById.get(r.invoice.createdById) ?? "N/A",
+      };
+    }),
+    pending: pendingInvoices.map((i) => ({
+      invoiceCode: i.code,
+      customerName: i.customer?.name ?? "Khách lẻ",
+      amount: Number(i.totalAmount) - Number(i.depositAmount),
+    })),
+  };
 }
 
 export async function voidInvoice(id: string, _voidedById: string) {
@@ -397,11 +549,13 @@ export async function listInvoices(filters: {
   status?: string;
   customerId?: string;
   createdById?: string;
+  paymentStatus?: string;
   from?: string;
   to?: string;
 }) {
   const invoices = await prisma.invoice.findMany({
     where: {
+      ...(filters.paymentStatus ? { paymentStatus: filters.paymentStatus as PaymentStatus } : {}),
       ...(filters.branchId ? { branchId: filters.branchId } : {}),
       ...(filters.status ? { status: filters.status as InvoiceStatus } : {}),
       ...(filters.customerId ? { customerId: filters.customerId } : {}),

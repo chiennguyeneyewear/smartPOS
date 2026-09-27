@@ -41,6 +41,7 @@ export type PaymentMethod = (typeof PAYMENT_METHOD)[keyof typeof PAYMENT_METHOD]
 export const PAYMENT_STATUS = {
   CONFIRMED: "CONFIRMED",
   PENDING: "PENDING",
+  PARTIAL: "PARTIAL",
 } as const;
 export type PaymentStatus = (typeof PAYMENT_STATUS)[keyof typeof PAYMENT_STATUS];
 

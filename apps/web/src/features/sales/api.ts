@@ -27,6 +27,34 @@ export async function confirmInvoicePayment(id: string, input: ConfirmPaymentInp
   return data;
 }
 
+export async function addInvoicePayment(id: string, input: ConfirmPaymentInput): Promise<InvoiceSummary> {
+  const { data } = await apiClient.post<InvoiceSummary>(`/sales/invoices/${id}/add-payment`, input);
+  return data;
+}
+
+export interface DayPayment {
+  id: string;
+  paidAt: string;
+  invoiceCode: string;
+  customerName: string;
+  method: PaymentMethod;
+  amount: number;
+  reference: string | null;
+  kind: "Bán hàng" | "Cọc" | "Thu nốt";
+  sellerName: string;
+}
+
+export interface DayPayments {
+  date: string;
+  payments: DayPayment[];
+  pending: { invoiceCode: string; customerName: string; amount: number }[];
+}
+
+export async function fetchPaymentsOnDay(params: { date: string; sellerId?: string }): Promise<DayPayments> {
+  const { data } = await apiClient.get<DayPayments>("/sales/payments", { params });
+  return data;
+}
+
 export async function voidInvoice(id: string): Promise<InvoiceSummary> {
   const { data } = await apiClient.post<InvoiceSummary>(`/sales/invoices/${id}/void`);
   return data;
@@ -61,6 +89,7 @@ export async function fetchInvoices(params: {
   status?: string;
   customerId?: string;
   createdById?: string;
+  paymentStatus?: string;
   from?: string;
   to?: string;
 }): Promise<InvoiceListItem[]> {

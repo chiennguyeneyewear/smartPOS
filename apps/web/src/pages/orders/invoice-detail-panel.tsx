@@ -71,12 +71,17 @@ export function InvoiceDetailPanel({
   onPrint,
   onVoid,
   onConfirmPayment,
+  onAddPayment,
+  stillOwed = 0,
 }: {
   invoice: InvoiceListItem;
   branchName?: string;
   onPrint: () => void;
   // Shown only to whoever may confirm or correct how this invoice was paid.
   onConfirmPayment?: () => void;
+  // Collect the balance on a partly paid invoice.
+  onAddPayment?: () => void;
+  stillOwed?: number;
   // Only the admin gets to cancel an invoice; without it the Hủy button is not shown.
   onVoid?: () => void;
 }) {
@@ -196,6 +201,11 @@ export function InvoiceDetailPanel({
                     </div>
                   ),
                 )}
+              {invoice.paymentStatus === "PARTIAL" && (
+                <p className="rounded-md bg-amber-50 px-2 py-1.5 text-xs text-amber-800">
+                  Còn phải thu {fmt(stillOwed)}. Khách chưa trả đủ, thu nốt bằng nút Thu thêm.
+                </p>
+              )}
               {invoice.paymentStatus === "PENDING" && (
                 <p className="rounded-md bg-amber-50 px-2 py-1.5 text-xs text-amber-800">
                   Chờ xác nhận thanh toán: chưa ghi nhận khách trả bằng tiền mặt hay chuyển khoản.
@@ -263,6 +273,11 @@ export function InvoiceDetailPanel({
           {isCompleted && onVoid && (
             <Button variant="ghost" size="sm" className="gap-1.5" onClick={onVoid}>
               <Ban className="h-4 w-4" /> Hủy
+            </Button>
+          )}
+          {isCompleted && onAddPayment && (
+            <Button size="sm" className="gap-1.5" onClick={onAddPayment}>
+              Thu thêm
             </Button>
           )}
           {isCompleted && onConfirmPayment && (

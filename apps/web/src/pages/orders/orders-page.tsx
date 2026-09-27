@@ -12,8 +12,9 @@ import { DatePicker } from "@/components/shared/date-picker";
 import { PrintReceiptDialog } from "@/components/shared/print-receipt-dialog";
 import { InvoiceDetailPanel, goodsTotal } from "./invoice-detail-panel";
 import { ConfirmPaymentDialog } from "./confirm-payment-dialog";
+import { CashbookTab } from "./cashbook-tab";
 import { useSearchDropdown } from "@/hooks/use-search-dropdown";
-import { formatCurrency, formatDateTime } from "@/lib/utils";
+import { cn, formatCurrency, formatDateTime } from "@/lib/utils";
 import { PERIOD_PRESET_OPTIONS, formatPeriodLabel, getPeriodRange, type PeriodPreset } from "@/lib/period-presets";
 import { useReportBranchId } from "@/hooks/use-report-branch-id";
 import { mergeSameProductItems, type ReceiptData } from "@/stores/print-receipt-store";
@@ -25,15 +26,21 @@ import { useAuthStore } from "@/stores/auth-store";
 import { useBranches } from "@/features/branches/hooks";
 
 // PENDING is not a real method: it stands for one-tap invoices whose payment is still to be confirmed.
-type PayMethod = "CASH" | "BANK_TRANSFER" | "CARD" | "DEBT" | "PENDING";
+type PayMethod = "CASH" | "BANK_TRANSFER" | "CARD" | "DEBT" | "PENDING" | "PARTIAL";
 const PAY_METHODS: { value: PayMethod; label: string }[] = [
   { value: "CASH", label: "Tiền mặt" },
   { value: "BANK_TRANSFER", label: "Chuyển khoản" },
   { value: "CARD", label: "Quẹt thẻ" },
   { value: "DEBT", label: "Ghi nợ" },
   { value: "PENDING", label: "Chờ xác nhận" },
+  { value: "PARTIAL", label: "Còn thiếu tiền" },
 ];
 const PAY_LABEL = Object.fromEntries(PAY_METHODS.map((m) => [m.value, m.label])) as Record<PayMethod, string>;
+
+// What a partly paid invoice still has to collect.
+function amountStillOwed(inv: InvoiceListItem): number {
+  return Math.max(0, inv.totalAmount - inv.depositAmount - inv.payments.reduce((s, p) => s + p.amount, 0));
+}
 
 function toDateInputValue(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -90,7 +97,8 @@ export function OrdersPage() {
       if (payMethods.size < PAY_METHODS.length) {
         const matches =
           inv.payments.some((p) => payMethods.has(p.method)) ||
-          (inv.paymentStatus === "PENDING" && payMethods.has("PENDING"));
+          (inv.paymentStatus === "PENDING" && payMethods.has("PENDING")) ||
+          (inv.paymentStatus === "PARTIAL" && payMethods.has("PARTIAL"));
         if (!matches) return false;
       }
       if (codeQ && !inv.code.toLowerCase().includes(codeQ)) return false;
@@ -125,6 +133,9 @@ export function OrdersPage() {
       for (const p of inv.payments) sums.set(p.method, (sums.get(p.method) ?? 0) + p.amount);
       if (inv.paymentStatus === "PENDING") {
         sums.set("PENDING", (sums.get("PENDING") ?? 0) + inv.totalAmount - inv.depositAmount);
+      }
+      if (inv.paymentStatus === "PARTIAL") {
+        sums.set("PARTIAL", (sums.get("PARTIAL") ?? 0) + amountStillOwed(inv));
       }
     }
     return PAY_METHODS.filter((m) => sums.has(m.value)).map((m) => ({ ...m, amount: sums.get(m.value) ?? 0 }));
@@ -202,6 +213,11 @@ export function OrdersPage() {
   const [confirmInvoice, setConfirmInvoice] = useState<InvoiceListItem | null>(null);
   const vnDay = (iso: string) => new Date(new Date(iso).getTime() + 7 * 3600_000).toISOString().slice(0, 10);
   // Admin: any invoice, any time. Staff: only their own, on the day it was issued.
+  const [addInvoice, setAddInvoice] = useState<InvoiceListItem | null>(null);
+  const [view, setView] = useState<"invoices" | "cashbook">("invoices");
+  // Collecting the rest of a partly paid invoice: admin or the seller who issued it, on any later day.
+  const canAddPayment = (inv: InvoiceListItem) =>
+    inv.status === "COMPLETED" && inv.paymentStatus === "PARTIAL" && (isAdmin || inv.createdById === userId);
   const canConfirmPayment = (inv: InvoiceListItem) =>
     inv.status === "COMPLETED" &&
     (isAdmin || (inv.createdById === userId && vnDay(inv.completedAt ?? inv.createdAt) === vnDay(new Date().toISOString())));
@@ -279,7 +295,9 @@ export function OrdersPage() {
         const byMethod = new Map<string, number>();
         for (const p of row.original.payments) byMethod.set(p.method, (byMethod.get(p.method) ?? 0) + p.amount);
         if (byMethod.size === 0) return "";
-        if (byMethod.size === 1) return PAY_LABEL[[...byMethod.keys()][0] as PayMethod];
+        const partial = row.original.paymentStatus === "PARTIAL";
+        // a partly paid invoice always lists its amounts, so the deposit is visible next to what is still owed
+        if (byMethod.size === 1 && !partial) return PAY_LABEL[[...byMethod.keys()][0] as PayMethod];
         return (
           <div className="leading-tight">
             {[...byMethod.entries()].map(([m, amount]) => (
@@ -287,6 +305,11 @@ export function OrdersPage() {
                 {PAY_LABEL[m as PayMethod] ?? m} <span className="tabular-nums">{amount.toLocaleString("en-US")}</span>
               </p>
             ))}
+            {partial && (
+              <p className="mt-0.5 text-xs font-medium text-amber-700">
+                Còn thiếu {amountStillOwed(row.original).toLocaleString("en-US")}
+              </p>
+            )}
           </div>
         );
       },
@@ -304,7 +327,31 @@ export function OrdersPage() {
     <div className="space-y-4">
       <PageHeader title="Đơn hàng" description="Toàn bộ hóa đơn đã tạo" />
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[195px_1fr]">
+      <div className="flex gap-2">
+        {(
+          [
+            ["invoices", "Hóa đơn"],
+            ["cashbook", "Sổ thu tiền"],
+          ] as const
+        ).map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setView(key)}
+            className={cn(
+              "h-9 rounded-full border px-4 text-sm transition-colors",
+              view === key ? "border-primary bg-primary/10 font-medium text-primary" : "border-input text-muted-foreground hover:bg-accent",
+            )}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {view === "cashbook" && <CashbookTab isAdmin={isAdmin} sellers={sellers?.map((u) => ({ id: u.id, name: u.username }))} />}
+
+      <div className={cn("grid", view === "cashbook" && "hidden")}>
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[195px_1fr]">
         <Card className="h-fit">
           <CardContent className="space-y-4 pt-4">
             <div className="space-y-2">
@@ -475,6 +522,8 @@ export function OrdersPage() {
                 branchName={branches?.find((b) => b.id === row.branchId)?.name}
                 onPrint={() => setPrintInvoice(row)}
                 onConfirmPayment={canConfirmPayment(row) ? () => setConfirmInvoice(row) : undefined}
+                onAddPayment={canAddPayment(row) ? () => setAddInvoice(row) : undefined}
+                stillOwed={row.paymentStatus === "PARTIAL" ? amountStillOwed(row) : 0}
                 onVoid={
                   isAdmin
                     ? () => {
@@ -487,6 +536,7 @@ export function OrdersPage() {
             )}
           />
         </div>
+      </div>
       </div>
 
       <Dialog open={confirmingVoid} onOpenChange={setConfirmingVoid}>
@@ -511,6 +561,7 @@ export function OrdersPage() {
       </Dialog>
 
       <ConfirmPaymentDialog invoice={confirmInvoice} isAdmin={isAdmin} onClose={() => setConfirmInvoice(null)} />
+      <ConfirmPaymentDialog invoice={addInvoice} isAdmin={isAdmin} mode="add" onClose={() => setAddInvoice(null)} />
 
       <PrintReceiptDialog
         open={!!printInvoice}

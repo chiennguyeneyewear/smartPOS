@@ -446,6 +446,8 @@ model AppState {
 enum PaymentStatus {
   CONFIRMED
   PENDING
+  // Some money received, the rest still to collect (deposit paid, balance due when the goods are picked up).
+  PARTIAL
 }
 
 // Every change to how an invoice was paid: who, when, and the before/after lines.

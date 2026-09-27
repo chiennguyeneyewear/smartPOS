@@ -4,8 +4,10 @@ import { errorMessage } from "@/lib/error-message";
 import { toast } from "@/stores/toast-store";
 import {
   checkoutInvoice,
+  addInvoicePayment,
   confirmInvoicePayment,
   createDraftInvoice,
+  fetchPaymentsOnDay,
   fetchInvoices,
   updateDraftInvoice,
   voidInvoice,
@@ -17,10 +19,11 @@ export function useInvoices(params: {
   status?: string;
   customerId?: string;
   createdById?: string;
+  paymentStatus?: string;
   from?: string;
   to?: string;
-}) {
-  return useQuery({ queryKey: ["invoices", params], queryFn: () => fetchInvoices(params) });
+}, options: { enabled?: boolean } = {}) {
+  return useQuery({ enabled: options.enabled ?? true, queryKey: ["invoices", params], queryFn: () => fetchInvoices(params) });
 }
 
 export function useCreateDraftInvoice() {
@@ -59,11 +62,30 @@ export function useConfirmInvoicePayment() {
     mutationFn: ({ id, input }: { id: string; input: ConfirmPaymentInput }) => confirmInvoicePayment(id, input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["invoices"] });
+      queryClient.invalidateQueries({ queryKey: ["payments-on-day"] });
       toast({ title: "Đã lưu thanh toán", variant: "success" });
     },
     onError: (error: unknown) =>
       toast({ title: "Không lưu được thanh toán", description: errorMessage(error), variant: "destructive" }),
   });
+}
+
+export function useAddInvoicePayment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: ConfirmPaymentInput }) => addInvoicePayment(id, input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["invoices"] });
+      queryClient.invalidateQueries({ queryKey: ["payments-on-day"] });
+      toast({ title: "Đã ghi nhận tiền thu thêm", variant: "success" });
+    },
+    onError: (error: unknown) =>
+      toast({ title: "Không ghi nhận được", description: errorMessage(error), variant: "destructive" }),
+  });
+}
+
+export function usePaymentsOnDay(params: { date: string; sellerId?: string }) {
+  return useQuery({ queryKey: ["payments-on-day", params], queryFn: () => fetchPaymentsOnDay(params) });
 }
 
 export function useVoidInvoice() {

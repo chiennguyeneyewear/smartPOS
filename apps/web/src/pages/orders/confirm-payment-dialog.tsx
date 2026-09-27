@@ -7,8 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MoneyInput, formatMoney, parseMoney } from "@/components/shared/money-input";
 import { PAYMENT_LABELS } from "@/lib/payment";
-import { formatCurrency } from "@/lib/utils";
-import { useConfirmInvoicePayment } from "@/features/sales/hooks";
+import { cn, formatCurrency } from "@/lib/utils";
+import { useAddInvoicePayment, useConfirmInvoicePayment } from "@/features/sales/hooks";
 import type { InvoiceListItem } from "@/features/sales/api";
 
 interface Line {
@@ -23,32 +23,40 @@ interface Line {
 export function ConfirmPaymentDialog({
   invoice,
   isAdmin,
+  mode = "set",
   onClose,
 }: {
   invoice: InvoiceListItem | null;
   isAdmin: boolean;
+  // "set": record / correct how the invoice was paid. "add": collect more on a partly paid invoice.
+  mode?: "set" | "add";
   onClose: () => void;
 }) {
-  const confirm = useConfirmInvoicePayment();
+  const setPayment = useConfirmInvoicePayment();
+  const addPayment = useAddInvoicePayment();
+  const confirm = mode === "add" ? addPayment : setPayment;
   const [lines, setLines] = useState<Line[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  const expected = invoice ? invoice.totalAmount - invoice.depositAmount : 0;
+  const owed = invoice ? invoice.totalAmount - invoice.depositAmount : 0;
+  const alreadyPaid = invoice ? invoice.payments.reduce((s, p) => s + p.amount, 0) : 0;
+  // the most this dialog can record: everything owed ("set"), or what is still missing ("add")
+  const expected = mode === "add" ? Math.max(0, owed - alreadyPaid) : owed;
 
   useEffect(() => {
     if (!invoice) return;
     setError(null);
-    const existing = invoice.payments.map((p) => ({
-      method: p.method,
-      amount: formatMoney(p.amount),
-      reference: p.reference ?? "",
-    }));
+    const existing =
+      mode === "add"
+        ? []
+        : invoice.payments.map((p) => ({ method: p.method, amount: formatMoney(p.amount), reference: p.reference ?? "" }));
     setLines(existing.length > 0 ? existing : [{ method: "CASH", amount: formatMoney(expected), reference: "" }]);
-  }, [invoice?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [invoice?.id, mode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const entered = lines.reduce((sum, l) => sum + parseMoney(l.amount), 0);
   const remaining = expected - entered;
   const balanced = Math.abs(remaining) <= 0.5;
+  const over = remaining < -0.5;
   const methods: PaymentMethod[] = ["CASH", "BANK_TRANSFER", "CARD"];
   if (isAdmin && invoice?.customer) methods.push("DEBT");
 
@@ -67,13 +75,8 @@ export function ConfirmPaymentDialog({
   function submit() {
     if (!invoice) return;
     if (lines.some((l) => parseMoney(l.amount) <= 0)) return setError("Mỗi dòng phải có số tiền lớn hơn 0");
-    if (!balanced) {
-      return setError(
-        remaining > 0
-          ? `Còn thiếu ${formatCurrency(remaining)}`
-          : `Đang vượt ${formatCurrency(-remaining)} so với số tiền cần thanh toán`,
-      );
-    }
+    // Paying only part now is allowed (a deposit); paying more than what is owed is not.
+    if (over) return setError(`Đang vượt ${formatCurrency(-remaining)} so với số tiền cần thanh toán`);
     confirm.mutate(
       {
         id: invoice.id,
@@ -89,14 +92,18 @@ export function ConfirmPaymentDialog({
     );
   }
 
+  const entering = lines.length > 0 && entered > 0;
+
   const pending = invoice?.paymentStatus === "PENDING";
+  const title =
+    mode === "add" ? "Thu thêm tiền" : pending ? "Xác nhận thanh toán" : "Sửa thanh toán";
 
   return (
     <Dialog open={!!invoice} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>
-            {pending ? "Xác nhận thanh toán" : "Sửa thanh toán"} {invoice?.code}
+            {title} {invoice?.code}
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-3 text-sm">
@@ -111,8 +118,14 @@ export function ConfirmPaymentDialog({
                 <span className="tabular-nums">- {formatCurrency(invoice.depositAmount)}</span>
               </div>
             )}
+            {mode === "add" && alreadyPaid > 0 && (
+              <div className="mt-1 flex justify-between">
+                <span className="text-muted-foreground">Đã thu trước đó</span>
+                <span className="tabular-nums">- {formatCurrency(alreadyPaid)}</span>
+              </div>
+            )}
             <div className="mt-1 flex justify-between font-semibold">
-              <span>Cần thanh toán</span>
+              <span>{mode === "add" ? "Còn phải thu" : "Cần thanh toán"}</span>
               <span className="tabular-nums">{formatCurrency(expected)}</span>
             </div>
           </div>
@@ -168,12 +181,17 @@ export function ConfirmPaymentDialog({
 
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Đã nhập {formatCurrency(entered)}</span>
-            <span className={balanced ? "font-semibold text-success" : "font-semibold text-destructive"}>
-              {balanced
-                ? "Đã đủ"
-                : remaining > 0
-                  ? `Còn thiếu ${formatCurrency(remaining)}`
-                  : `Vượt ${formatCurrency(-remaining)}`}
+            <span
+              className={cn(
+                "font-semibold",
+                over ? "text-destructive" : balanced ? "text-success" : "text-amber-700",
+              )}
+            >
+              {over
+                ? `Vượt ${formatCurrency(-remaining)}`
+                : balanced
+                  ? "Đã đủ"
+                  : `Còn phải thu sau này ${formatCurrency(remaining)}`}
             </span>
           </div>
           {error && <p className="text-sm text-destructive">{error}</p>}
@@ -185,7 +203,7 @@ export function ConfirmPaymentDialog({
           <Button variant="outline" onClick={onClose}>
             Bỏ qua
           </Button>
-          <Button onClick={submit} disabled={confirm.isPending}>
+          <Button onClick={submit} disabled={confirm.isPending || !entering}>
             {confirm.isPending ? "Đang lưu..." : "Lưu"}
           </Button>
         </DialogFooter>

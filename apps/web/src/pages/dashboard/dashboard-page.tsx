@@ -23,8 +23,7 @@ import {
   useTopCustomersReport,
   useTopProductsReport,
 } from "@/features/reports/hooks";
-import { usePreorders } from "@/features/preorders/hooks";
-import { ALERT_AFTER_DAYS, WARN_AFTER_DAYS, daysOpen } from "@/pages/preorders/preorders-page";
+import { useInvoices } from "@/features/sales/hooks";
 import { PERIOD_PRESET_OPTIONS, formatPeriodLabel, getPeriodRange, type PeriodPreset } from "@/lib/period-presets";
 
 const LABEL_CLASS = "text-xs font-medium uppercase tracking-wider text-muted-foreground";
@@ -209,10 +208,16 @@ export function DashboardPage() {
     limit: 10,
   });
 
-  const { data: heldPreorders } = usePreorders({ status: "DEPOSITED" }, { enabled: isAdmin });
-  const holdTotal = (heldPreorders ?? []).reduce((sum, o) => sum + o.depositAmount, 0);
-  const holdAlert = (heldPreorders ?? []).filter((o) => daysOpen(o) >= ALERT_AFTER_DAYS).length;
-  const holdWarn = (heldPreorders ?? []).filter((o) => daysOpen(o) >= WARN_AFTER_DAYS && daysOpen(o) < ALERT_AFTER_DAYS).length;
+  // Invoices issued but not paid in full yet (deposit taken, balance due when the goods are picked up).
+  const { data: partlyPaid } = useInvoices({ paymentStatus: "PARTIAL", status: "COMPLETED" }, { enabled: isAdmin });
+  const owedList = (partlyPaid ?? []).map((inv) => ({
+    inv,
+    owed: inv.totalAmount - inv.depositAmount - inv.payments.reduce((s, p) => s + p.amount, 0),
+    days: Math.floor((Date.now() - new Date(inv.completedAt ?? inv.createdAt).getTime()) / 86_400_000),
+  }));
+  const owedTotal = owedList.reduce((sum, x) => sum + x.owed, 0);
+  const owedOld = owedList.filter((x) => x.days >= 14).length;
+  const owedMid = owedList.filter((x) => x.days >= 7 && x.days < 14).length;
   const { data: profit } = useProfitReport({ branchId: reportBranchId, from: fromIso, to: toIso });
   const { data: branchComparison } = useBranchComparisonReport({ from: branchPeriod.fromIso, to: branchPeriod.toIso });
   const { data: sellerPerformance } = useSellerPerformanceReport({
@@ -310,25 +315,25 @@ export function DashboardPage() {
         </CardContent>
       </Card>
 
-      {isAdmin && (heldPreorders?.length ?? 0) > 0 && (
-        <Link to="/preorders" className="block">
+      {isAdmin && owedList.length > 0 && (
+        <Link to="/orders" className="block">
           <Card className="transition-colors hover:bg-accent/40">
             <CardContent className="flex flex-wrap items-center justify-between gap-3 pt-4">
               <div>
-                <p className={LABEL_CLASS}>Cọc đang giữ</p>
+                <p className={LABEL_CLASS}>Còn phải thu</p>
                 <p className="mt-1 text-lg font-semibold tabular-nums">
-                  {formatFull(holdTotal)} <span className="text-sm font-normal text-muted-foreground">₫ · {heldPreorders?.length} đơn chờ giao</span>
+                  {formatFull(owedTotal)} <span className="text-sm font-normal text-muted-foreground">₫ · {owedList.length} hóa đơn chưa thu đủ</span>
                 </p>
               </div>
               <div className="flex gap-2 text-sm">
-                {holdWarn > 0 && (
+                {owedMid > 0 && (
                   <span className="rounded-full bg-amber-100 px-2.5 py-1 font-medium text-amber-800">
-                    {holdWarn} đơn quá {WARN_AFTER_DAYS} ngày
+                    {owedMid} hóa đơn quá 7 ngày
                   </span>
                 )}
-                {holdAlert > 0 && (
+                {owedOld > 0 && (
                   <span className="rounded-full bg-destructive/10 px-2.5 py-1 font-medium text-destructive">
-                    {holdAlert} đơn quá {ALERT_AFTER_DAYS} ngày
+                    {owedOld} hóa đơn quá 14 ngày
                   </span>
                 )}
               </div>
