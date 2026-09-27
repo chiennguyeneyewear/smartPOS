@@ -210,11 +210,11 @@ export function CashbookTab({
                     <td className={cn(cell, num)}>{money(r.cash)}</td>
                     <td className={cn(cell, num)}>{money(r.transfer)}</td>
                     <td className={cn(cell, num)}>{money(r.card)}</td>
-                    <td className={cn(cell, r.paidBalance ? "text-center text-xs" : num)}>
+                    <td className={cn(cell, r.paidBalance ? "text-center" : num)}>
                       {r.paidBalance || money(r.owedAfter)}
                     </td>
                     <td className={cn(cell, num)}>{r.expenseText}</td>
-                    <td className={cn(cell, "text-center text-xs")}>{r.expenseNote}</td>
+                    <td className={cn(cell, "text-center")}>{r.expenseNote}</td>
                   </tr>
                 ))}
               <tr className="border-t-2 border-black/80 font-semibold">
