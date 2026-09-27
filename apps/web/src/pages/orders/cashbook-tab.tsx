@@ -14,6 +14,10 @@ const MIN_ROWS = 16;
 const todayVn = () => new Date(Date.now() + 7 * 3600_000).toISOString().slice(0, 10);
 const money = (n: number) => (n ? n.toLocaleString("en-US") : "");
 
+// Fixed cash float kept in the till at each branch, printed at the top of the sheet (not part of the
+// handover formula — it's just what the sheet always states for that branch).
+const FIXED_CASH_BY_BRANCH: Record<string, string> = { CS1: "3 triệu", CS2: "1 triệu", CS3: "3 triệu" };
+
 // Equal-width columns, so the sheet reads as an even grid; Ghi chú takes the rest.
 const COLS = Array.from({ length: 7 }, () => "w-[14.28%]");
 const cell = "border-r border-black/80 px-3 py-2 last:border-r-0";
@@ -64,6 +68,7 @@ export function CashbookTab({
 
   const [y, m, d] = date.split("-");
   const sellerName = isAdmin ? (sellerId === "all" ? "Tất cả" : (sellers?.find((s) => s.id === sellerId)?.name ?? "")) : username;
+  const fixedCash = FIXED_CASH_BY_BRANCH[sellerName] ?? "-";
 
   // Saves the sheet exactly as drawn on screen, as a PNG picture.
   async function savePng() {
@@ -119,7 +124,7 @@ export function CashbookTab({
           {/* header: four equal cells */}
           <div className="grid grid-cols-4 divide-x divide-black/80 border-b-2 border-black/80">
             {[
-              ["Tiền mặt cố định", "3 triệu"],
+              ["Tiền mặt cố định", fixedCash],
               ["Doanh số cơ sở", sellerName],
               ["Ngày", d],
               ["Tháng / Năm", `${m} / ${y}`],
