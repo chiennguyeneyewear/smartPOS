@@ -30,11 +30,11 @@ const PAY_METHODS: { value: PayMethod; label: string }[] = [
   { value: "CASH", label: "Tiền mặt" },
   { value: "BANK_TRANSFER", label: "Chuyển khoản" },
   { value: "CARD", label: "Quẹt thẻ" },
-  { value: "DEBT", label: "Ghi nợ" },
   { value: "PENDING", label: "Chờ xác nhận" },
-  { value: "PARTIAL", label: "Còn thiếu tiền" },
+  { value: "PARTIAL", label: "Sau cọc còn" },
 ];
-const PAY_LABEL = Object.fromEntries(PAY_METHODS.map((m) => [m.value, m.label])) as Record<PayMethod, string>;
+// "Ghi nợ" is no longer a filter option, but old invoices may still carry it, so it keeps its label.
+const PAY_LABEL = { ...Object.fromEntries(PAY_METHODS.map((m) => [m.value, m.label])), DEBT: "Ghi nợ" } as Record<PayMethod, string>;
 
 // What a partly paid invoice still has to collect.
 function amountStillOwed(inv: InvoiceListItem): number {
@@ -305,7 +305,7 @@ export function OrdersPage() {
             ))}
             {partial && (
               <p className="mt-0.5 text-xs font-medium text-amber-700">
-                Còn thiếu {amountStillOwed(row.original).toLocaleString("en-US")}
+                Sau cọc còn {amountStillOwed(row.original).toLocaleString("en-US")}
               </p>
             )}
           </div>
