@@ -331,7 +331,7 @@ export function OrdersPage() {
         {(
           [
             ["invoices", "Hóa đơn"],
-            ["cashbook", "Sổ thu tiền"],
+            ["cashbook", "Tờ thu chi"],
           ] as const
         ).map(([key, label]) => (
           <button

@@ -99,7 +99,7 @@ export function CashbookTab({
             {!isLoading && rows.length === 0 && (
               <tr>
                 <td colSpan={isAdmin ? 7 : 6} className="p-6 text-center text-muted-foreground">
-                  Chưa có khoản thu nào trong ngày này
+                  Chưa có khoản thu nào trong ngày này (tờ thu chi trống)
                 </td>
               </tr>
             )}
