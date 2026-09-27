@@ -124,7 +124,7 @@ export function ExpensesPage() {
       <Card>
         <CardContent className="space-y-4 pt-4">
           <p className="text-sm font-semibold">{editing ? `Sửa khoản chi ${editing.payer}` : "Ghi khoản chi mới"}</p>
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-[180px_1fr_1.4fr_140px_250px]">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-[180px_1fr_1.4fr_140px_190px]">
             <div className="space-y-1.5">
               <Label>Số tiền</Label>
               <MoneyInput value={amount} onChange={setAmount} placeholder="0" />
