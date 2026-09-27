@@ -27,11 +27,17 @@ export function registerCustomerRoutes(app: FastifyInstance) {
   // page/pageSize default to the old fixed take:50 behavior when omitted, so the
   // POS quick-search callers (which never pass them) are unaffected.
   app.get("/customers", { preHandler: authenticate }, async (request) => {
-    const { search, page: pageRaw, pageSize: pageSizeRaw } = request.query as {
+    const { search, page: pageRaw, pageSize: pageSizeRaw, sortBy, sortDir } = request.query as {
       search?: string;
       page?: string;
       pageSize?: string;
+      sortBy?: string;
+      sortDir?: string;
     };
+    // Only these columns can be sorted on (clicking a column header in the customer list); default is by name.
+    const sortable = ["code", "name", "phone", "address", "groupName", "debtBalance"] as const;
+    const column = (sortable as readonly string[]).includes(sortBy ?? "") ? (sortBy as (typeof sortable)[number]) : "name";
+    const direction = sortDir === "desc" ? "desc" : "asc";
     const page = Math.max(1, Number(pageRaw ?? 1));
     const pageSize = Math.min(100, Math.max(1, Number(pageSizeRaw ?? 50)));
 
@@ -45,7 +51,7 @@ export function registerCustomerRoutes(app: FastifyInstance) {
     const [customers, total] = await Promise.all([
       prisma.customer.findMany({
         where,
-        orderBy: { name: "asc" },
+        orderBy: [{ [column]: direction }, { id: "asc" }],
         skip: (page - 1) * pageSize,
         take: pageSize,
       }),

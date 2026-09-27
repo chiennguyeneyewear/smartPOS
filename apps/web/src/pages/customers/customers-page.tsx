@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { ChevronLeft, ChevronRight, Plus, Search, Upload } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, Plus, Search, Upload } from "lucide-react";
 import type { CustomerSummary } from "@smartpos/shared";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
@@ -13,21 +13,37 @@ import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/utils";
 import { useCustomerList } from "@/features/customers/hooks";
 
-const columns: ColumnDef<CustomerSummary, any>[] = [
-  { accessorKey: "code", header: "Mã KH" },
-  { accessorKey: "name", header: "Tên khách hàng", cell: ({ row }) => <span className="font-medium">{row.original.name}</span> },
-  { accessorKey: "phone", header: "Điện thoại" },
-  { accessorKey: "address", header: "Địa chỉ" },
-  { accessorKey: "groupName", header: "Nhóm" },
-  {
-    accessorKey: "debtBalance",
-    header: "Công nợ",
-    cell: ({ getValue }) => {
-      const value = getValue() as number;
-      return value > 0 ? <Badge variant="destructive">{formatCurrency(value)}</Badge> : formatCurrency(value);
-    },
-  },
-];
+type SortDir = "asc" | "desc";
+
+// Column title that sorts the whole list (all pages, not just the 50 shown) when clicked: first click ascending
+// (A to Z, small to large), second click descending.
+function SortHeader({
+  label,
+  field,
+  sortBy,
+  sortDir,
+  onSort,
+}: {
+  label: string;
+  field: string;
+  sortBy: string;
+  sortDir: SortDir;
+  onSort: (field: string) => void;
+}) {
+  const active = sortBy === field;
+  const Icon = !active ? ArrowUpDown : sortDir === "asc" ? ArrowUp : ArrowDown;
+  return (
+    <button
+      type="button"
+      onClick={() => onSort(field)}
+      className="inline-flex items-center gap-1.5 font-semibold hover:text-foreground"
+      title="Bấm để sắp xếp"
+    >
+      {label}
+      <Icon className={active ? "h-3.5 w-3.5 text-primary" : "h-3.5 w-3.5 opacity-50"} />
+    </button>
+  );
+}
 
 function formatNumber(value: number): string {
   return value.toLocaleString("en-US");
@@ -40,11 +56,44 @@ export function CustomersPage() {
   const [open, setOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
-  const { data, isLoading } = useCustomerList(search, page, pageSize);
+  const [sortBy, setSortBy] = useState("name");
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const { data, isLoading } = useCustomerList(search, page, pageSize, { sortBy, sortDir });
 
   useEffect(() => {
     setPage(1);
-  }, [search]);
+  }, [search, sortBy, sortDir]);
+
+  function handleSort(field: string) {
+    if (field === sortBy) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else {
+      setSortBy(field);
+      setSortDir("asc");
+    }
+  }
+
+  const head = (label: string, field: string) => (
+    <SortHeader label={label} field={field} sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
+  );
+  const columns: ColumnDef<CustomerSummary, any>[] = [
+    { accessorKey: "code", header: () => head("Mã khách hàng", "code") },
+    {
+      accessorKey: "name",
+      header: () => head("Tên khách hàng", "name"),
+      cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
+    },
+    { accessorKey: "phone", header: () => head("Điện thoại", "phone") },
+    { accessorKey: "address", header: () => head("Địa chỉ", "address") },
+    { accessorKey: "groupName", header: () => head("Nhóm", "groupName") },
+    {
+      accessorKey: "debtBalance",
+      header: () => head("Công nợ", "debtBalance"),
+      cell: ({ getValue }) => {
+        const value = getValue() as number;
+        return value > 0 ? <Badge variant="destructive">{formatCurrency(value)}</Badge> : formatCurrency(value);
+      },
+    },
+  ];
 
   const customers = data?.data ?? [];
   const total = data?.meta?.total ?? 0;

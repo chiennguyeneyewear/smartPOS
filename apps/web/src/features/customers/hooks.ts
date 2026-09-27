@@ -11,10 +11,15 @@ export function useCustomerSearch(search: string) {
   });
 }
 
-export function useCustomerList(search = "", page = 1, pageSize = 50) {
+export function useCustomerList(
+  search = "",
+  page = 1,
+  pageSize = 50,
+  sort: { sortBy?: string; sortDir?: "asc" | "desc" } = {},
+) {
   return useQuery({
-    queryKey: ["customers", "list", search, page, pageSize],
-    queryFn: () => fetchCustomers({ search, page, pageSize }),
+    queryKey: ["customers", "list", search, page, pageSize, sort.sortBy, sort.sortDir],
+    queryFn: () => fetchCustomers({ search, page, pageSize, ...sort }),
   });
 }
 

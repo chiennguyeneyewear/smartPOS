@@ -16,6 +16,8 @@ export interface CustomerQuery {
   search?: string;
   page?: number;
   pageSize?: number;
+  sortBy?: string;
+  sortDir?: "asc" | "desc";
 }
 
 export async function fetchCustomers(query: CustomerQuery): Promise<PagedResult<CustomerSummary>> {
