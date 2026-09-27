@@ -13,7 +13,7 @@ interface ProductGridPanelProps {
   customer: CustomerSummary | undefined;
   tabId: string;
   customerInputRef: React.Ref<HTMLInputElement>;
-  onRequestQuickAddCustomer: () => void;
+  onRequestQuickAddCustomer: (query: string) => void;
   onRequestCheckout: () => void;
   checkoutDisabled: boolean;
 }

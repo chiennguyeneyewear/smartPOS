@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { customerSchema, type CustomerInput, type CustomerSummary } from "@smartpos/shared";
@@ -9,12 +10,20 @@ interface CustomerFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onCreated?: (customer: CustomerSummary) => void;
+  // Carries over what was already typed in a search box that came up empty (a phone number or a name),
+  // so the customer isn't asked for it a second time.
+  defaultValues?: Partial<CustomerInput>;
 }
 
-export function CustomerFormDialog({ open, onOpenChange, onCreated }: CustomerFormDialogProps) {
+export function CustomerFormDialog({ open, onOpenChange, onCreated, defaultValues }: CustomerFormDialogProps) {
   const createCustomer = useCreateCustomer();
 
   const form = useForm<CustomerInput>({ resolver: zodResolver(customerSchema) });
+
+  useEffect(() => {
+    if (open) form.reset(defaultValues);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   function handleClose() {
     form.reset();

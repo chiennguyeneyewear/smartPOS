@@ -8,6 +8,7 @@ import { useCreateDraftInvoice, useCheckoutInvoice } from "@/features/sales/hook
 import { useBranches } from "@/features/branches/hooks";
 import { toast } from "@/stores/toast-store";
 import { cn } from "@/lib/utils";
+import { quickAddDefaults } from "@/lib/quick-add-customer";
 import { UserMenu } from "@/components/shared/user-menu";
 import { Sidebar } from "@/components/layout/sidebar";
 import { PrintReceiptDialog } from "@/components/shared/print-receipt-dialog";
@@ -32,6 +33,7 @@ export function PosPage() {
   const tab = tabs.find((t) => t.id === activeTabId) ?? tabs[0]!;
 
   const [quickAddOpen, setQuickAddOpen] = useState(false);
+  const [quickAddQuery, setQuickAddQuery] = useState("");
   const [receiptOpen, setReceiptOpen] = useState(false);
   const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
   const [printSettingsOpen, setPrintSettingsOpen] = useState(false);
@@ -200,7 +202,10 @@ export function PosPage() {
           customer={tab.customer}
           tabId={tab.id}
           customerInputRef={customerSearchRef}
-          onRequestQuickAddCustomer={() => setQuickAddOpen(true)}
+          onRequestQuickAddCustomer={(query) => {
+            setQuickAddQuery(query);
+            setQuickAddOpen(true);
+          }}
           onRequestCheckout={handleOpenCheckout}
           checkoutDisabled={tab.items.length === 0}
         />
@@ -210,6 +215,7 @@ export function PosPage() {
         open={quickAddOpen}
         onOpenChange={setQuickAddOpen}
         onCreated={(customer: CustomerSummary) => setCustomer(tab.id, customer)}
+        defaultValues={quickAddDefaults(quickAddQuery)}
       />
 
       <PrintReceiptDialog

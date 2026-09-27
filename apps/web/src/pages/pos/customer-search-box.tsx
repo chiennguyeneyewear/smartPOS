@@ -9,7 +9,8 @@ import { CustomerDetailDialog } from "@/components/shared/customer-detail-dialog
 interface CustomerSearchBoxProps {
   customer?: CustomerSummary;
   onSelect: (customer: CustomerSummary | undefined) => void;
-  onRequestQuickAdd: () => void;
+  // Passed what's currently typed, so a search that came up empty can be carried into "Thêm khách hàng mới".
+  onRequestQuickAdd: (query: string) => void;
 }
 
 export const CustomerSearchBox = forwardRef<HTMLInputElement, CustomerSearchBoxProps>(function CustomerSearchBox(
@@ -63,7 +64,7 @@ export const CustomerSearchBox = forwardRef<HTMLInputElement, CustomerSearchBoxP
           />
         </div>
         <button
-          onClick={onRequestQuickAdd}
+          onClick={() => onRequestQuickAdd(search)}
           className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border text-muted-foreground hover:bg-accent"
           title="Thêm khách hàng mới"
         >
@@ -88,7 +89,16 @@ export const CustomerSearchBox = forwardRef<HTMLInputElement, CustomerSearchBoxP
               </button>
             ))
           ) : (
-            <p className="px-3 py-2 text-xs text-muted-foreground">Không tìm thấy khách hàng</p>
+            <button
+              type="button"
+              onMouseDown={() => onRequestQuickAdd(search)}
+              className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-accent"
+            >
+              <span className="text-muted-foreground">Không tìm thấy khách hàng</span>
+              <span className="flex items-center gap-1 font-medium text-primary">
+                <Plus className="h-3.5 w-3.5" /> Thêm mới
+              </span>
+            </button>
           )}
         </div>
       )}
