@@ -10,7 +10,9 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
+import { useUsers } from "@/features/users/hooks";
+import { CashbookTab } from "@/pages/orders/cashbook-tab";
 import { useAuthStore } from "@/stores/auth-store";
 import { useBranches } from "@/features/branches/hooks";
 import {
@@ -31,6 +33,8 @@ export function ExpensesPage() {
   const isAdmin = user?.role === "admin";
   const { data: branches } = useBranches();
 
+  const [tab, setTab] = useState<"expenses" | "sheet">("expenses");
+  const { data: users } = useUsers({ enabled: isAdmin });
   const [date, setDate] = useState(todayVn());
   const { data: list, isLoading } = useExpenses({ date });
   const { data: payers } = usePayers();
@@ -88,6 +92,35 @@ export function ExpensesPage() {
     <div className="space-y-4">
       <PageHeader title="Chi tiêu" description="Ghi tiền chi ra trong ngày. Khoản chi tự lên tờ thu chi của ngày đó" />
 
+      <div className="flex gap-2">
+        {(
+          [
+            ["expenses", "Ghi chi tiêu"],
+            ["sheet", "Tờ thu chi"],
+          ] as const
+        ).map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setTab(key)}
+            className={cn(
+              "h-9 rounded-full border px-4 text-sm transition-colors",
+              tab === key ? "border-primary bg-primary/10 font-medium text-primary" : "border-input text-muted-foreground hover:bg-accent",
+            )}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "sheet" && (
+        <CashbookTab
+          isAdmin={isAdmin}
+          sellers={users?.map((u) => ({ id: u.id, name: u.username, branchIds: u.branches.map((b) => b.id) }))}
+        />
+      )}
+
+      <div className={cn("space-y-4", tab === "sheet" && "hidden")}>
       <Card>
         <CardContent className="space-y-4 pt-4">
           <p className="text-sm font-semibold">{editing ? `Sửa khoản chi ${editing.payer}` : "Ghi khoản chi mới"}</p>
@@ -235,6 +268,7 @@ export function ExpensesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      </div>
     </div>
   );
 }

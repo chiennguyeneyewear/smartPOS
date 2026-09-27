@@ -12,7 +12,6 @@ import { DatePicker } from "@/components/shared/date-picker";
 import { PrintReceiptDialog } from "@/components/shared/print-receipt-dialog";
 import { InvoiceDetailPanel, goodsTotal } from "./invoice-detail-panel";
 import { ConfirmPaymentDialog } from "./confirm-payment-dialog";
-import { CashbookTab } from "./cashbook-tab";
 import { useSearchDropdown } from "@/hooks/use-search-dropdown";
 import { cn, formatCurrency, formatDateTime } from "@/lib/utils";
 import { PERIOD_PRESET_OPTIONS, formatPeriodLabel, getPeriodRange, type PeriodPreset } from "@/lib/period-presets";
@@ -214,7 +213,6 @@ export function OrdersPage() {
   const vnDay = (iso: string) => new Date(new Date(iso).getTime() + 7 * 3600_000).toISOString().slice(0, 10);
   // Admin: any invoice, any time. Staff: only their own, on the day it was issued.
   const [addInvoice, setAddInvoice] = useState<InvoiceListItem | null>(null);
-  const [view, setView] = useState<"invoices" | "cashbook">("invoices");
   // Collecting the rest of a partly paid invoice: admin or the seller who issued it, on any later day.
   const canAddPayment = (inv: InvoiceListItem) =>
     inv.status === "COMPLETED" && inv.paymentStatus === "PARTIAL" && (isAdmin || inv.createdById === userId);
@@ -327,30 +325,7 @@ export function OrdersPage() {
     <div className="space-y-4">
       <PageHeader title="Đơn hàng" description="Toàn bộ hóa đơn đã tạo" />
 
-      <div className="flex gap-2">
-        {(
-          [
-            ["invoices", "Hóa đơn"],
-            ["cashbook", "Tờ thu chi"],
-          ] as const
-        ).map(([key, label]) => (
-          <button
-            key={key}
-            type="button"
-            onClick={() => setView(key)}
-            className={cn(
-              "h-9 rounded-full border px-4 text-sm transition-colors",
-              view === key ? "border-primary bg-primary/10 font-medium text-primary" : "border-input text-muted-foreground hover:bg-accent",
-            )}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {view === "cashbook" && <CashbookTab isAdmin={isAdmin} sellers={sellers?.map((u) => ({ id: u.id, name: u.username, branchIds: u.branches.map((b) => b.id) }))} />}
-
-      <div className={cn("grid", view === "cashbook" && "hidden")}>
+      <div>
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[195px_1fr]">
         <Card className="h-fit">
           <CardContent className="space-y-4 pt-4">
