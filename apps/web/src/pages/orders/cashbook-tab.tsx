@@ -14,6 +14,11 @@ const MIN_ROWS = 16;
 const SHORT: Record<string, string> = { CASH: "TM", BANK_TRANSFER: "CK", CARD: "QT", DEBT: "Nợ" };
 
 const todayVn = () => new Date(Date.now() + 7 * 3600_000).toISOString().slice(0, 10);
+// "27/9": day/month (Vietnam time) the deposit was taken, no leading zeros, like the hand-written sheet
+function depositDay(iso: string): string {
+  const d = new Date(new Date(iso).getTime() + 7 * 3600_000);
+  return `${d.getUTCDate()}/${d.getUTCMonth() + 1}`;
+}
 const money = (n: number) => (n ? n.toLocaleString("en-US") : "");
 
 interface Row {
@@ -25,7 +30,7 @@ interface Row {
   owedAfter: number;
   // "740,000 - Em Đạt": what is still owed after the deposit, then whose order it is
   owedText: string;
-  // "500,000 TM - Em Đạt": balance a customer paid on an earlier deposit (own column "Khách trả cọc")
+  // "Anh An 1,080,000 TM 27/9": balance a customer paid on an earlier deposit (own column "Khách trả cọc")
   paidBalance: string;
   balanceParts: string[];
   // the expense written on this line (columns "Chi tiêu" and "Ghi chú" are independent of the receipts)
@@ -38,7 +43,7 @@ interface Row {
 //  - a sale, or the deposit on one, goes under the methods it was paid with; a deposit also shows what is
 //    still owed in "Sau cọc còn";
 //  - the balance collected later on an earlier deposit goes in its own column "Khách trả cọc", written
-//    "<amount> <method> - <customer>".
+//    "<customer> <amount> <method> <day of the deposit>".
 function buildRows(payments: DayPayment[]): Row[] {
   const byInvoice = new Map<string, Row>();
   for (const p of payments) {
@@ -59,7 +64,8 @@ function buildRows(payments: DayPayment[]): Row[] {
     };
     if (balance) {
       row.balanceParts.push(`${p.amount.toLocaleString("en-US")} ${SHORT[p.method] ?? ""}`);
-      row.paidBalance = `${row.balanceParts.join(" + ")} - ${p.customerName}`;
+      // "Anh An 1,080,000 TM 27/9": customer, amount and method, and the day the deposit was taken
+      row.paidBalance = `${p.customerName} ${row.balanceParts.join(" + ")} ${depositDay(p.firstPaidAt)}`;
     } else {
       if (p.method === "CASH") row.cash += p.amount;
       else if (p.method === "BANK_TRANSFER") row.transfer += p.amount;
