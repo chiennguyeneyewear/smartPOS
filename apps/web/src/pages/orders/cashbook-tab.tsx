@@ -117,17 +117,17 @@ export function CashbookTab({ isAdmin, sellers }: { isAdmin: boolean; sellers?: 
 
       <div className="overflow-x-auto">
         <div className="min-w-[860px] rounded-md border-2 border-foreground/80 bg-background text-sm">
-          <div className="grid grid-cols-[1.4fr_1fr_1fr_1fr] items-baseline gap-2 border-b border-foreground/80 px-3 py-2 font-semibold">
+          <div className="grid grid-cols-[1.3fr_1.2fr_0.7fr_1.4fr] items-baseline gap-2 border-b border-foreground/80 px-3 py-2 font-semibold">
             <span>Tiền mặt cố định 3 triệu</span>
             <span>
-              Doanh số cơ sở: <span className="font-normal">{sellerName}</span>
+              Doanh số cơ sở: <span className="text-xl font-bold">{sellerName}</span>
             </span>
             <span>
-              Ngày <span className="font-normal">{d}</span>
+              Ngày <span className="text-xl font-bold">{d}</span>
             </span>
             <span>
-              Tháng <span className="font-normal">{m}</span>
-              <span className="ml-3 font-normal text-muted-foreground">{y}</span>
+              Tháng <span className="text-xl font-bold">{m}</span>
+              <span className="ml-3">Năm</span> <span className="text-xl font-bold">{y}</span>
             </span>
           </div>
 
