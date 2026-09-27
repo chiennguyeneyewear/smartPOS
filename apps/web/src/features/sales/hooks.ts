@@ -84,8 +84,12 @@ export function useAddInvoicePayment() {
   });
 }
 
-export function usePaymentsOnDay(params: { date: string; sellerId?: string }) {
-  return useQuery({ queryKey: ["payments-on-day", params], queryFn: () => fetchPaymentsOnDay(params) });
+export function usePaymentsOnDay(params: { date: string; sellerId?: string }, options: { enabled?: boolean } = {}) {
+  return useQuery({
+    queryKey: ["payments-on-day", params],
+    queryFn: () => fetchPaymentsOnDay(params),
+    enabled: options.enabled ?? true,
+  });
 }
 
 export function useVoidInvoice() {
