@@ -67,7 +67,7 @@ function buildRows(payments: DayPayment[]): Row[] {
 // Equal-width columns, so the sheet reads as an even grid; Ghi chú takes the rest.
 const COLS = ["w-[16%]", "w-[16%]", "w-[16%]", "w-[16%]", "w-[16%]", "w-[20%]"];
 const cell = "border-r border-black/80 px-3 py-2 last:border-r-0";
-const num = "text-right tabular-nums";
+const num = "text-center tabular-nums";
 
 // The day's thu-chi sheet, drawn with the same columns as the paper one and filled from what the system
 // recorded. It can be saved as a picture.
@@ -213,8 +213,8 @@ export function CashbookTab({
                     <td className={cn(cell, r.paidBalance ? "text-center text-xs" : num)}>
                       {r.paidBalance || money(r.owedAfter)}
                     </td>
-                    <td className={cn(cell, "text-right tabular-nums")}>{r.expenseText}</td>
-                    <td className={cn(cell, "text-xs")}>{r.expenseNote}</td>
+                    <td className={cn(cell, num)}>{r.expenseText}</td>
+                    <td className={cn(cell, "text-center text-xs")}>{r.expenseNote}</td>
                   </tr>
                 ))}
               <tr className="border-t-2 border-black/80 font-semibold">
