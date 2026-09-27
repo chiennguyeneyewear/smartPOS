@@ -94,7 +94,7 @@ export function CashbookTab({
       <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
         <div className="space-y-1.5">
           <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Ngày</p>
-          <RecentDayPicker value={date} onChange={setDate} isAdmin={isAdmin} className="w-[220px]" />
+          <RecentDayPicker value={date} onChange={setDate} isAdmin={isAdmin} className="w-[270px]" />
         </div>
         {isAdmin && (
           <div className="space-y-1.5">

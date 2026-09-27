@@ -6,6 +6,9 @@ interface DatePickerProps {
   value: string; // yyyy-mm-dd
   onChange: (value: string) => void;
   className?: string;
+  // Days outside [minDate, maxDate] (yyyy-mm-dd, inclusive) are shown greyed out and can't be picked.
+  minDate?: string;
+  maxDate?: string;
 }
 
 const WEEKDAY_LABELS = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
@@ -31,9 +34,12 @@ function isSameDay(a: Date, b: Date) {
 // Self-built calendar dropdown (no native <input type="date">) so the
 // picker's labels and dd/mm/yyyy format are always Vietnamese, regardless
 // of the visitor's browser/OS locale.
-export function DatePicker({ value, onChange, className }: DatePickerProps) {
+export function DatePicker({ value, onChange, className, minDate, maxDate }: DatePickerProps) {
   const [open, setOpen] = useState(false);
   const selected = parseValue(value);
+  const min = minDate ? parseValue(minDate) : null;
+  const max = maxDate ? parseValue(maxDate) : null;
+  const isDisabled = (d: Date) => (min !== null && d < min) || (max !== null && d > max);
   const [viewYear, setViewYear] = useState(selected.getFullYear());
   const [viewMonth, setViewMonth] = useState(selected.getMonth());
   const [alignRight, setAlignRight] = useState(false);
@@ -120,26 +126,29 @@ export function DatePicker({ value, onChange, className }: DatePickerProps) {
             ))}
           </div>
           <div className="grid grid-cols-7 gap-1 text-center text-sm">
-            {cells.map((d, i) =>
-              d ? (
+            {cells.map((d, i) => {
+              if (!d) return <div key={i} />;
+              const disabled = isDisabled(d);
+              return (
                 <button
                   key={i}
                   type="button"
+                  disabled={disabled}
                   onClick={() => {
                     onChange(toValue(d));
                     setOpen(false);
                   }}
                   className={cn(
-                    "rounded py-1 hover:bg-muted",
-                    isSameDay(d, selected) && "bg-primary text-primary-foreground hover:bg-primary",
+                    "rounded py-1",
+                    disabled
+                      ? "cursor-not-allowed text-muted-foreground/40"
+                      : cn("hover:bg-muted", isSameDay(d, selected) && "bg-primary text-primary-foreground hover:bg-primary"),
                   )}
                 >
                   {d.getDate()}
                 </button>
-              ) : (
-                <div key={i} />
-              ),
-            )}
+              );
+            })}
           </div>
         </div>
       )}

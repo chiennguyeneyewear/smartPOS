@@ -45,6 +45,14 @@ function toDateInputValue(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+// "15 ngày gần nhất": today and the 14 days before it — the window a non-admin's custom range is bounded to.
+const RECENT_WINDOW_DAYS = 15;
+function daysAgoInput(n: number) {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return toDateInputValue(d);
+}
+
 export function OrdersPage() {
   const reportBranchId = useReportBranchId();
   const mergeSameItems = usePrintSettingsStore((s) => s.mergeSameItems);
@@ -54,6 +62,8 @@ export function OrdersPage() {
   const [preset, setPreset] = useState<PeriodPreset>(isAdmin ? "this_month" : "today");
   const [customFrom, setCustomFrom] = useState(() => toDateInputValue(new Date()));
   const [customTo, setCustomTo] = useState(() => toDateInputValue(new Date()));
+  const todayStr = toDateInputValue(new Date());
+  const recentWindowStart = daysAgoInput(RECENT_WINDOW_DAYS - 1);
   const [sellerId, setSellerId] = useState<string>("all");
   const [payMethods, setPayMethods] = useState<Set<PayMethod>>(new Set(PAY_METHODS.map((m) => m.value)));
   const [showCompleted, setShowCompleted] = useState(true);
@@ -338,11 +348,11 @@ export function OrdersPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {/* Non-admin accounts only ever see today and yesterday (also enforced on the server) —
-                      no point offering periods that would always come back empty. */}
+                  {/* Non-admin accounts only ever see the last 15 days (also enforced on the server) — no
+                      point offering periods that would always come back empty. */}
                   {(isAdmin
                     ? PERIOD_PRESET_OPTIONS
-                    : PERIOD_PRESET_OPTIONS.filter((o) => o.value === "today" || o.value === "yesterday")
+                    : PERIOD_PRESET_OPTIONS.filter((o) => o.value === "today" || o.value === "yesterday" || o.value === "custom")
                   ).map((option) => (
                     <SelectItem key={option.value} value={option.value}>
                       {option.label}
@@ -350,10 +360,22 @@ export function OrdersPage() {
                   ))}
                 </SelectContent>
               </Select>
-              {isAdmin && preset === "custom" && (
+              {preset === "custom" && (
                 <div className="space-y-2">
-                  <DatePicker value={customFrom} onChange={setCustomFrom} className="w-full" />
-                  <DatePicker value={customTo} onChange={setCustomTo} className="w-full" />
+                  <DatePicker
+                    value={customFrom}
+                    onChange={setCustomFrom}
+                    minDate={isAdmin ? undefined : recentWindowStart}
+                    maxDate={isAdmin ? undefined : todayStr}
+                    className="w-full"
+                  />
+                  <DatePicker
+                    value={customTo}
+                    onChange={setCustomTo}
+                    minDate={isAdmin ? undefined : recentWindowStart}
+                    maxDate={isAdmin ? undefined : todayStr}
+                    className="w-full"
+                  />
                 </div>
               )}
             </div>
