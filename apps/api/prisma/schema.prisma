@@ -515,19 +515,3 @@ model PreorderItem {
 
   @@map("preorder_items")
 }
-
-// A scan or photo of the paper thu-chi sheet for one day, kept next to the daily payments.
-model CashSheet {
-  id             String   @id @default(cuid())
-  date           String
-  uploadedById   String
-  uploadedByName String
-  fileName       String
-  mimeType       String
-  size           Int
-  data           Bytes
-  createdAt      DateTime @default(now())
-
-  @@index([date])
-  @@map("cash_sheets")
-}

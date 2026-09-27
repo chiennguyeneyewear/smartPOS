@@ -1,11 +1,13 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { Download, FileImage, FileText } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { toast } from "@/stores/toast-store";
 import { DatePicker } from "@/components/shared/date-picker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth-store";
 import { usePaymentsOnDay } from "@/features/sales/hooks";
 import type { DayPayment } from "@/features/sales/api";
-import { CashSheets } from "./cash-sheets";
 
 const FLOAT_CASH = 3_000_000; // "Tiền mặt cố định 3 triệu" printed on the paper sheet
 const MIN_ROWS = 16;
@@ -55,7 +57,7 @@ function toRow(p: DayPayment): Row {
   };
 }
 
-const cell = "border-r border-foreground/80 px-2 py-1.5 last:border-r-0";
+const cell = "border-r border-black/80 px-2 py-1.5 last:border-r-0";
 
 // The day's thu-chi sheet, drawn with the same columns as the paper one and filled from what the system
 // recorded. The scan or photo of the real paper sheet can still be attached underneath.
@@ -63,6 +65,8 @@ export function CashbookTab({ isAdmin, sellers }: { isAdmin: boolean; sellers?: 
   const username = useAuthStore((s) => s.user?.username) ?? "";
   const [date, setDate] = useState(todayVn());
   const [sellerId, setSellerId] = useState("all");
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const [saving, setSaving] = useState<"png" | "pdf" | null>(null);
   const { data, isLoading } = usePaymentsOnDay({ date, sellerId: isAdmin && sellerId !== "all" ? sellerId : undefined });
 
   const rows = (data?.payments ?? []).map(toRow);
@@ -87,6 +91,43 @@ export function CashbookTab({ isAdmin, sellers }: { isAdmin: boolean; sellers?: 
   const handover = FLOAT_CASH + totalCash + (data?.payments ?? []).filter((p) => p.kind === "Thu nốt" && p.method === "CASH").reduce((s, p) => s + p.amount, 0);
   const [y, m, d] = date.split("-");
   const sellerName = isAdmin ? (sellerId === "all" ? "Tất cả" : (sellers?.find((s) => s.id === sellerId)?.name ?? "")) : username;
+
+  // Saves the sheet exactly as drawn on screen, as a PNG picture or a landscape A5 PDF.
+  async function save(kind: "png" | "pdf") {
+    const node = sheetRef.current;
+    if (!node || saving) return;
+    setSaving(kind);
+    try {
+      const { toPng } = await import("html-to-image");
+      const dataUrl = await toPng(node, { pixelRatio: 2, backgroundColor: "#ffffff", cacheBust: true });
+      const name = `to-thu-chi-${date}`;
+      if (kind === "png") {
+        const a = document.createElement("a");
+        a.href = dataUrl;
+        a.download = `${name}.png`;
+        a.click();
+      } else {
+        const { jsPDF } = await import("jspdf");
+        const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a5" });
+        const pageW = pdf.internal.pageSize.getWidth();
+        const pageH = pdf.internal.pageSize.getHeight();
+        const margin = 6;
+        const ratio = node.offsetHeight / node.offsetWidth;
+        let w = pageW - margin * 2;
+        let h = w * ratio;
+        if (h > pageH - margin * 2) {
+          h = pageH - margin * 2;
+          w = h / ratio;
+        }
+        pdf.addImage(dataUrl, "PNG", (pageW - w) / 2, margin, w, h);
+        pdf.save(`${name}.pdf`);
+      }
+    } catch {
+      toast({ title: "Không tải được tờ thu chi", variant: "destructive" });
+    } finally {
+      setSaving(null);
+    }
+  }
 
   return (
     <div className="space-y-4">
@@ -113,11 +154,22 @@ export function CashbookTab({ isAdmin, sellers }: { isAdmin: boolean; sellers?: 
             </Select>
           </div>
         )}
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          <span className="flex items-center gap-1 text-sm text-muted-foreground">
+            <Download className="h-4 w-4" /> Tải xuống
+          </span>
+          <Button variant="outline" size="sm" className="gap-1.5" disabled={!!saving} onClick={() => save("png")}>
+            <FileImage className="h-4 w-4" /> {saving === "png" ? "Đang tạo..." : "Ảnh (PNG)"}
+          </Button>
+          <Button variant="outline" size="sm" className="gap-1.5" disabled={!!saving} onClick={() => save("pdf")}>
+            <FileText className="h-4 w-4" /> {saving === "pdf" ? "Đang tạo..." : "PDF"}
+          </Button>
+        </div>
       </div>
 
       <div className="overflow-x-auto">
-        <div className="min-w-[860px] rounded-md border-2 border-foreground/80 bg-background text-sm">
-          <div className="grid grid-cols-[1.3fr_1.2fr_0.7fr_1.4fr] items-baseline gap-2 border-b border-foreground/80 px-3 py-2 font-semibold">
+        <div ref={sheetRef} className="min-w-[860px] rounded-md border-2 border-black/80 bg-white text-sm text-black">
+          <div className="grid grid-cols-[1.3fr_1.2fr_0.7fr_1.4fr] items-baseline gap-2 border-b border-black/80 px-3 py-2 font-semibold">
             <span>Tiền mặt cố định 3 triệu</span>
             <span>
               Doanh số cơ sở: <span className="text-xl font-bold">{sellerName}</span>
@@ -141,7 +193,7 @@ export function CashbookTab({ isAdmin, sellers }: { isAdmin: boolean; sellers?: 
               <col className="w-[37%]" />
             </colgroup>
             <thead>
-              <tr className="border-b-2 border-foreground/80 text-center font-semibold">
+              <tr className="border-b-2 border-black/80 text-center font-semibold">
                 <th className={cell}>Tiền mặt</th>
                 <th className={cell}>Chuyển khoản</th>
                 <th className={cell}>Quẹt thẻ</th>
@@ -160,7 +212,7 @@ export function CashbookTab({ isAdmin, sellers }: { isAdmin: boolean; sellers?: 
               )}
               {!isLoading &&
                 shown.map((r) => (
-                  <tr key={r.key} className="h-9 border-b border-dashed border-foreground/60">
+                  <tr key={r.key} className="h-9 border-b border-dashed border-black/50">
                     <td className={cn(cell, "text-right tabular-nums")}>{money(r.cash)}</td>
                     <td className={cn(cell, "text-right tabular-nums")}>{money(r.transfer)}</td>
                     <td className={cn(cell, "text-right tabular-nums")}>{money(r.card)}</td>
@@ -169,7 +221,7 @@ export function CashbookTab({ isAdmin, sellers }: { isAdmin: boolean; sellers?: 
                     <td className={cn(cell, "text-xs")}>{r.note}</td>
                   </tr>
                 ))}
-              <tr className="border-t-2 border-foreground/80 font-semibold">
+              <tr className="border-t-2 border-black/80 font-semibold">
                 <td className={cn(cell, "text-right tabular-nums")}>{money(totalCash)}</td>
                 <td className={cn(cell, "text-right tabular-nums")}>{money(totalTransfer)}</td>
                 <td className={cn(cell, "text-right tabular-nums")}>{money(totalCard)}</td>
@@ -180,19 +232,19 @@ export function CashbookTab({ isAdmin, sellers }: { isAdmin: boolean; sellers?: 
             </tbody>
           </table>
 
-          <div className="space-y-2 border-t-2 border-foreground/80 px-3 py-3 font-semibold">
+          <div className="space-y-2 border-t-2 border-black/80 px-3 py-3 font-semibold">
             <p>
               DS: <span className="font-normal tabular-nums">{money(ds)}</span>
               <span className="mx-2">-</span>
-              <span className="inline-block min-w-[140px] border-b border-dotted border-foreground/60 align-bottom" />
+              <span className="inline-block min-w-[140px] border-b border-dotted border-black/50 align-bottom" />
             </p>
             <p className="flex flex-wrap items-baseline gap-x-2">
               Tổng tiền bàn giao <span className="font-normal tabular-nums">{money(handover)}</span>
               <span className="mx-2">+ - Tiền</span>
-              <span className="inline-block min-w-[120px] border-b border-dotted border-foreground/60" />
+              <span className="inline-block min-w-[120px] border-b border-dotted border-black/50" />
               <span className="ml-4">Người tổng kết</span>
               <span className="font-normal">{isAdmin ? "" : username}</span>
-              <span className="inline-block min-w-[120px] border-b border-dotted border-foreground/60" />
+              <span className="inline-block min-w-[120px] border-b border-dotted border-black/50" />
             </p>
           </div>
         </div>
@@ -208,11 +260,6 @@ export function CashbookTab({ isAdmin, sellers }: { isAdmin: boolean; sellers?: 
         Tiền bàn giao = tiền mặt cố định 3 triệu + tiền mặt thu trong ngày (gồm cả tiền mặt trả cọc còn). DS = tổng tiền
         thu trong ngày.
       </p>
-
-      <div className="space-y-2 border-t pt-4">
-        <p className="text-sm font-semibold">Ảnh / file tờ giấy của ngày này</p>
-        <CashSheets date={date} />
-      </div>
     </div>
   );
 }
