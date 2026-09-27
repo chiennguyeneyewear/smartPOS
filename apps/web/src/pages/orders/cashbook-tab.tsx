@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { RecentDayPicker } from "@/components/shared/recent-day-picker";
+import { DatePicker } from "@/components/shared/date-picker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/stores/toast-store";
 import { cn } from "@/lib/utils";
@@ -94,7 +94,7 @@ export function CashbookTab({
       <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
         <div className="space-y-1.5">
           <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Ngày</p>
-          <RecentDayPicker value={date} onChange={setDate} isAdmin={isAdmin} className="w-[220px]" />
+          <DatePicker value={date} onChange={setDate} className="w-[150px]" />
         </div>
         {isAdmin && (
           <div className="space-y-1.5">

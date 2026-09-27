@@ -48,10 +48,7 @@ function toDateInputValue(d: Date) {
 export function OrdersPage() {
   const reportBranchId = useReportBranchId();
   const mergeSameItems = usePrintSettingsStore((s) => s.mergeSameItems);
-  const isAdmin = useAuthStore((s) => s.user?.role === "admin");
-  // Non-admin accounts only ever see today and yesterday here — enforced again on the server, this just
-  // starts them on a period that actually shows something instead of an empty "Tháng này".
-  const [preset, setPreset] = useState<PeriodPreset>(isAdmin ? "this_month" : "today");
+  const [preset, setPreset] = useState<PeriodPreset>("this_month");
   const [customFrom, setCustomFrom] = useState(() => toDateInputValue(new Date()));
   const [customTo, setCustomTo] = useState(() => toDateInputValue(new Date()));
   const [sellerId, setSellerId] = useState<string>("all");
@@ -75,6 +72,7 @@ export function OrdersPage() {
   );
   const periodLabel = formatPeriodLabel(preset, range);
 
+  const isAdmin = useAuthStore((s) => s.user?.role === "admin");
   // Only the admin can look at other people's invoices; everyone else is limited to their own by the API.
   const { data: sellers } = useUsers({ enabled: isAdmin });
   const { data: branches } = useBranches();
@@ -338,19 +336,14 @@ export function OrdersPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {/* Non-admin accounts only ever see today and yesterday (also enforced on the server) —
-                      no point offering periods that would always come back empty. */}
-                  {(isAdmin
-                    ? PERIOD_PRESET_OPTIONS
-                    : PERIOD_PRESET_OPTIONS.filter((o) => o.value === "today" || o.value === "yesterday")
-                  ).map((option) => (
+                  {PERIOD_PRESET_OPTIONS.map((option) => (
                     <SelectItem key={option.value} value={option.value}>
                       {option.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              {isAdmin && preset === "custom" && (
+              {preset === "custom" && (
                 <div className="space-y-2">
                   <DatePicker value={customFrom} onChange={setCustomFrom} className="w-full" />
                   <DatePicker value={customTo} onChange={setCustomTo} className="w-full" />

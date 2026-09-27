@@ -4,7 +4,6 @@ import { prisma } from "../../lib/prisma.js";
 import { authenticate } from "../../middleware/authenticate.js";
 import { requirePermission } from "../../middleware/require-permission.js";
 import { requireAdmin } from "../../middleware/require-admin.js";
-import { assertRecentDay, clampRecentRange } from "../../lib/date-access.js";
 import * as salesService from "./sales.service.js";
 
 // Staff can only touch invoices they created themselves; the admin can touch any.
@@ -66,7 +65,6 @@ export function registerSalesRoutes(app: FastifyInstance) {
     if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
       return reply.code(400).send({ error: "BadRequest", message: "Thiếu ngày (YYYY-MM-DD)" });
     }
-    assertRecentDay(date, request.authUser!.role);
     return salesService.listPaymentsOnDay(date, request.authUser!, sellerId);
   });
 
@@ -116,12 +114,10 @@ export function registerSalesRoutes(app: FastifyInstance) {
       to?: string;
     };
     // Admin sees every invoice and may filter by seller. Everyone else only ever sees the invoices
-    // they created themselves, whatever branch or seller the request asks for, and only from today or
-    // yesterday (Vietnam time) — a wider range is silently narrowed rather than rejected.
+    // they created themselves, whatever branch or seller the request asks for.
     const isAdmin = request.authUser!.role === ROLES.ADMIN;
-    const { from, to } = clampRecentRange(request.authUser!.role, query.from, query.to);
     const data = await salesService.listInvoices(
-      isAdmin ? query : { ...query, branchId: undefined, createdById: request.authUser!.id, from, to },
+      isAdmin ? query : { ...query, branchId: undefined, createdById: request.authUser!.id },
     );
     return { data };
   });

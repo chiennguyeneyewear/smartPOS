@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Pencil, Trash2 } from "lucide-react";
 import { expenseSchema } from "@smartpos/shared";
 import { PageHeader } from "@/components/shared/page-header";
-import { RecentDayPicker } from "@/components/shared/recent-day-picker";
+import { DatePicker } from "@/components/shared/date-picker";
 import { MoneyInput, formatMoney, parseMoney } from "@/components/shared/money-input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -124,7 +124,7 @@ export function ExpensesPage() {
       <Card>
         <CardContent className="space-y-4 pt-4">
           <p className="text-sm font-semibold">{editing ? `Sửa khoản chi ${editing.payer}` : "Ghi khoản chi mới"}</p>
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-[180px_1fr_1.4fr_140px_190px]">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-[180px_1fr_1.4fr_150px_130px]">
             <div className="space-y-1.5">
               <Label>Số tiền</Label>
               <MoneyInput value={amount} onChange={setAmount} placeholder="0" />
@@ -159,7 +159,7 @@ export function ExpensesPage() {
             </div>
             <div className="space-y-1.5">
               <Label>Ngày chi</Label>
-              <RecentDayPicker value={date} onChange={setDate} isAdmin={isAdmin} className="w-full" />
+              <DatePicker value={date} onChange={setDate} className="w-full" />
             </div>
           </div>
           {error && <p className="text-sm text-destructive">{error}</p>}

@@ -1,7 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { ROLES, expenseSchema } from "@smartpos/shared";
 import { authenticate } from "../../middleware/authenticate.js";
-import { assertRecentDay } from "../../lib/date-access.js";
 import { prisma } from "../../lib/prisma.js";
 
 const VN_OFFSET_MS = 7 * 60 * 60 * 1000;
@@ -40,7 +39,6 @@ export function registerExpenseRoutes(app: FastifyInstance) {
     const { date, branchIds } = request.query as { date?: string; branchIds?: string };
     if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return reply.code(400).send({ message: "Thiếu ngày (YYYY-MM-DD)" });
     const user = request.authUser!;
-    assertRecentDay(date, user.role);
     const wanted = (branchIds ?? "").split(",").filter(Boolean);
     const allowed = user.role === ROLES.ADMIN ? wanted : wanted.length > 0 ? wanted.filter((b) => user.branchIds.includes(b)) : user.branchIds;
     const rows = await prisma.expense.findMany({
@@ -68,7 +66,6 @@ export function registerExpenseRoutes(app: FastifyInstance) {
   app.post("/expenses", { preHandler: authenticate }, async (request, reply) => {
     const input = expenseSchema.parse(request.body);
     const user = request.authUser!;
-    assertRecentDay(input.date, user.role);
     if (user.role !== ROLES.ADMIN && !user.branchIds.includes(input.branchId)) {
       throw new ExpenseError("Bạn không thuộc cơ sở này", 403);
     }
@@ -94,7 +91,6 @@ export function registerExpenseRoutes(app: FastifyInstance) {
     const input = expenseSchema.parse(request.body);
     const user = request.authUser!;
     await loadOwned(id, user);
-    assertRecentDay(input.date, user.role);
     if (user.role !== ROLES.ADMIN && !user.branchIds.includes(input.branchId)) {
       throw new ExpenseError("Bạn không thuộc cơ sở này", 403);
     }
