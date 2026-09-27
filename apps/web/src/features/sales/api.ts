@@ -48,6 +48,7 @@ export interface DayPayment {
 
 export interface DayPayments {
   date: string;
+  salesTotal: number;
   payments: DayPayment[];
   pending: { invoiceCode: string; customerName: string; amount: number }[];
 }

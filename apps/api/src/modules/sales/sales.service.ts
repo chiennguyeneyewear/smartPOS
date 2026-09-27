@@ -442,12 +442,19 @@ export async function listPaymentsOnDay(date: string, actor: Actor, sellerId?: s
     orderBy: { completedAt: "asc" },
   });
 
+  // Doanh số: what was sold that day (invoice totals), whether or not it has been paid in full yet.
+  const sales = await prisma.invoice.aggregate({
+    where: { status: InvoiceStatus.COMPLETED, completedAt: { gte: start, lte: end }, ...ownerFilter },
+    _sum: { totalAmount: true },
+  });
+
   const userIds = [...new Set(rows.map((r) => r.invoice.createdById))];
   const users = await prisma.user.findMany({ where: { id: { in: userIds } }, select: { id: true, username: true } });
   const nameById = new Map(users.map((u) => [u.id, u.username]));
 
   return {
     date,
+    salesTotal: Number(sales._sum.totalAmount ?? 0),
     payments: rows.map((r) => {
       const all = r.invoice.payments;
       const owed = Number(r.invoice.totalAmount) - Number(r.invoice.depositAmount);
