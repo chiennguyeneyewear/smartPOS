@@ -31,7 +31,7 @@ const PAY_METHODS: { value: PayMethod; label: string }[] = [
   { value: "BANK_TRANSFER", label: "Chuyển khoản" },
   { value: "CARD", label: "Quẹt thẻ" },
   { value: "PENDING", label: "Chờ xác nhận" },
-  { value: "PARTIAL", label: "Sau cọc còn" },
+  { value: "PARTIAL", label: "Đơn khách cọc" },
 ];
 // "Ghi nợ" is no longer a filter option, but old invoices may still carry it, so it keeps its label.
 const PAY_LABEL = { ...Object.fromEntries(PAY_METHODS.map((m) => [m.value, m.label])), DEBT: "Ghi nợ" } as Record<PayMethod, string>;
@@ -305,7 +305,7 @@ export function OrdersPage() {
             ))}
             {partial && (
               <p className="mt-0.5 text-xs font-medium text-amber-700">
-                Sau cọc còn {amountStillOwed(row.original).toLocaleString("en-US")}
+                Đơn khách cọc · còn {amountStillOwed(row.original).toLocaleString("en-US")}
               </p>
             )}
           </div>

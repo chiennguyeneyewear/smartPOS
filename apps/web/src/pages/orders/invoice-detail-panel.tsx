@@ -203,7 +203,7 @@ export function InvoiceDetailPanel({
                 )}
               {invoice.paymentStatus === "PARTIAL" && (
                 <p className="rounded-md bg-amber-50 px-2 py-1.5 text-xs text-amber-800">
-                  Sau cọc còn {fmt(stillOwed)}. Khách chưa trả đủ, thu nốt bằng nút Thu thêm.
+                  Đơn khách cọc: còn phải thu {fmt(stillOwed)}. Khách chưa trả đủ, thu nốt bằng nút Thu thêm.
                 </p>
               )}
               {invoice.paymentStatus === "PENDING" && (
