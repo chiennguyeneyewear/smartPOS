@@ -8,6 +8,7 @@ import {
 } from "@smartpos/shared";
 import { prisma } from "../../lib/prisma.js";
 import { generateInvoiceCode } from "../../lib/codes.js";
+import { classifyPayment } from "../../lib/payment-kind.js";
 
 class SalesError extends Error {
   statusCode: number;
@@ -456,21 +457,15 @@ export async function listPaymentsOnDay(date: string, actor: Actor, sellerId?: s
     date,
     salesTotal: Number(sales._sum.totalAmount ?? 0),
     payments: rows.map((r) => {
-      const all = r.invoice.payments;
       const owed = Number(r.invoice.totalAmount) - Number(r.invoice.depositAmount);
-      const paidTotal = all.reduce((s, p) => s + Number(p.amount), 0);
-      const firstDay = all[0] ? vnDay(all[0].createdAt) : vnDay(r.createdAt);
-      const isFirstDay = vnDay(r.createdAt) === firstDay;
-      // Everything paid on the very first day = an ordinary sale. Otherwise the first day's money is the
-      // deposit and later days are the balance.
-      const paidOnFirstDay = all.filter((p) => vnDay(p.createdAt) === firstDay).reduce((s, p) => s + Number(p.amount), 0);
-      const wholeSale = isFirstDay && Math.abs(paidOnFirstDay - owed) <= 0.5 && Math.abs(paidTotal - owed) <= 0.5;
-      const kind = wholeSale ? "Bán hàng" : isFirstDay ? "Cọc" : "Thu nốt";
-      // what the customer still owed right after this payment came in
-      const paidUpToHere = all.filter((p) => p.createdAt.getTime() <= r.createdAt.getTime()).reduce((s, p) => s + Number(p.amount), 0);
+      const { kind, remainingAfter, firstPaidAt } = classifyPayment(
+        r.invoice.payments.map((p) => ({ id: p.id, createdAt: p.createdAt, amount: Number(p.amount) })),
+        { id: r.id, createdAt: r.createdAt, amount: Number(r.amount) },
+        owed,
+      );
       return {
-        remainingAfter: Math.max(0, owed - paidUpToHere),
-        firstPaidAt: (all[0]?.createdAt ?? r.createdAt).toISOString(),
+        remainingAfter,
+        firstPaidAt: firstPaidAt.toISOString(),
         id: r.id,
         paidAt: r.createdAt.toISOString(),
         invoiceCode: r.invoice.code,
