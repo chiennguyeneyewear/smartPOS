@@ -348,7 +348,7 @@ export function OrdersPage() {
         ))}
       </div>
 
-      {view === "cashbook" && <CashbookTab isAdmin={isAdmin} sellers={sellers?.map((u) => ({ id: u.id, name: u.username }))} />}
+      {view === "cashbook" && <CashbookTab isAdmin={isAdmin} sellers={sellers?.map((u) => ({ id: u.id, name: u.username, branchIds: u.branches.map((b) => b.id) }))} />}
 
       <div className={cn("grid", view === "cashbook" && "hidden")}>
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[195px_1fr]">

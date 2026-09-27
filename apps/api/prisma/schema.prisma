@@ -33,6 +33,7 @@ model Branch {
   stockItems     StockItem[]
   invoices       Invoice[]
   preorders      Preorder[]
+  expenses       Expense[]
   stockMovements StockMovement[] @relation("MovementBranch")
 
   @@map("branches")
@@ -514,4 +515,23 @@ model PreorderItem {
   product    Product  @relation(fields: [productId], references: [id])
 
   @@map("preorder_items")
+}
+
+// Money paid out of the till (buying rice, etc.), entered on the Chi tiêu page and shown on the day's thu-chi sheet.
+model Expense {
+  id            String   @id @default(cuid())
+  // Vietnam-local day the money was spent, YYYY-MM-DD
+  date          String
+  branchId      String
+  amount        Decimal  @db.Decimal(14, 2)
+  // who spent it (free text, e.g. "Chiến")
+  payer         String
+  content       String
+  createdById   String
+  createdByName String
+  createdAt     DateTime @default(now())
+  branch        Branch   @relation(fields: [branchId], references: [id])
+
+  @@index([date])
+  @@map("expenses")
 }

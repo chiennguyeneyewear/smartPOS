@@ -7,6 +7,7 @@ import { toast } from "@/stores/toast-store";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth-store";
 import { usePaymentsOnDay } from "@/features/sales/hooks";
+import { useExpenses } from "@/features/expenses/hooks";
 import type { DayPayment } from "@/features/sales/api";
 
 const MIN_ROWS = 16;
@@ -23,6 +24,9 @@ interface Row {
   // Deposit rows: what the customer still owes after paying it. Balance rows: text "Trả cọc còn ...".
   owedAfter: number;
   paidBalance: string;
+  // the expense written on this line (columns "Chi tiêu" and "Ghi chú" are independent of the receipts)
+  expenseText: string;
+  expenseNote: string;
 }
 
 // One line per payment received that day, laid out like the paper sheet:
@@ -43,6 +47,8 @@ function buildRows(payments: DayPayment[]): Row[] {
         card: 0,
         owedAfter: 0,
         paidBalance: `Trả cọc còn ${p.amount.toLocaleString("en-US")} ${SHORT[p.method] ?? ""}`,
+        expenseText: "",
+        expenseNote: "",
       };
     }
     return {
@@ -52,18 +58,26 @@ function buildRows(payments: DayPayment[]): Row[] {
       card: p.method === "CARD" ? p.amount : 0,
       owedAfter: p.kind === "Cọc" && lastDeposit.get(p.invoiceCode) === p.id ? p.remainingAfter : 0,
       paidBalance: "",
+      expenseText: "",
+      expenseNote: "",
     };
   });
 }
 
-// Equal-width columns, so the sheet reads as an even grid; Ghi chú (kept empty for now) takes the rest.
+// Equal-width columns, so the sheet reads as an even grid; Ghi chú takes the rest.
 const COLS = ["w-[16%]", "w-[16%]", "w-[16%]", "w-[16%]", "w-[16%]", "w-[20%]"];
 const cell = "border-r border-black/80 px-3 py-2 last:border-r-0";
 const num = "text-right tabular-nums";
 
 // The day's thu-chi sheet, drawn with the same columns as the paper one and filled from what the system
 // recorded. It can be saved as a picture.
-export function CashbookTab({ isAdmin, sellers }: { isAdmin: boolean; sellers?: { id: string; name: string }[] }) {
+export function CashbookTab({
+  isAdmin,
+  sellers,
+}: {
+  isAdmin: boolean;
+  sellers?: { id: string; name: string; branchIds: string[] }[];
+}) {
   const username = useAuthStore((s) => s.user?.username) ?? "";
   const [date, setDate] = useState(todayVn());
   const [sellerId, setSellerId] = useState("all");
@@ -71,29 +85,31 @@ export function CashbookTab({ isAdmin, sellers }: { isAdmin: boolean; sellers?: 
   const [saving, setSaving] = useState(false);
   const { data, isLoading } = usePaymentsOnDay({ date, sellerId: isAdmin && sellerId !== "all" ? sellerId : undefined });
 
+  // Expenses belong to a branch ("cơ sở"): the admin's seller filter maps to that seller's branches.
+  const filterBranches = isAdmin && sellerId !== "all" ? (sellers?.find((s) => s.id === sellerId)?.branchIds ?? []) : [];
+  const { data: expenseList } = useExpenses({ date, branchIds: filterBranches.length > 0 ? filterBranches.join(",") : undefined });
+  const expenses = expenseList ?? [];
+
   const payments = data?.payments ?? [];
-  const rows = buildRows(payments);
-  const shown = [
-    ...rows,
-    ...Array.from({ length: Math.max(0, MIN_ROWS - rows.length) }, (_, i) => ({
-      key: `blank-${i}`,
-      cash: 0,
-      transfer: 0,
-      card: 0,
-      owedAfter: 0,
-      paidBalance: "",
-    })),
-  ];
+  const receiptRows = buildRows(payments);
+  // receipts and expenses are independent columns, so line i carries the i-th receipt and the i-th expense
+  const lineCount = Math.max(MIN_ROWS, receiptRows.length, expenses.length);
+  const shown: Row[] = Array.from({ length: lineCount }, (_, i) => {
+    const base = receiptRows[i] ?? { key: `blank-${i}`, cash: 0, transfer: 0, card: 0, owedAfter: 0, paidBalance: "", expenseText: "", expenseNote: "" };
+    const e = expenses[i];
+    return { ...base, expenseText: e ? `${e.amount.toLocaleString("en-US")} - ${e.payer}` : "", expenseNote: e?.content ?? "" };
+  });
+  const rows = receiptRows;
 
   const totalCash = rows.reduce((s, r) => s + r.cash, 0);
   const totalTransfer = rows.reduce((s, r) => s + r.transfer, 0);
   const totalCard = rows.reduce((s, r) => s + r.card, 0);
   const totalOwed = rows.reduce((s, r) => s + r.owedAfter, 0);
-  const expenses = 0; // "Chi tiêu" gets its own entry screen later
+  const totalExpenses = expenses.reduce((s, e) => s + e.amount, 0);
   const ds = data?.salesTotal ?? 0;
   // Only balances paid in cash count towards the cash handed over; balances paid by transfer or card do not.
   const balanceCash = payments.filter((p) => p.kind === "Thu nốt" && p.method === "CASH").reduce((s, p) => s + p.amount, 0);
-  const handover = ds - totalTransfer - totalCard - totalOwed - expenses + balanceCash;
+  const handover = ds - totalTransfer - totalCard - totalOwed - totalExpenses + balanceCash;
 
   const [y, m, d] = date.split("-");
   const sellerName = isAdmin ? (sellerId === "all" ? "Tất cả" : (sellers?.find((s) => s.id === sellerId)?.name ?? "")) : username;
@@ -197,8 +213,8 @@ export function CashbookTab({ isAdmin, sellers }: { isAdmin: boolean; sellers?: 
                     <td className={cn(cell, r.paidBalance ? "text-center text-xs" : num)}>
                       {r.paidBalance || money(r.owedAfter)}
                     </td>
-                    <td className={cn(cell, num)} />
-                    <td className={cell} />
+                    <td className={cn(cell, "text-right tabular-nums")}>{r.expenseText}</td>
+                    <td className={cn(cell, "text-xs")}>{r.expenseNote}</td>
                   </tr>
                 ))}
               <tr className="border-t-2 border-black/80 font-semibold">
@@ -206,7 +222,7 @@ export function CashbookTab({ isAdmin, sellers }: { isAdmin: boolean; sellers?: 
                 <td className={cn(cell, num)}>{money(totalTransfer)}</td>
                 <td className={cn(cell, num)}>{money(totalCard)}</td>
                 <td className={cn(cell, num)}>{money(totalOwed)}</td>
-                <td className={cn(cell, num)}>{money(expenses)}</td>
+                <td className={cn(cell, num)}>{money(totalExpenses)}</td>
                 <td className={cell} />
               </tr>
             </tbody>

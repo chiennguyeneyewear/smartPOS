@@ -14,6 +14,7 @@ import { CustomersPage } from "@/pages/customers/customers-page";
 import { OrdersPage } from "@/pages/orders/orders-page";
 import { TasksPage } from "@/pages/tasks/tasks-page";
 import { PreordersPage } from "@/pages/preorders/preorders-page";
+import { ExpensesPage } from "@/pages/expenses/expenses-page";
 import { ReportsPage } from "@/pages/reports/reports-page";
 import { AnalyticsProductsPage } from "@/pages/reports/analytics-products-page";
 import { AnalyticsCustomersPage } from "@/pages/reports/analytics-customers-page";
@@ -89,6 +90,14 @@ export default function App() {
             element={
               <MenuGuard menuKey={MENU_ITEMS.ORDERS}>
                 <OrdersPage />
+              </MenuGuard>
+            }
+          />
+          <Route
+            path="/expenses"
+            element={
+              <MenuGuard menuKey={MENU_ITEMS.EXPENSES}>
+                <ExpensesPage />
               </MenuGuard>
             }
           />
