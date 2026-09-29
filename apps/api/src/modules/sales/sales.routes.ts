@@ -6,6 +6,7 @@ import {
   checkoutInvoiceSchema,
   confirmPaymentSchema,
   salesStaffSchema,
+  type SaveInvoiceInput,
 } from "@smartpos/shared";
 import { prisma } from "../../lib/prisma.js";
 import { authenticate } from "../../middleware/authenticate.js";
@@ -22,17 +23,25 @@ async function assertOwnsInvoice(id: string, user: { id: string; role: string })
   }
 }
 
+// Người đo mắt (once per invoice) and Người bán hàng (once per product line, since a frame and its
+// lenses can be sold by different staff) must both be filled in before an invoice can be created/saved —
+// enforced here rather than in the zod schema so a schema-only validator can't silently allow it.
+function validateStaffFilled(input: SaveInvoiceInput): string | null {
+  if (!input.fitterId) return "Vui lòng chọn người đo mắt trước khi ra hóa đơn";
+  if (input.items.some((item) => !item.sellerId)) {
+    return "Vui lòng chọn người bán hàng cho tất cả sản phẩm trước khi ra hóa đơn";
+  }
+  return null;
+}
+
 export function registerSalesRoutes(app: FastifyInstance) {
   app.post(
     "/sales/invoices",
     { preHandler: [authenticate, requirePermission(PERMISSIONS.SALES_CREATE)] },
     async (request, reply) => {
       const input = saveInvoiceSchema.parse(request.body);
-      if (!input.sellerId || !input.fitterId) {
-        return reply
-          .code(400)
-          .send({ error: "BadRequest", message: "Vui lòng chọn người bán hàng và người đo mắt trước khi ra hóa đơn" });
-      }
+      const staffError = validateStaffFilled(input);
+      if (staffError) return reply.code(400).send({ error: "BadRequest", message: staffError });
       const invoice = await salesService.createDraftInvoice(input, request.authUser!.id);
       return reply.code(201).send(invoice);
     },
@@ -44,9 +53,8 @@ export function registerSalesRoutes(app: FastifyInstance) {
     async (request) => {
       const { id } = request.params as { id: string };
       const input = saveInvoiceSchema.parse(request.body);
-      if (!input.sellerId || !input.fitterId) {
-        throw new salesService.SalesError("Vui lòng chọn người bán hàng và người đo mắt trước khi ra hóa đơn");
-      }
+      const staffError = validateStaffFilled(input);
+      if (staffError) throw new salesService.SalesError(staffError);
       await assertOwnsInvoice(id, request.authUser!);
       return salesService.updateDraftInvoice(id, input);
     },

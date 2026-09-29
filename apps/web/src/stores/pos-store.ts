@@ -23,6 +23,10 @@ export interface CartLine {
   quantity: number;
   discountType: LineDiscountType;
   discountValue: number;
+  // Who sold/advised this specific product — picked per line (a frame and its lenses on the same
+  // invoice are often sold by different staff), defaults to the tab's `defaultSellerId` when the line
+  // is added and can be overridden per line from there.
+  sellerId: string | null;
 }
 
 // Discount is entered either as a flat VND amount or a percentage of unitPrice,
@@ -48,10 +52,13 @@ export interface PosTab {
   items: CartLine[];
   note: string;
   discountAmount: number;
-  // Who sold this invoice and who did the eye exam/fitting for it — one pick for the whole invoice
-  // ("Thông tin sản phẩm", shown below the cart's last line), both optional.
-  sellerId: string | null;
+  // Who did the eye exam/fitting for this invoice — one pick per whole invoice (a customer's eyes are
+  // measured once per visit, however many products they buy).
   fitterId: string | null;
+  // The "apply to all" seller shown in the cart's "Thông tin bán hàng" footer: picking a name here fills
+  // every current line's `sellerId` with it (see setDefaultSeller) and seeds new lines added afterward.
+  // It does not have to match every line — a line can still be overridden individually.
+  defaultSellerId: string | null;
 }
 
 // Tabs are labeled "Hóa đơn N" by their position in the list (computed where
@@ -65,8 +72,8 @@ function createEmptyTab(): PosTab {
     items: [],
     note: "",
     discountAmount: 0,
-    sellerId: null,
     fitterId: null,
+    defaultSellerId: null,
   };
 }
 
@@ -81,7 +88,11 @@ interface PosState {
   updateQuantity: (tabId: string, lineId: string, quantity: number) => void;
   updateLinePrice: (tabId: string, lineId: string, unitPrice: number) => void;
   setLineDiscount: (tabId: string, lineId: string, discountType: LineDiscountType, discountValue: number) => void;
-  setTabStaff: (tabId: string, field: "sellerId" | "fitterId", staffId: string | null) => void;
+  setLineSeller: (tabId: string, lineId: string, staffId: string | null) => void;
+  setFitter: (tabId: string, staffId: string | null) => void;
+  // Sets the tab's "apply to all" default AND overwrites every current line's sellerId with it — a
+  // deliberate bulk overwrite (including lines already customized individually), not a merge.
+  setDefaultSeller: (tabId: string, staffId: string | null) => void;
   removeItem: (tabId: string, lineId: string) => void;
   setCustomer: (tabId: string, customer: CustomerSummary | undefined) => void;
   setNote: (tabId: string, note: string) => void;
@@ -140,6 +151,7 @@ export const usePosStore = create<PosState>()(
               quantity: 1,
               discountType: "PERCENT",
               discountValue: 0,
+              sellerId: tab.defaultSellerId,
             };
             return { ...tab, items: [...tab.items, newLine] };
           }),
@@ -202,9 +214,31 @@ export const usePosStore = create<PosState>()(
           ),
         })),
 
-      setTabStaff: (tabId, field, staffId) =>
+      setLineSeller: (tabId, lineId, staffId) =>
         set((state) => ({
-          tabs: state.tabs.map((tab) => (tab.id !== tabId ? tab : { ...tab, [field]: staffId })),
+          tabs: state.tabs.map((tab) =>
+            tab.id !== tabId
+              ? tab
+              : { ...tab, items: tab.items.map((line) => (line.lineId === lineId ? { ...line, sellerId: staffId } : line)) },
+          ),
+        })),
+
+      setFitter: (tabId, staffId) =>
+        set((state) => ({
+          tabs: state.tabs.map((tab) => (tab.id !== tabId ? tab : { ...tab, fitterId: staffId })),
+        })),
+
+      setDefaultSeller: (tabId, staffId) =>
+        set((state) => ({
+          tabs: state.tabs.map((tab) =>
+            tab.id !== tabId
+              ? tab
+              : {
+                  ...tab,
+                  defaultSellerId: staffId,
+                  items: tab.items.map((line) => ({ ...line, sellerId: staffId })),
+                },
+          ),
         })),
 
       removeItem: (tabId, lineId) =>
@@ -245,13 +279,17 @@ export const usePosStore = create<PosState>()(
       // that change would rehydrate with `discountType: undefined` and every
       // total downstream would compute to NaN.
       // v1 -> v2: added `sellerId`/`fitterId` per line; default missing ones to null.
-      // v2 -> v3: moved `sellerId`/`fitterId` from per-line to per-invoice (per tab); drop the old
-      // per-line values (no sensible way to pick one line's staff to promote to the whole invoice) and
-      // default the new tab-level fields to null.
-      version: 3,
+      // v2 -> v3: moved `sellerId`/`fitterId` from per-line to per-invoice (per tab).
+      // v3 -> v4: split them back apart — `fitterId` stays per-invoice (one eye exam per visit), but
+      // `sellerId` moves back to per-line (a frame and its lenses can be sold by different staff). The
+      // old tab-level `sellerId` becomes the new `defaultSellerId` and is copied onto every existing line
+      // so a cart mid-checkout doesn't suddenly look unfilled.
+      version: 4,
       migrate: (persistedState, version) => {
         const state = persistedState as {
-          tabs?: Array<{ items?: Array<Record<string, unknown>>; sellerId?: unknown; fitterId?: unknown }>;
+          tabs?: Array<
+            Record<string, unknown> & { items?: Array<Record<string, unknown>>; sellerId?: unknown; fitterId?: unknown }
+          >;
         };
         if (version < 1 && state?.tabs) {
           for (const tab of state.tabs) {
@@ -279,6 +317,14 @@ export const usePosStore = create<PosState>()(
             });
             tab.sellerId = null;
             tab.fitterId = null;
+          }
+        }
+        if (version < 4 && state?.tabs) {
+          for (const tab of state.tabs) {
+            const oldSellerId = (tab.sellerId as string | null | undefined) ?? null;
+            tab.items = tab.items?.map((line) => ({ ...line, sellerId: oldSellerId }));
+            tab.defaultSellerId = oldSellerId;
+            delete tab.sellerId;
           }
         }
         return state as unknown as PosState;

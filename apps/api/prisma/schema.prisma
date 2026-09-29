@@ -310,9 +310,10 @@ model Invoice {
   // Deposit already taken on the pre-order this invoice delivers (the money itself is on the pre-order).
   depositAmount        Decimal             @default(0) @db.Decimal(14, 2)
   preorderId           String?             @unique
-  // Who sold this invoice and who did the eye exam/fitting for it — one pick per whole invoice (not per
-  // line), both optional. Internal-only: never shown on the printed receipt, only in the back-office.
-  sellerId             String?
+  // Who did the eye exam/fitting for this invoice — one pick per whole invoice (a customer's eyes are
+  // measured once per visit, however many products they buy). Who SOLD each product is tracked per line
+  // instead (see InvoiceItem.sellerId), since a frame and its lenses are often sold by different staff.
+  // Internal-only: never shown on the printed receipt, only in the back-office.
   fitterId             String?
   branch               Branch              @relation(fields: [branchId], references: [id])
   customer             Customer?           @relation(fields: [customerId], references: [id])
@@ -320,34 +321,37 @@ model Invoice {
   payments             Payment[]
   paymentLogs          InvoicePaymentLog[]
   preorder             Preorder?           @relation(fields: [preorderId], references: [id])
-  seller               SalesStaff?         @relation("InvoiceSeller", fields: [sellerId], references: [id], onDelete: SetNull)
   fitter               SalesStaff?         @relation("InvoiceFitter", fields: [fitterId], references: [id], onDelete: SetNull)
 
   @@map("invoices")
 }
 
 model InvoiceItem {
-  id        String   @id @default(cuid())
+  id        String      @id @default(cuid())
   invoiceId String
   productId String
-  quantity  Decimal  @db.Decimal(14, 3)
-  unitPrice Decimal  @db.Decimal(14, 2)
-  discount  Decimal  @default(0) @db.Decimal(14, 2)
-  lineTotal Decimal  @db.Decimal(14, 2)
-  invoice   Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  product   Product  @relation(fields: [productId], references: [id])
+  quantity  Decimal     @db.Decimal(14, 3)
+  unitPrice Decimal     @db.Decimal(14, 2)
+  discount  Decimal     @default(0) @db.Decimal(14, 2)
+  lineTotal Decimal     @db.Decimal(14, 2)
+  // Who sold/advised this specific product — picked per line since a frame and its lenses on the same
+  // invoice can be sold by different staff.
+  sellerId  String?
+  invoice   Invoice     @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  product   Product     @relation(fields: [productId], references: [id])
+  seller    SalesStaff? @relation("InvoiceItemSeller", fields: [sellerId], references: [id], onDelete: SetNull)
 
   @@map("invoice_items")
 }
 
-// A plain, admin-managed name list for "Người bán hàng" / "Người đo mắt" on each invoice — separate
-// from the Employee list used by Quản lý công việc.
+// A plain, admin-managed name list for "Người bán hàng" / "Người đo mắt" — separate from the Employee
+// list used by Quản lý công việc.
 model SalesStaff {
-  id        String    @id @default(cuid())
+  id        String        @id @default(cuid())
   name      String
-  createdAt DateTime  @default(now())
-  asSeller  Invoice[] @relation("InvoiceSeller")
-  asFitter  Invoice[] @relation("InvoiceFitter")
+  createdAt DateTime      @default(now())
+  asSeller  InvoiceItem[] @relation("InvoiceItemSeller")
+  asFitter  Invoice[]     @relation("InvoiceFitter")
 
   @@map("sales_staff")
 }

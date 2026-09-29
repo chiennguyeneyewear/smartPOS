@@ -71,6 +71,8 @@ export interface InvoiceListItem extends Omit<InvoiceSummary, "items"> {
     discount: number;
     lineTotal: number;
     product: { name: string; sku: string };
+    sellerId: string | null;
+    sellerName: string | null;
   }[];
   payments: { method: PaymentMethod; amount: number; reference?: string | null; createdAt?: string }[];
   paymentLogs: {

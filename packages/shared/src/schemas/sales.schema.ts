@@ -6,6 +6,9 @@ export const invoiceItemInputSchema = z.object({
   quantity: z.coerce.number().positive("Số lượng phải > 0"),
   unitPrice: z.coerce.number().min(0),
   discount: z.coerce.number().min(0).default(0),
+  // Who sold/advised this specific product — picked per line, optional (required before checkout is
+  // enforced in the route handler, not here, so a draft can still be saved half-filled).
+  sellerId: z.string().optional().nullable(),
 });
 export type InvoiceItemInput = z.infer<typeof invoiceItemInputSchema>;
 
@@ -15,8 +18,8 @@ export const saveInvoiceSchema = z.object({
   saleMode: z.nativeEnum(SALE_MODE).default(SALE_MODE.NORMAL),
   note: z.string().optional().nullable(),
   discountAmount: z.coerce.number().min(0).default(0),
-  // Who sold this invoice and who did the eye exam/fitting for it — one pick for the whole invoice, both optional.
-  sellerId: z.string().optional().nullable(),
+  // Who did the eye exam/fitting for this invoice — one pick for the whole invoice, optional here (see
+  // invoiceItemInputSchema.sellerId for why "required" is enforced in the route instead).
   fitterId: z.string().optional().nullable(),
   items: z.array(invoiceItemInputSchema).min(1, "Hóa đơn phải có ít nhất 1 sản phẩm"),
 });

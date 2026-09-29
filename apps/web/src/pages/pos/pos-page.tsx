@@ -71,10 +71,18 @@ export function PosPage() {
   function handleOpenCheckout() {
     const currentTab = getActiveTab();
     if (currentTab.items.length === 0 || !activeBranchId) return;
-    if (!currentTab.sellerId || !currentTab.fitterId) {
+    if (!currentTab.fitterId) {
       toast({
         title: "Thiếu thông tin bán hàng",
-        description: "Vui lòng chọn người bán hàng và người đo mắt trước khi ra hóa đơn",
+        description: "Vui lòng chọn người đo mắt trước khi ra hóa đơn",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (currentTab.items.some((line) => !line.sellerId)) {
+      toast({
+        title: "Thiếu thông tin bán hàng",
+        description: "Vui lòng chọn người bán hàng cho tất cả sản phẩm trước khi ra hóa đơn",
         variant: "destructive",
       });
       return;
@@ -87,13 +95,13 @@ export function PosPage() {
         saleMode: currentTab.saleMode,
         note: currentTab.note,
         discountAmount: currentTab.discountAmount,
-        sellerId: currentTab.sellerId,
         fitterId: currentTab.fitterId,
         items: currentTab.items.map((line) => ({
           productId: line.productId,
           quantity: line.quantity,
           unitPrice: line.unitPrice,
           discount: getLineUnitDiscount(line) * line.quantity,
+          sellerId: line.sellerId,
         })),
       },
       {
@@ -217,7 +225,7 @@ export function PosPage() {
             setQuickAddOpen(true);
           }}
           onRequestCheckout={handleOpenCheckout}
-          checkoutDisabled={tab.items.length === 0 || !tab.sellerId || !tab.fitterId}
+          checkoutDisabled={tab.items.length === 0 || !tab.fitterId || tab.items.some((line) => !line.sellerId)}
         />
       </div>
 

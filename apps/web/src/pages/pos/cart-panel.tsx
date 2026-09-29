@@ -3,7 +3,7 @@ import { Minus, MoreVertical, Plus, Trash2 } from "lucide-react";
 import { usePosStore, getLineTotal, getLineUnitDiscount, type PosTab } from "@/stores/pos-store";
 import { formatCurrency } from "@/lib/utils";
 import { LineDiscountPopover } from "./line-discount-popover";
-import { StaffSelect } from "./staff-select";
+import { StaffSelect, InlineStaffSelect } from "./staff-select";
 
 interface CartPanelProps {
   tab: PosTab;
@@ -13,7 +13,9 @@ export function CartPanel({ tab }: CartPanelProps) {
   const updateQuantity = usePosStore((s) => s.updateQuantity);
   const removeItem = usePosStore((s) => s.removeItem);
   const duplicateLine = usePosStore((s) => s.duplicateLine);
-  const setTabStaff = usePosStore((s) => s.setTabStaff);
+  const setLineSeller = usePosStore((s) => s.setLineSeller);
+  const setFitter = usePosStore((s) => s.setFitter);
+  const setDefaultSeller = usePosStore((s) => s.setDefaultSeller);
   const [openDiscountLineId, setOpenDiscountLineId] = useState<string | null>(null);
 
   const subTotal = useMemo(() => tab.items.reduce((sum, item) => sum + getLineTotal(item), 0), [tab.items]);
@@ -107,6 +109,13 @@ export function CartPanel({ tab }: CartPanelProps) {
                         {formatCurrency(getLineTotal(line))}
                       </span>
                     </div>
+                    {/* Per-product seller override — the invoice-wide default (below) fills this in
+                        automatically; a compact inline select here covers the case where one specific
+                        product (e.g. the lenses) was sold/advised by someone else. */}
+                    <div className="mt-1 flex items-center gap-1.5 pl-6">
+                      <span className="shrink-0 text-xs text-muted-foreground">Người bán:</span>
+                      <InlineStaffSelect value={line.sellerId} onChange={(staffId) => setLineSeller(tab.id, line.lineId, staffId)} />
+                    </div>
                   </div>
                 );
               })}
@@ -118,15 +127,11 @@ export function CartPanel({ tab }: CartPanelProps) {
         <div className="border-t px-4 py-2.5">
           <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Thông tin bán hàng</p>
           <div className="mt-1.5 flex items-end gap-3">
+            <StaffSelect label="Người đo mắt *" value={tab.fitterId} onChange={(staffId) => setFitter(tab.id, staffId)} />
             <StaffSelect
-              label="Người bán hàng *"
-              value={tab.sellerId}
-              onChange={(staffId) => setTabStaff(tab.id, "sellerId", staffId)}
-            />
-            <StaffSelect
-              label="Người đo mắt *"
-              value={tab.fitterId}
-              onChange={(staffId) => setTabStaff(tab.id, "fitterId", staffId)}
+              label="Người bán hàng (áp dụng tất cả) *"
+              value={tab.defaultSellerId}
+              onChange={(staffId) => setDefaultSeller(tab.id, staffId)}
             />
           </div>
         </div>

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -39,6 +39,42 @@ const historyColumns: ColumnDef<InvoiceListItem, any>[] = [
       ),
   },
 ];
+
+// Bấm vào 1 lần mua trong lịch sử để xem cụ thể đã mua sản phẩm nào, ai bán/tư vấn từng sản phẩm đó và
+// ai đo mắt cho lần đó — cần khi khách quay lại cần bảo hành mà không nhớ mã hóa đơn.
+function PurchaseHistoryDetail({ invoice }: { invoice: InvoiceListItem }) {
+  return (
+    <div className="space-y-2 text-sm">
+      {invoice.fitterName && (
+        <p className="text-muted-foreground">
+          Người đo mắt: <span className="font-medium text-foreground">{invoice.fitterName}</span>
+        </p>
+      )}
+      <div className="overflow-x-auto rounded-md border bg-background">
+        <table className="w-full min-w-[480px]">
+          <thead className="bg-muted/50">
+            <tr className="text-left text-xs font-semibold text-muted-foreground">
+              <th className="p-2">Sản phẩm</th>
+              <th className="p-2 text-right">SL</th>
+              <th className="p-2 text-right">Thành tiền</th>
+              <th className="p-2">Người bán</th>
+            </tr>
+          </thead>
+          <tbody>
+            {invoice.items.map((item, i) => (
+              <tr key={i} className="border-t">
+                <td className="p-2">{item.product.name}</td>
+                <td className="p-2 text-right tabular-nums">{item.quantity}</td>
+                <td className="p-2 text-right tabular-nums">{formatCurrency(item.lineTotal)}</td>
+                <td className="p-2 text-muted-foreground">{item.sellerName ?? "—"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
 
 function CustomerInfoForm({ customerId, onSaved }: { customerId: string; onSaved?: () => void }) {
   const { data: customer } = useCustomer(customerId);
@@ -88,6 +124,7 @@ function CustomerInfoForm({ customerId, onSaved }: { customerId: string; onSaved
 
 export function CustomerDetailTabs({ customerId, onSaved }: { customerId: string; onSaved?: () => void }) {
   const { data: invoices, isLoading: invoicesLoading } = useInvoices({ customerId });
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   return (
     <Tabs defaultValue="info">
@@ -107,6 +144,9 @@ export function CustomerDetailTabs({ customerId, onSaved }: { customerId: string
             data={invoices ?? []}
             isLoading={invoicesLoading}
             emptyMessage="Khách hàng chưa có hóa đơn nào"
+            onRowClick={(inv) => setExpandedId((prev) => (prev === inv.id ? null : inv.id))}
+            isRowSelected={(inv) => inv.id === expandedId}
+            renderExpandedRow={(inv) => <PurchaseHistoryDetail invoice={inv} />}
           />
         </div>
       </TabsContent>

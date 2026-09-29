@@ -135,7 +135,6 @@ export function InvoiceDetailPanel({
             <MetaField label="Kênh bán" value={SALE_MODE_LABELS[invoice.saleMode] ?? invoice.saleMode} />
             <MetaField label="Chi nhánh" value={branchName ?? "—"} />
             <MetaField label="Bảng giá" value="Bảng giá chung" />
-            {invoice.sellerName && <MetaField label="NV bán hàng" value={invoice.sellerName} />}
             {invoice.fitterName && <MetaField label="NV đo mắt" value={invoice.fitterName} />}
           </div>
 
@@ -156,7 +155,10 @@ export function InvoiceDetailPanel({
                 {invoice.items.map((item, i) => (
                   <tr key={`${item.productId}-${i}`} className="border-t">
                     <td className="p-2.5 text-primary">{item.product.sku}</td>
-                    <td className="p-2.5">{item.product.name}</td>
+                    <td className="p-2.5">
+                      <p>{item.product.name}</p>
+                      {item.sellerName && <p className="mt-0.5 text-xs text-muted-foreground">Bán: {item.sellerName}</p>}
+                    </td>
                     <td className="p-2.5 text-right tabular-nums">{fmt(item.quantity)}</td>
                     <td className="p-2.5 text-right tabular-nums">{fmt(item.unitPrice)}</td>
                     <td className="p-2.5 text-right tabular-nums">{item.discount > 0 ? fmt(item.discount) : ""}</td>
