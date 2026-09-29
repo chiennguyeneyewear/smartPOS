@@ -52,6 +52,8 @@ export async function createDraftInvoice(input: SaveInvoiceInput, createdById: s
       discountAmount: input.discountAmount,
       totalAmount,
       createdById,
+      sellerId: input.sellerId || null,
+      fitterId: input.fitterId || null,
       items: {
         create: input.items.map((item) => ({
           productId: item.productId,
@@ -86,6 +88,8 @@ export async function updateDraftInvoice(id: string, input: SaveInvoiceInput) {
         subTotal,
         discountAmount: input.discountAmount,
         totalAmount,
+        sellerId: input.sellerId || null,
+        fitterId: input.fitterId || null,
         items: {
           create: input.items.map((item) => ({
             productId: item.productId,
@@ -581,6 +585,8 @@ export async function listInvoices(filters: {
       customer: { select: { code: true, name: true, phone: true, note: true } },
       preorder: { select: { code: true, depositMethod: true } },
       paymentLogs: { orderBy: { createdAt: "asc" } },
+      seller: true,
+      fitter: true,
     },
     orderBy: { createdAt: "desc" },
     take: 200,
@@ -598,6 +604,8 @@ export async function listInvoices(filters: {
     paidAmount: Number(inv.paidAmount),
     depositAmount: Number(inv.depositAmount),
     createdByName: userNameById.get(inv.createdById) ?? "N/A",
+    sellerName: inv.seller?.name ?? null,
+    fitterName: inv.fitter?.name ?? null,
     items: inv.items.map((item) => ({
       ...item,
       quantity: Number(item.quantity),

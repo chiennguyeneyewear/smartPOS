@@ -310,28 +310,46 @@ model Invoice {
   // Deposit already taken on the pre-order this invoice delivers (the money itself is on the pre-order).
   depositAmount        Decimal             @default(0) @db.Decimal(14, 2)
   preorderId           String?             @unique
+  // Who sold this invoice and who did the eye exam/fitting for it — one pick per whole invoice (not per
+  // line), both optional. Internal-only: never shown on the printed receipt, only in the back-office.
+  sellerId             String?
+  fitterId             String?
   branch               Branch              @relation(fields: [branchId], references: [id])
   customer             Customer?           @relation(fields: [customerId], references: [id])
   items                InvoiceItem[]
   payments             Payment[]
   paymentLogs          InvoicePaymentLog[]
   preorder             Preorder?           @relation(fields: [preorderId], references: [id])
+  seller               SalesStaff?         @relation("InvoiceSeller", fields: [sellerId], references: [id], onDelete: SetNull)
+  fitter               SalesStaff?         @relation("InvoiceFitter", fields: [fitterId], references: [id], onDelete: SetNull)
 
   @@map("invoices")
 }
 
 model InvoiceItem {
-  id        String  @id @default(cuid())
+  id        String   @id @default(cuid())
   invoiceId String
   productId String
-  quantity  Decimal @db.Decimal(14, 3)
-  unitPrice Decimal @db.Decimal(14, 2)
-  discount  Decimal @default(0) @db.Decimal(14, 2)
-  lineTotal Decimal @db.Decimal(14, 2)
-  invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  product   Product @relation(fields: [productId], references: [id])
+  quantity  Decimal  @db.Decimal(14, 3)
+  unitPrice Decimal  @db.Decimal(14, 2)
+  discount  Decimal  @default(0) @db.Decimal(14, 2)
+  lineTotal Decimal  @db.Decimal(14, 2)
+  invoice   Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id])
 
   @@map("invoice_items")
+}
+
+// A plain, admin-managed name list for "Người bán hàng" / "Người đo mắt" on each invoice — separate
+// from the Employee list used by Quản lý công việc.
+model SalesStaff {
+  id        String    @id @default(cuid())
+  name      String
+  createdAt DateTime  @default(now())
+  asSeller  Invoice[] @relation("InvoiceSeller")
+  asFitter  Invoice[] @relation("InvoiceFitter")
+
+  @@map("sales_staff")
 }
 
 enum PaymentMethod {

@@ -3,6 +3,7 @@ import { Minus, MoreVertical, Plus, Trash2 } from "lucide-react";
 import { usePosStore, getLineTotal, getLineUnitDiscount, type PosTab } from "@/stores/pos-store";
 import { formatCurrency } from "@/lib/utils";
 import { LineDiscountPopover } from "./line-discount-popover";
+import { StaffSelect } from "./staff-select";
 
 interface CartPanelProps {
   tab: PosTab;
@@ -12,6 +13,7 @@ export function CartPanel({ tab }: CartPanelProps) {
   const updateQuantity = usePosStore((s) => s.updateQuantity);
   const removeItem = usePosStore((s) => s.removeItem);
   const duplicateLine = usePosStore((s) => s.duplicateLine);
+  const setTabStaff = usePosStore((s) => s.setTabStaff);
   const [openDiscountLineId, setOpenDiscountLineId] = useState<string | null>(null);
 
   const subTotal = useMemo(() => tab.items.reduce((sum, item) => sum + getLineTotal(item), 0), [tab.items]);
@@ -111,6 +113,24 @@ export function CartPanel({ tab }: CartPanelProps) {
           </div>
         )}
       </div>
+
+      {tab.items.length > 0 && (
+        <div className="border-t px-4 py-2.5">
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Thông tin bán hàng</p>
+          <div className="mt-1.5 flex items-end gap-3">
+            <StaffSelect
+              label="Người bán hàng *"
+              value={tab.sellerId}
+              onChange={(staffId) => setTabStaff(tab.id, "sellerId", staffId)}
+            />
+            <StaffSelect
+              label="Người đo mắt *"
+              value={tab.fitterId}
+              onChange={(staffId) => setTabStaff(tab.id, "fitterId", staffId)}
+            />
+          </div>
+        </div>
+      )}
 
       <div className="space-y-2.5 border-t p-4">
         <div className="flex items-center justify-between border-t pt-2.5">

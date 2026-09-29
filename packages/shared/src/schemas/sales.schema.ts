@@ -15,6 +15,9 @@ export const saveInvoiceSchema = z.object({
   saleMode: z.nativeEnum(SALE_MODE).default(SALE_MODE.NORMAL),
   note: z.string().optional().nullable(),
   discountAmount: z.coerce.number().min(0).default(0),
+  // Who sold this invoice and who did the eye exam/fitting for it — one pick for the whole invoice, both optional.
+  sellerId: z.string().optional().nullable(),
+  fitterId: z.string().optional().nullable(),
   items: z.array(invoiceItemInputSchema).min(1, "Hóa đơn phải có ít nhất 1 sản phẩm"),
 });
 export type SaveInvoiceInput = z.infer<typeof saveInvoiceSchema>;

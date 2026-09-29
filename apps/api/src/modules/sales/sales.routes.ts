@@ -1,5 +1,12 @@
 import type { FastifyInstance } from "fastify";
-import { PERMISSIONS, ROLES, saveInvoiceSchema, checkoutInvoiceSchema, confirmPaymentSchema } from "@smartpos/shared";
+import {
+  PERMISSIONS,
+  ROLES,
+  saveInvoiceSchema,
+  checkoutInvoiceSchema,
+  confirmPaymentSchema,
+  salesStaffSchema,
+} from "@smartpos/shared";
 import { prisma } from "../../lib/prisma.js";
 import { authenticate } from "../../middleware/authenticate.js";
 import { requirePermission } from "../../middleware/require-permission.js";
@@ -21,6 +28,11 @@ export function registerSalesRoutes(app: FastifyInstance) {
     { preHandler: [authenticate, requirePermission(PERMISSIONS.SALES_CREATE)] },
     async (request, reply) => {
       const input = saveInvoiceSchema.parse(request.body);
+      if (!input.sellerId || !input.fitterId) {
+        return reply
+          .code(400)
+          .send({ error: "BadRequest", message: "Vui lòng chọn người bán hàng và người đo mắt trước khi ra hóa đơn" });
+      }
       const invoice = await salesService.createDraftInvoice(input, request.authUser!.id);
       return reply.code(201).send(invoice);
     },
@@ -32,6 +44,9 @@ export function registerSalesRoutes(app: FastifyInstance) {
     async (request) => {
       const { id } = request.params as { id: string };
       const input = saveInvoiceSchema.parse(request.body);
+      if (!input.sellerId || !input.fitterId) {
+        throw new salesService.SalesError("Vui lòng chọn người bán hàng và người đo mắt trước khi ra hóa đơn");
+      }
       await assertOwnsInvoice(id, request.authUser!);
       return salesService.updateDraftInvoice(id, input);
     },
@@ -120,5 +135,26 @@ export function registerSalesRoutes(app: FastifyInstance) {
       isAdmin ? query : { ...query, branchId: undefined, createdById: request.authUser!.id },
     );
     return { data };
+  });
+
+  // "Người bán hàng" / "Người đo mắt" on each invoice — a plain name list every signed-in account can read
+  // (needed to pick from it while selling), but only the admin may add or remove a name from it.
+  app.get("/sales-staff", { preHandler: authenticate }, async () => {
+    const data = await prisma.salesStaff.findMany({ orderBy: { name: "asc" } });
+    return { data };
+  });
+
+  app.post("/sales-staff", { preHandler: [authenticate, requireAdmin] }, async (request, reply) => {
+    const input = salesStaffSchema.parse(request.body);
+    const created = await prisma.salesStaff.create({ data: input });
+    return reply.code(201).send(created);
+  });
+
+  app.delete("/sales-staff/:id", { preHandler: [authenticate, requireAdmin] }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const existing = await prisma.salesStaff.findUnique({ where: { id } });
+    if (!existing) return reply.code(404).send({ message: "Không tìm thấy nhân viên" });
+    await prisma.salesStaff.delete({ where: { id } });
+    return { success: true };
   });
 }

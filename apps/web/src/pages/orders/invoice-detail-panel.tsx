@@ -135,6 +135,8 @@ export function InvoiceDetailPanel({
             <MetaField label="Kênh bán" value={SALE_MODE_LABELS[invoice.saleMode] ?? invoice.saleMode} />
             <MetaField label="Chi nhánh" value={branchName ?? "—"} />
             <MetaField label="Bảng giá" value="Bảng giá chung" />
+            {invoice.sellerName && <MetaField label="NV bán hàng" value={invoice.sellerName} />}
+            {invoice.fitterName && <MetaField label="NV đo mắt" value={invoice.fitterName} />}
           </div>
 
           <div className="overflow-x-auto rounded-md border">

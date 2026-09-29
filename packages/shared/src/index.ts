@@ -9,4 +9,5 @@ export * from "./schemas/inventory.schema.js";
 export * from "./schemas/task.schema.js";
 export * from "./schemas/preorder.schema.js";
 export * from "./schemas/expense.schema.js";
+export * from "./schemas/sales-staff.schema.js";
 export * from "./types/index.js";

@@ -94,16 +94,6 @@ export function LineDiscountPopover({ tabId, line, open, onOpenChange }: LineDis
           />
           <button
             type="button"
-            onClick={() => setDiscountType("AMOUNT")}
-            className={cn(
-              "shrink-0 rounded-full px-3 py-1 text-xs font-semibold transition-colors",
-              line.discountType === "AMOUNT" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
-            )}
-          >
-            VND
-          </button>
-          <button
-            type="button"
             onClick={() => setDiscountType("PERCENT")}
             className={cn(
               "shrink-0 rounded-full px-3 py-1 text-xs font-semibold transition-colors",
@@ -111,6 +101,16 @@ export function LineDiscountPopover({ tabId, line, open, onOpenChange }: LineDis
             )}
           >
             %
+          </button>
+          <button
+            type="button"
+            onClick={() => setDiscountType("AMOUNT")}
+            className={cn(
+              "shrink-0 rounded-full px-3 py-1 text-xs font-semibold transition-colors",
+              line.discountType === "AMOUNT" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
+            )}
+          >
+            VND
           </button>
         </div>
       </div>

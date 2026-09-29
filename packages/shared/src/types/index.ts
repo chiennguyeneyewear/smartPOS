@@ -99,6 +99,11 @@ export interface InvoiceItemSummary {
   lineTotal: number;
 }
 
+export interface SalesStaffSummary {
+  id: string;
+  name: string;
+}
+
 export interface InvoiceSummary {
   id: string;
   code: string;
@@ -113,6 +118,12 @@ export interface InvoiceSummary {
   paidAmount: number;
   paymentStatus: PaymentStatus;
   depositAmount: number;
+  // Who sold this invoice and who did the eye exam/fitting for it — one pick for the whole invoice, both
+  // optional, internal-only (never shown on the printed receipt).
+  sellerId: string | null;
+  sellerName: string | null;
+  fitterId: string | null;
+  fitterName: string | null;
   items: InvoiceItemSummary[];
   createdAt: string;
   completedAt: string | null;

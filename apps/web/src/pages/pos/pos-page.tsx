@@ -71,6 +71,14 @@ export function PosPage() {
   function handleOpenCheckout() {
     const currentTab = getActiveTab();
     if (currentTab.items.length === 0 || !activeBranchId) return;
+    if (!currentTab.sellerId || !currentTab.fitterId) {
+      toast({
+        title: "Thiếu thông tin bán hàng",
+        description: "Vui lòng chọn người bán hàng và người đo mắt trước khi ra hóa đơn",
+        variant: "destructive",
+      });
+      return;
+    }
 
     createDraft.mutate(
       {
@@ -79,6 +87,8 @@ export function PosPage() {
         saleMode: currentTab.saleMode,
         note: currentTab.note,
         discountAmount: currentTab.discountAmount,
+        sellerId: currentTab.sellerId,
+        fitterId: currentTab.fitterId,
         items: currentTab.items.map((line) => ({
           productId: line.productId,
           quantity: line.quantity,
@@ -207,7 +217,7 @@ export function PosPage() {
             setQuickAddOpen(true);
           }}
           onRequestCheckout={handleOpenCheckout}
-          checkoutDisabled={tab.items.length === 0}
+          checkoutDisabled={tab.items.length === 0 || !tab.sellerId || !tab.fitterId}
         />
       </div>
 
