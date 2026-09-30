@@ -230,9 +230,15 @@ export function OrdersPage() {
   // Collecting the rest of a partly paid invoice: admin or the seller who issued it, on any later day.
   const canAddPayment = (inv: InvoiceListItem) =>
     inv.status === "COMPLETED" && inv.paymentStatus === "PARTIAL" && (isAdmin || inv.createdById === userId);
+  // Confirming payment is one-shot for a regular account: once THEY have confirmed a "Chờ xác nhận"
+  // invoice, this can't be opened again for it. The admin keeps unrestricted access (any invoice, any
+  // time) to make genuine corrections.
   const canConfirmPayment = (inv: InvoiceListItem) =>
     inv.status === "COMPLETED" &&
-    (isAdmin || (inv.createdById === userId && vnDay(inv.completedAt ?? inv.createdAt) === vnDay(new Date().toISOString())));
+    (isAdmin ||
+      (inv.paymentStatus === "PENDING" &&
+        inv.createdById === userId &&
+        vnDay(inv.completedAt ?? inv.createdAt) === vnDay(new Date().toISOString())));
 
   function confirmVoid() {
     voidInvoices.mutate([...selectedIds], {

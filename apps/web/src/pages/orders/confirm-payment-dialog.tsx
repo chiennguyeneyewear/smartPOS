@@ -195,9 +195,14 @@ export function ConfirmPaymentDialog({
             </span>
           </div>
           {error && <p className="text-sm text-destructive">{error}</p>}
-          {!pending && (
-            <p className="text-xs text-muted-foreground">Mọi thay đổi được ghi lại: ai sửa, lúc nào, từ gì sang gì.</p>
-          )}
+          {mode === "set" &&
+            (pending ? (
+              <p className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                Kiểm tra kỹ trước khi lưu: sau khi xác nhận, tài khoản thường sẽ không thể sửa lại (chỉ admin mới sửa được).
+              </p>
+            ) : (
+              <p className="text-xs text-muted-foreground">Mọi thay đổi được ghi lại: ai sửa, lúc nào, từ gì sang gì.</p>
+            ))}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>

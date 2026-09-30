@@ -261,6 +261,11 @@ export async function confirmInvoicePayment(id: string, input: ConfirmPaymentInp
 
     const issuedAt = invoice.completedAt ?? invoice.createdAt;
     if (!isAdmin) {
+      // One shot for a regular account: once THEY have confirmed a "Chờ xác nhận" invoice, they can
+      // never come back and edit it — only the admin retains that ability, for genuine corrections.
+      if (invoice.paymentStatus !== PaymentStatus.PENDING) {
+        throw new SalesError("Hóa đơn này đã được xác nhận thanh toán, chỉ admin mới được sửa lại", 403);
+      }
       if (invoice.createdById !== actor.id) {
         throw new SalesError("Bạn chỉ được xác nhận thanh toán hóa đơn của chính mình", 403);
       }
