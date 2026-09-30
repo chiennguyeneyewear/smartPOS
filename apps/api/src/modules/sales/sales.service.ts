@@ -299,11 +299,14 @@ export async function confirmInvoicePayment(id: string, input: ConfirmPaymentInp
       paymentStatus: invoice.paymentStatus,
       payments: invoice.payments.map((p) => ({ method: p.method, amount: Number(p.amount), reference: p.reference })),
     };
-    // A line that is unchanged (same method and amount) keeps the date it was really received.
+    // A line that is unchanged (same method and amount) keeps the date it was really received. A new or
+    // changed line is dated to when the invoice was ISSUED (not "now") — the money was already handed
+    // over that day for a one-tap invoice, confirming which method it was a day (or more) later is just
+    // catching up the paperwork, and must not move the cash onto the confirmation day's thu-chi sheet.
     const unused = [...invoice.payments];
     const dated = input.payments.map((p) => {
       const at = unused.findIndex((o) => o.method === p.method && Number(o.amount) === p.amount);
-      const createdAt = at >= 0 ? unused.splice(at, 1)[0]!.createdAt : new Date();
+      const createdAt = at >= 0 ? unused.splice(at, 1)[0]!.createdAt : issuedAt;
       return { ...p, createdAt };
     });
     await tx.payment.deleteMany({ where: { invoiceId: id } });
