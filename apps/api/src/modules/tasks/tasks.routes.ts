@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { Prisma } from "@prisma/client";
 import {
   EMPLOYEE_KIND,
+  ROLES,
   TASK_ATTACHMENT_LIMITS,
   TASK_STATUS,
   employeeSchema,
@@ -130,6 +131,22 @@ export function registerTaskBranchRoutes(app: FastifyInstance) {
   });
 }
 
+// TaskBranch is a separate, freely-editable label list (not FK-linked to the real Branch a login belongs
+// to — see the schema comment on TaskBranch), so "which branch's tasks can this account see" can only be
+// resolved by matching names: a CS1 login's own Branch is named "CS1", and tasks are filed under a
+// TaskBranch also named "CS1". Admin is unrestricted; a non-admin whose branch name matches no TaskBranch
+// (or several TaskBranches with the same name) sees none rather than everything, which is the safe default.
+async function ownTaskBranchIds(branchIds: string[]) {
+  const ownBranches = await prisma.branch.findMany({ where: { id: { in: branchIds } }, select: { name: true } });
+  const names = ownBranches.map((b) => b.name);
+  if (names.length === 0) return [];
+  const matches = await prisma.taskBranch.findMany({
+    where: { name: { in: names, mode: "insensitive" } },
+    select: { id: true },
+  });
+  return matches.map((b) => b.id);
+}
+
 export function registerTaskRoutes(app: FastifyInstance) {
   app.get("/tasks", { preHandler: authenticate }, async (request) => {
     const query = request.query as {
@@ -140,13 +157,24 @@ export function registerTaskRoutes(app: FastifyInstance) {
       to?: string;
     };
 
+    // Non-admin (CS1/CS2/CS3) only ever sees tasks filed under their own branch — an explicit branchId
+    // filter narrows further within that, it can't widen out of it.
+    const isAdmin = request.authUser!.role === ROLES.ADMIN;
+    let branchIdFilter: Prisma.TaskWhereInput["branchId"];
+    if (isAdmin) {
+      branchIdFilter = query.branchId || undefined;
+    } else {
+      const ownIds = await ownTaskBranchIds(request.authUser!.branchIds);
+      branchIdFilter = query.branchId && ownIds.includes(query.branchId) ? query.branchId : { in: ownIds };
+    }
+
     const tasks = await prisma.task.findMany({
       where: {
         ...(query.status === TASK_STATUS.PENDING || query.status === TASK_STATUS.DONE
           ? { status: query.status }
           : {}),
         ...(query.assigneeId ? { assigneeId: query.assigneeId } : {}),
-        ...(query.branchId ? { branchId: query.branchId } : {}),
+        ...(branchIdFilter !== undefined ? { branchId: branchIdFilter } : {}),
         ...(query.from || query.to
           ? {
               createdAt: {

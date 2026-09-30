@@ -126,6 +126,10 @@ model Product {
   description      String    @default("")
   sellDirectly     Boolean   @default(true)
   isActive         Boolean   @default(true)
+  // All-time units sold (every branch/seller combined — CS1+CS2+CS3), kept up to date at
+  // checkout/void so the POS quick-pick grid can sort by it without re-aggregating invoice_items
+  // on every request. Backfilled once from existing completed invoices when this column was added.
+  totalSold        Int       @default(0)
   deletedAt        DateTime?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt

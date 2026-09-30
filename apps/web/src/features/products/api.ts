@@ -17,6 +17,9 @@ export interface ProductQuery {
   barcode?: string;
   branchId?: string;
   sellable?: boolean;
+  // "bestseller" = ordered by all-time units sold, every branch/seller combined (used by the POS quick-
+  // pick grid); omitted = plain alphabetical, used everywhere else.
+  sort?: "bestseller";
   page?: number;
   pageSize?: number;
 }

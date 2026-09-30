@@ -185,6 +185,12 @@ export async function checkoutInvoice(
         create: { productId: item.productId, branchId: invoice.branchId, quantity: -Number(item.quantity) },
         update: { quantity: { decrement: item.quantity } },
       });
+      // Feeds the POS quick-pick grid's bestseller sort — every branch/seller combined, so it stays
+      // accurate whichever of CS1/CS2/CS3 makes the sale.
+      await tx.product.update({
+        where: { id: item.productId },
+        data: { totalSold: { increment: Math.round(Number(item.quantity)) } },
+      });
     }
 
     const debtAmount = input.payments
@@ -508,6 +514,12 @@ export async function voidInvoice(id: string, _voidedById: string) {
         where: { productId_branchId: { productId: item.productId, branchId: invoice.branchId } },
         create: { productId: item.productId, branchId: invoice.branchId, quantity: item.quantity },
         update: { quantity: { increment: item.quantity } },
+      });
+      // Mirrors the increment at checkout, so a voided invoice's units drop back out of the
+      // bestseller ranking instead of inflating it forever.
+      await tx.product.update({
+        where: { id: item.productId },
+        data: { totalSold: { decrement: Math.round(Number(item.quantity)) } },
       });
     }
 

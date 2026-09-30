@@ -18,9 +18,10 @@ interface ProductGridPanelProps {
   checkoutDisabled: boolean;
 }
 
-// Always-populated quick-pick catalog (best sellers / manually arranged), matching
-// the right-hand panel of the real in-store POS — product lookup itself happens via
-// the global search bar in the top toolbar instead of a search box in this panel.
+// Always-populated quick-pick catalog, ordered by all-time units sold — every branch/seller combined
+// (CS1+CS2+CS3) — so the best sellers surface first without anyone maintaining it by hand. Matches the
+// right-hand panel of the real in-store POS; product lookup itself happens via the global search bar in
+// the top toolbar instead of a search box in this panel.
 export function ProductGridPanel({
   customer,
   tabId,
@@ -33,7 +34,7 @@ export function ProductGridPanel({
   const addItem = usePosStore((s) => s.addItem);
   const setCustomer = usePosStore((s) => s.setCustomer);
 
-  const { data, isLoading } = useProducts({ page, pageSize: PAGE_SIZE, sellable: true });
+  const { data, isLoading } = useProducts({ page, pageSize: PAGE_SIZE, sellable: true, sort: "bestseller" });
   const totalPages = data ? Math.max(1, Math.ceil(data.meta.total / PAGE_SIZE)) : 1;
 
   return (

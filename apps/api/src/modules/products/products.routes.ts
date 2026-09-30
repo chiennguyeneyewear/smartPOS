@@ -45,6 +45,7 @@ export function registerProductRoutes(app: FastifyInstance) {
       barcode?: string;
       branchId?: string;
       sellable?: string;
+      sort?: string;
       page?: string;
       pageSize?: string;
     };
@@ -82,7 +83,10 @@ export function registerProductRoutes(app: FastifyInstance) {
           stockItems: true,
           images: { select: imageSelect, orderBy: { createdAt: "asc" }, take: PRODUCT_IMAGE_LIMITS.maxPerProduct },
         },
-        orderBy: { name: "asc" },
+        // "bestseller" is the POS quick-pick grid's order — most units sold all-time (every branch/
+        // seller combined), ties/never-sold falling back to alphabetical. Every other caller (back-office
+        // list, reports) keeps the plain alphabetical order.
+        orderBy: query.sort === "bestseller" ? [{ totalSold: "desc" }, { name: "asc" }] : { name: "asc" },
         skip: (page - 1) * pageSize,
         take: pageSize,
       }),

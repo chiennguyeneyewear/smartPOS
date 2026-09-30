@@ -51,6 +51,8 @@ export interface ProductSummary {
   images: { id: string; mimeType: string }[];
   isActive: boolean;
   stockQuantity?: number;
+  // All-time units sold, every branch/seller combined — drives the POS grid's "bestseller" sort.
+  totalSold: number;
 }
 
 export interface StockItemSummary {

@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Minus, MoreVertical, Plus, Trash2 } from "lucide-react";
-import { hasValidCustomerNoteForDate } from "@smartpos/shared";
+import { hasValidCustomerNoteForDate, TASK_STATUS } from "@smartpos/shared";
 import { usePosStore, getLineTotal, getLineUnitDiscount, type PosTab } from "@/stores/pos-store";
 import { useInvoices } from "@/features/sales/hooks";
+import { useTasks } from "@/features/tasks/hooks";
 import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { LineDiscountPopover } from "./line-discount-popover";
@@ -43,6 +44,11 @@ export function CartPanel({ tab }: CartPanelProps) {
     () => (todayInvoices ?? []).filter((inv) => inv.customer && !hasValidCustomerNoteForDate(inv.customer.note, new Date())).length,
     [todayInvoices],
   );
+
+  // Chưa hoàn thành công việc được giao cho chi nhánh này (admin thấy tất cả chi nhánh, tài khoản CS1/
+  // CS2/CS3 chỉ thấy của chi nhánh mình — lọc sẵn ở server, xem apps/api/tasks.routes.ts).
+  const { data: pendingTasks } = useTasks({ status: TASK_STATUS.PENDING });
+  const pendingTaskCount = pendingTasks?.length ?? 0;
 
   const subTotal = useMemo(() => tab.items.reduce((sum, item) => sum + getLineTotal(item), 0), [tab.items]);
   const total = Math.max(0, subTotal - tab.discountAmount);
@@ -154,6 +160,20 @@ export function CartPanel({ tab }: CartPanelProps) {
             variant="outline"
             className="shrink-0 border-amber-300 bg-white hover:bg-amber-100"
             onClick={() => navigate("/orders?missingNote=1")}
+          >
+            XEM NGAY
+          </Button>
+        </div>
+      )}
+
+      {pendingTaskCount > 0 && (
+        <div className="flex items-center justify-between gap-3 border-t bg-amber-50 px-4 py-2.5 text-sm text-amber-900">
+          <span>{pendingTaskCount} công việc chưa hoàn thành</span>
+          <Button
+            size="sm"
+            variant="outline"
+            className="shrink-0 border-amber-300 bg-white hover:bg-amber-100"
+            onClick={() => navigate("/tasks")}
           >
             XEM NGAY
           </Button>
