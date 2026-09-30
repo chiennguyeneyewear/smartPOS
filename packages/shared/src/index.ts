@@ -1,4 +1,5 @@
 export * from "./lib/discount.js";
+export * from "./lib/customer-note.js";
 export * from "./constants/roles.js";
 export * from "./constants/enums.js";
 export * from "./schemas/auth.schema.js";

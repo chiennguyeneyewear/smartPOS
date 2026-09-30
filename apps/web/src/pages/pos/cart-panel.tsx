@@ -1,7 +1,11 @@
 import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Minus, MoreVertical, Plus, Trash2 } from "lucide-react";
+import { hasValidCustomerNoteForDate } from "@smartpos/shared";
 import { usePosStore, getLineTotal, getLineUnitDiscount, type PosTab } from "@/stores/pos-store";
+import { useInvoices } from "@/features/sales/hooks";
 import { formatCurrency } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import { LineDiscountPopover } from "./line-discount-popover";
 import { StaffSelect } from "./staff-select";
 
@@ -9,13 +13,37 @@ interface CartPanelProps {
   tab: PosTab;
 }
 
+function startOfToday() {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function endOfToday() {
+  const d = new Date();
+  d.setHours(23, 59, 59, 999);
+  return d;
+}
+
 export function CartPanel({ tab }: CartPanelProps) {
+  const navigate = useNavigate();
   const updateQuantity = usePosStore((s) => s.updateQuantity);
   const removeItem = usePosStore((s) => s.removeItem);
   const duplicateLine = usePosStore((s) => s.duplicateLine);
   const setFitter = usePosStore((s) => s.setFitter);
   const setDefaultSeller = usePosStore((s) => s.setDefaultSeller);
   const [openDiscountLineId, setOpenDiscountLineId] = useState<string | null>(null);
+
+  // How many of today's own completed invoices are missing a proper customer note ("Tên nhân viên - Tên
+  // cơ sở - ngày/tháng/năm...", ≥ 50 ký tự, ghi đúng ngày hôm nay) — a stale note from the customer's last
+  // visit, or one that's too short, doesn't count. Non-admin accounts only ever see their own invoices
+  // here (enforced server-side), matching who's responsible for writing that note.
+  // Khách lẻ (no customer attached at all) is exempt — there's no one to write a note about.
+  const { data: todayInvoices } = useInvoices({ status: "COMPLETED", from: startOfToday().toISOString(), to: endOfToday().toISOString() });
+  const missingNoteCount = useMemo(
+    () => (todayInvoices ?? []).filter((inv) => inv.customer && !hasValidCustomerNoteForDate(inv.customer.note, new Date())).length,
+    [todayInvoices],
+  );
 
   const subTotal = useMemo(() => tab.items.reduce((sum, item) => sum + getLineTotal(item), 0), [tab.items]);
   const total = Math.max(0, subTotal - tab.discountAmount);
@@ -114,6 +142,20 @@ export function CartPanel({ tab }: CartPanelProps) {
           </div>
         )}
       </div>
+
+      {missingNoteCount > 0 && (
+        <div className="flex items-center justify-between gap-3 border-t bg-amber-50 px-4 py-2.5 text-sm text-amber-900">
+          <span>{missingNoteCount} hóa đơn hôm nay chưa ghi chú thông tin khách hàng</span>
+          <Button
+            size="sm"
+            variant="outline"
+            className="shrink-0 border-amber-300 bg-white hover:bg-amber-100"
+            onClick={() => navigate("/orders?missingNote=1")}
+          >
+            XEM NGAY
+          </Button>
+        </div>
+      )}
 
       {tab.items.length > 0 && (
         <div className="border-t px-4 py-2.5">

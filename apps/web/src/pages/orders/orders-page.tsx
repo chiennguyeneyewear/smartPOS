@@ -1,6 +1,8 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Ban, Search, SlidersHorizontal } from "lucide-react";
+import { Ban, Search, SlidersHorizontal, X } from "lucide-react";
+import { hasValidCustomerNoteForDate } from "@smartpos/shared";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
 import { Card, CardContent } from "@/components/ui/card";
@@ -48,7 +50,17 @@ function toDateInputValue(d: Date) {
 export function OrdersPage() {
   const reportBranchId = useReportBranchId();
   const mergeSameItems = usePrintSettingsStore((s) => s.mergeSameItems);
-  const [preset, setPreset] = useState<PeriodPreset>("this_month");
+  const [searchParams, setSearchParams] = useSearchParams();
+  // Arrived via the POS cart's "XEM NGAY" on the missing-customer-note warning: jump straight to today
+  // and layer on that one extra filter, on top of whatever else is picked below.
+  const missingNoteOnly = searchParams.get("missingNote") === "1";
+  const [preset, setPreset] = useState<PeriodPreset>(missingNoteOnly ? "today" : "this_month");
+  useEffect(() => {
+    if (missingNoteOnly) setPreset("today");
+    // Only react to arriving with the param set (e.g. clicking "XEM NGAY" again from the POS page); once
+    // here, the person is free to change the period without it snapping back.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [missingNoteOnly]);
   const [customFrom, setCustomFrom] = useState(() => toDateInputValue(new Date()));
   const [customTo, setCustomTo] = useState(() => toDateInputValue(new Date()));
   const [sellerId, setSellerId] = useState<string>("all");
@@ -120,9 +132,11 @@ export function OrdersPage() {
             (c.phone ?? "").includes(customerQ));
         if (!matches) return false;
       }
+      // Khách lẻ (no customer attached at all) is exempt — there's no one to write a note about.
+      if (missingNoteOnly && (!inv.customer || hasValidCustomerNoteForDate(inv.customer.note, new Date()))) return false;
       return true;
     });
-  }, [invoices, showCompleted, showCancelled, appliedQuery, payMethods]);
+  }, [invoices, showCompleted, showCancelled, appliedQuery, payMethods, missingNoteOnly]);
 
   // How much of the listed (completed) invoices was paid by each method.
   const byMethod = useMemo(() => {
@@ -324,6 +338,20 @@ export function OrdersPage() {
   return (
     <div className="space-y-4">
       <PageHeader title="Đơn hàng" description="Toàn bộ hóa đơn đã tạo" />
+
+      {missingNoteOnly && (
+        <div className="flex items-center justify-between gap-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          <span>Đang lọc: hóa đơn hôm nay chưa ghi chú thông tin khách hàng</span>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 shrink-0 gap-1 text-amber-900 hover:bg-amber-100"
+            onClick={() => setSearchParams((prev) => { const p = new URLSearchParams(prev); p.delete("missingNote"); return p; })}
+          >
+            <X className="h-3.5 w-3.5" /> Bỏ lọc
+          </Button>
+        </div>
+      )}
 
       <div>
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[195px_1fr]">
