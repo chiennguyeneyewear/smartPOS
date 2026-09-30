@@ -3,7 +3,7 @@ import { Minus, MoreVertical, Plus, Trash2 } from "lucide-react";
 import { usePosStore, getLineTotal, getLineUnitDiscount, type PosTab } from "@/stores/pos-store";
 import { formatCurrency } from "@/lib/utils";
 import { LineDiscountPopover } from "./line-discount-popover";
-import { StaffSelect, InlineStaffSelect } from "./staff-select";
+import { StaffSelect } from "./staff-select";
 
 interface CartPanelProps {
   tab: PosTab;
@@ -13,7 +13,6 @@ export function CartPanel({ tab }: CartPanelProps) {
   const updateQuantity = usePosStore((s) => s.updateQuantity);
   const removeItem = usePosStore((s) => s.removeItem);
   const duplicateLine = usePosStore((s) => s.duplicateLine);
-  const setLineSeller = usePosStore((s) => s.setLineSeller);
   const setFitter = usePosStore((s) => s.setFitter);
   const setDefaultSeller = usePosStore((s) => s.setDefaultSeller);
   const [openDiscountLineId, setOpenDiscountLineId] = useState<string | null>(null);
@@ -108,13 +107,6 @@ export function CartPanel({ tab }: CartPanelProps) {
                       <span className="w-28 shrink-0 text-right text-sm font-semibold">
                         {formatCurrency(getLineTotal(line))}
                       </span>
-                    </div>
-                    {/* Per-product seller override — the invoice-wide default (below) fills this in
-                        automatically; a compact inline select here covers the case where one specific
-                        product (e.g. the lenses) was sold/advised by someone else. */}
-                    <div className="mt-1 flex items-center gap-1.5 pl-6">
-                      <span className="shrink-0 text-xs text-muted-foreground">Người bán:</span>
-                      <InlineStaffSelect value={line.sellerId} onChange={(staffId) => setLineSeller(tab.id, line.lineId, staffId)} />
                     </div>
                   </div>
                 );
