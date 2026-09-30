@@ -7,7 +7,7 @@ import { useInvoices } from "@/features/sales/hooks";
 import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { LineDiscountPopover } from "./line-discount-popover";
-import { StaffSelect } from "./staff-select";
+import { StaffSelect, InlineStaffSelect } from "./staff-select";
 
 interface CartPanelProps {
   tab: PosTab;
@@ -30,15 +30,14 @@ export function CartPanel({ tab }: CartPanelProps) {
   const updateQuantity = usePosStore((s) => s.updateQuantity);
   const removeItem = usePosStore((s) => s.removeItem);
   const duplicateLine = usePosStore((s) => s.duplicateLine);
+  const setLineSeller = usePosStore((s) => s.setLineSeller);
   const setFitter = usePosStore((s) => s.setFitter);
-  const setDefaultSeller = usePosStore((s) => s.setDefaultSeller);
   const [openDiscountLineId, setOpenDiscountLineId] = useState<string | null>(null);
 
   // How many of today's own completed invoices are missing a proper customer note ("Tên nhân viên - Tên
   // cơ sở - ngày/tháng/năm...", ≥ 50 ký tự, ghi đúng ngày hôm nay) — a stale note from the customer's last
   // visit, or one that's too short, doesn't count. Non-admin accounts only ever see their own invoices
   // here (enforced server-side), matching who's responsible for writing that note.
-  // Khách lẻ (no customer attached at all) is exempt — there's no one to write a note about.
   const { data: todayInvoices } = useInvoices({ status: "COMPLETED", from: startOfToday().toISOString(), to: endOfToday().toISOString() });
   const missingNoteCount = useMemo(
     () => (todayInvoices ?? []).filter((inv) => inv.customer && !hasValidCustomerNoteForDate(inv.customer.note, new Date())).length,
@@ -136,6 +135,10 @@ export function CartPanel({ tab }: CartPanelProps) {
                         {formatCurrency(getLineTotal(line))}
                       </span>
                     </div>
+                    <div className="mt-1 flex items-center gap-1.5 pl-6">
+                      <span className="shrink-0 text-xs text-muted-foreground">Người bán:</span>
+                      <InlineStaffSelect value={line.sellerId} onChange={(staffId) => setLineSeller(tab.id, line.lineId, staffId)} />
+                    </div>
                   </div>
                 );
               })}
@@ -162,11 +165,6 @@ export function CartPanel({ tab }: CartPanelProps) {
           <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Thông tin bán hàng</p>
           <div className="mt-1.5 flex items-end gap-3">
             <StaffSelect label="Người đo mắt *" value={tab.fitterId} onChange={(staffId) => setFitter(tab.id, staffId)} />
-            <StaffSelect
-              label="Người bán hàng (áp dụng tất cả) *"
-              value={tab.defaultSellerId}
-              onChange={(staffId) => setDefaultSeller(tab.id, staffId)}
-            />
           </div>
         </div>
       )}

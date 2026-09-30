@@ -54,6 +54,33 @@ export function StaffSelect({
   );
 }
 
+// Compact per-line "Người bán hàng" select — no label, no "Quản lý danh sách..." (that only lives on the
+// main StaffSelect above), so it fits inline next to a cart row instead of repeating the full block.
+export function InlineStaffSelect({
+  value,
+  onChange,
+}: {
+  value: string | null;
+  onChange: (staffId: string | null) => void;
+}) {
+  const { data: staff } = useSalesStaff();
+
+  return (
+    <select
+      value={value ?? ""}
+      onChange={(e) => onChange(e.target.value || null)}
+      className="h-6 shrink-0 rounded border border-input bg-background px-1.5 text-xs"
+    >
+      <option value="">Chưa chọn</option>
+      {staff?.map((s) => (
+        <option key={s.id} value={s.id}>
+          {s.name}
+        </option>
+      ))}
+    </select>
+  );
+}
+
 function SalesStaffManagerDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const { data: staff } = useSalesStaff();
   const createStaff = useCreateSalesStaff();
