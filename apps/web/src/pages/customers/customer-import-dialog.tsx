@@ -100,6 +100,7 @@ export function CustomerImportDialog({ open, onOpenChange }: CustomerImportDialo
     setProgress({ done: 0, total: rows.length });
 
     const totals: CustomerImportResult = { created: 0, updated: 0, errors: [] };
+    let failedChunks = 0;
     for (let i = 0; i < rows.length; i += CHUNK_SIZE) {
       const slice = rows.slice(i, i + CHUNK_SIZE);
       try {
@@ -108,12 +109,14 @@ export function CustomerImportDialog({ open, onOpenChange }: CustomerImportDialo
         totals.updated += result.updated;
         totals.errors.push(...result.errors.map((e) => ({ ...e, row: e.row + i })));
       } catch (err) {
-        toast({
-          title: "Import bị gián đoạn",
-          description: err instanceof Error ? err.message : "Lỗi không xác định",
-          variant: "destructive",
+        // One chunk failing (e.g. a transient network blip) shouldn't throw away progress on the
+        // thousands of rows in every other chunk — keep going and report the failure at the end.
+        failedChunks += 1;
+        totals.errors.push({
+          row: i,
+          name: `Đợt dòng ${i + 1}-${Math.min(i + CHUNK_SIZE, rows.length)}`,
+          message: err instanceof Error ? err.message : "Lỗi không xác định",
         });
-        break;
       }
       setProgress({ done: Math.min(i + CHUNK_SIZE, rows.length), total: rows.length });
     }
@@ -121,8 +124,10 @@ export function CustomerImportDialog({ open, onOpenChange }: CustomerImportDialo
     queryClient.invalidateQueries({ queryKey: ["customers"] });
     const errorNote = totals.errors.length > 0 ? `, ${totals.errors.length} lỗi` : "";
     toast({
-      title: "Import hoàn tất",
-      description: `${totals.created} khách hàng mới, ${totals.updated} cập nhật${errorNote}`,
+      title: failedChunks > 0 ? "Import hoàn tất (một số đợt lỗi)" : "Import hoàn tất",
+      description:
+        `${totals.created} khách hàng mới, ${totals.updated} cập nhật${errorNote}` +
+        (failedChunks > 0 ? ". Có thể chọn lại file này và nhập lại để bù phần còn thiếu." : ""),
       variant: totals.errors.length > 0 ? "default" : "success",
     });
     reset();

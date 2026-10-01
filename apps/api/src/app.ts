@@ -31,6 +31,9 @@ export function buildApp() {
       process.env.NODE_ENV === "development"
         ? { transport: { target: "pino-pretty" } }
         : true,
+    // Default is 1MB, which a few-thousand-row bulk import (customers, products) can exceed once
+    // long free-text fields (prescription notes, descriptions) are included — raised to fit those.
+    bodyLimit: 20 * 1024 * 1024,
   });
 
   app.register(helmet);
