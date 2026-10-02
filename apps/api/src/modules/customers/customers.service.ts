@@ -99,7 +99,12 @@ export async function importCustomers(rows: CustomerImportRow[], createdById: st
     await Promise.all(
       toUpdate.map(async (b) => {
         try {
-          await prisma.customer.update({ where: { id: existingByCode.get(b.code)! }, data: toCustomerData(b.row) });
+          // deletedAt: null revives a soft-deleted customer that comes back via a re-import matching
+          // its old code — otherwise it would get its data refreshed but stay invisible forever.
+          await prisma.customer.update({
+            where: { id: existingByCode.get(b.code)! },
+            data: { ...toCustomerData(b.row), deletedAt: null },
+          });
           result.updated++;
         } catch (err) {
           result.errors.push({ row: b.sourceRow, name: b.row.name, message: message(err) });
