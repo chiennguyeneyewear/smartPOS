@@ -169,13 +169,15 @@ export function OrdersPage() {
   }
 
   // Cancelled invoices stay in the list (when "Đã hủy" is ticked) so they can still be looked up, but
-  // they never happened as revenue — only completed ones count toward the total shown here.
-  const total = useMemo(
-    () =>
-      filteredInvoices
-        .filter((inv) => inv.status === "COMPLETED")
-        .reduce((sum, inv) => sum + inv.totalAmount, 0),
+  // they never happened as revenue or as a real sale — only completed ones count toward the
+  // invoice count and total shown here.
+  const completedInvoices = useMemo(
+    () => filteredInvoices.filter((inv) => inv.status === "COMPLETED"),
     [filteredInvoices],
+  );
+  const total = useMemo(
+    () => completedInvoices.reduce((sum, inv) => sum + inv.totalAmount, 0),
+    [completedInvoices],
   );
 
   const allSelected = filteredInvoices.length > 0 && filteredInvoices.every((inv) => selectedIds.has(inv.id));
@@ -517,7 +519,7 @@ export function OrdersPage() {
                 </Button>
               )}
               <span>
-                {filteredInvoices.length} hóa đơn · Tổng{" "}
+                {completedInvoices.length} hóa đơn · Tổng{" "}
                 <span className="font-semibold text-foreground">{formatCurrency(total)}</span>
               </span>
             </div>
