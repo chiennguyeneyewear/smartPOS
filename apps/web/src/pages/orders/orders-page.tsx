@@ -168,8 +168,13 @@ export function OrdersPage() {
     closeSearchNow();
   }
 
+  // Cancelled invoices stay in the list (when "Đã hủy" is ticked) so they can still be looked up, but
+  // they never happened as revenue — only completed ones count toward the total shown here.
   const total = useMemo(
-    () => filteredInvoices.reduce((sum, inv) => sum + inv.totalAmount, 0),
+    () =>
+      filteredInvoices
+        .filter((inv) => inv.status === "COMPLETED")
+        .reduce((sum, inv) => sum + inv.totalAmount, 0),
     [filteredInvoices],
   );
 
