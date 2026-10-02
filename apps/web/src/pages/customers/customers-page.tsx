@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, Plus, Search, Upload } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, Plus, Search, Trash2, Upload } from "lucide-react";
 import type { CustomerSummary } from "@smartpos/shared";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
@@ -10,8 +10,9 @@ import { CustomerImportDialog } from "./customer-import-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { formatCurrency } from "@/lib/utils";
-import { useCustomerList } from "@/features/customers/hooks";
+import { useCustomerList, useDeleteCustomer } from "@/features/customers/hooks";
 
 type SortDir = "asc" | "desc";
 
@@ -56,9 +57,12 @@ export function CustomersPage() {
   const [open, setOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
+  const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
+  const [deleteTarget, setDeleteTarget] = useState<{ ids: string[]; label: string } | null>(null);
   const [sortBy, setSortBy] = useState("name");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const { data, isLoading } = useCustomerList(search, page, pageSize, { sortBy, sortDir });
+  const deleteCustomer = useDeleteCustomer();
 
   useEffect(() => {
     setPage(1);
@@ -70,6 +74,31 @@ export function CustomersPage() {
       setSortBy(field);
       setSortDir("asc");
     }
+  }
+
+  function toggleOne(customer: CustomerSummary) {
+    setCheckedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(customer.id)) next.delete(customer.id);
+      else next.add(customer.id);
+      return next;
+    });
+  }
+
+  function toggleAll() {
+    setCheckedIds(allChecked ? new Set() : new Set(customers.map((c) => c.id)));
+  }
+
+  async function confirmDelete() {
+    if (!deleteTarget) return;
+    await Promise.all(deleteTarget.ids.map((id) => deleteCustomer.mutateAsync(id)));
+    setCheckedIds((prev) => {
+      const next = new Set(prev);
+      deleteTarget.ids.forEach((id) => next.delete(id));
+      return next;
+    });
+    if (deleteTarget.ids.includes(selectedCustomerId ?? "")) setSelectedCustomerId(null);
+    setDeleteTarget(null);
   }
 
   const head = (label: string, field: string) => (
@@ -98,6 +127,7 @@ export function CustomersPage() {
   const customers = data?.data ?? [];
   const total = data?.meta?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const allChecked = customers.length > 0 && customers.every((c) => checkedIds.has(c.id));
 
   return (
     <div className="space-y-4">
@@ -106,6 +136,18 @@ export function CustomersPage() {
         description="Quản lý danh sách khách hàng &amp; công nợ"
         actions={
           <div className="flex items-center gap-2">
+            {checkedIds.size > 0 && (
+              <Button
+                variant="outline"
+                className="gap-1.5 border-destructive text-destructive hover:bg-destructive/5"
+                onClick={() =>
+                  setDeleteTarget({ ids: Array.from(checkedIds), label: `${checkedIds.size} khách hàng đã chọn` })
+                }
+              >
+                <Trash2 className="h-4 w-4" />
+                Xóa ({checkedIds.size})
+              </Button>
+            )}
             <Button variant="outline" onClick={() => setImportOpen(true)} className="gap-1.5">
               <Upload className="h-4 w-4" /> Import
             </Button>
@@ -127,6 +169,12 @@ export function CustomersPage() {
         onRowClick={(row) => setSelectedCustomerId(row.id === selectedCustomerId ? null : row.id)}
         isRowSelected={(row) => row.id === selectedCustomerId}
         renderExpandedRow={(row) => <CustomerDetailTabs customerId={row.id} />}
+        selection={{
+          isChecked: (row) => checkedIds.has(row.id),
+          onToggle: toggleOne,
+          allChecked,
+          onToggleAll: toggleAll,
+        }}
       />
 
       {!isLoading && total > 0 && (
@@ -162,6 +210,26 @@ export function CustomersPage() {
 
       <CustomerFormDialog open={open} onOpenChange={setOpen} />
       <CustomerImportDialog open={importOpen} onOpenChange={setImportOpen} />
+
+      <Dialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Xóa khách hàng</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Bạn có chắc chắn muốn xóa <span className="font-medium text-foreground">{deleteTarget?.label}</span>?
+            Hành động này không thể hoàn tác.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>
+              Hủy
+            </Button>
+            <Button variant="destructive" onClick={confirmDelete} disabled={deleteCustomer.isPending}>
+              {deleteCustomer.isPending ? "Đang xóa..." : "Xóa"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

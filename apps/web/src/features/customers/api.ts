@@ -49,6 +49,10 @@ export async function importCustomers(rows: CustomerImportRow[]): Promise<Custom
   return data;
 }
 
+export async function deleteCustomer(id: string): Promise<void> {
+  await apiClient.delete(`/customers/${id}`);
+}
+
 export async function fetchDebtHistory(customerId: string) {
   const { data } = await apiClient.get(`/customers/${customerId}/debt-history`);
   return data.data as { id: string; amount: number; note: string | null; createdAt: string }[];

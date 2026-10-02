@@ -20,6 +20,14 @@ interface DataTableProps<TData> {
   renderExpandedRow?: (row: TData) => ReactNode;
   // Tighter cell padding, for tables that have to fit many columns without a sideways scrollbar.
   compact?: boolean;
+  // Adds a checkbox column (header checkbox toggles every currently-rendered row, e.g. for bulk delete).
+  // Independent of isRowSelected/onRowClick, which still drive the inline row-expansion highlight.
+  selection?: {
+    isChecked: (row: TData) => boolean;
+    onToggle: (row: TData) => void;
+    allChecked: boolean;
+    onToggleAll: () => void;
+  };
 }
 
 export function DataTable<TData>({
@@ -31,6 +39,7 @@ export function DataTable<TData>({
   isRowSelected,
   renderExpandedRow,
   compact,
+  selection,
 }: DataTableProps<TData>) {
   const table = useReactTable({ data, columns, getCoreRowModel: getCoreRowModel() });
 
@@ -54,6 +63,11 @@ export function DataTable<TData>({
         <thead className="bg-muted/50">
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>
+              {selection && (
+                <th className={cn("w-10", compact ? "px-2.5 py-3" : "p-3")}>
+                  <input type="checkbox" checked={selection.allChecked} onChange={selection.onToggleAll} />
+                </th>
+              )}
               {headerGroup.headers.map((header) => (
                 <th
                   key={header.id}
@@ -71,14 +85,14 @@ export function DataTable<TData>({
         <tbody>
           {isLoading && (
             <tr>
-              <td colSpan={columns.length} className="p-6 text-center text-sm text-muted-foreground">
+              <td colSpan={columns.length + (selection ? 1 : 0)} className="p-6 text-center text-sm text-muted-foreground">
                 Đang tải dữ liệu...
               </td>
             </tr>
           )}
           {!isLoading && data.length === 0 && (
             <tr>
-              <td colSpan={columns.length} className="p-6 text-center text-sm text-muted-foreground">
+              <td colSpan={columns.length + (selection ? 1 : 0)} className="p-6 text-center text-sm text-muted-foreground">
                 {emptyMessage ?? "Không có dữ liệu"}
               </td>
             </tr>
@@ -97,6 +111,15 @@ export function DataTable<TData>({
                       selected && "bg-primary/10",
                     )}
                   >
+                    {selection && (
+                      <td className={compact ? "px-2.5 py-3" : "p-3"} onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={selection.isChecked(row.original)}
+                          onChange={() => selection.onToggle(row.original)}
+                        />
+                      </td>
+                    )}
                     {row.getVisibleCells().map((cell, i) => (
                       <td
                         key={cell.id}
@@ -113,7 +136,7 @@ export function DataTable<TData>({
                   </tr>
                   {expanded && (
                     <tr className="border-t bg-primary/5">
-                      <td colSpan={columns.length} className="border-l-[3px] border-l-primary p-4">
+                      <td colSpan={columns.length + (selection ? 1 : 0)} className="border-l-[3px] border-l-primary p-4">
                         <div className="sticky left-0" style={{ width: visibleWidth ? visibleWidth - 35 : undefined }}>
                           {renderExpandedRow!(row.original)}
                         </div>
