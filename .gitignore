@@ -42,3 +42,6 @@ apps/web/.vite/
 # Misc
 *.tsbuildinfo
 .eslintcache
+
+# Claude Code personal settings
+.claude/settings.local.json
