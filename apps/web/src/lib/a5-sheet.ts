@@ -74,18 +74,21 @@ export async function renderA5Png(node: HTMLElement): Promise<Blob> {
   return new Blob([bytes.buffer as ArrayBuffer], { type: "image/png" });
 }
 
-// Opens the print dialog for the picture on an A5 landscape page with no extra margin.
-export function printA5Png(url: string, onDone?: () => void) {
+// Opens the print dialog with one A5 landscape page per picture (e.g. front then back of the sheet), no extra margin.
+export function printA5Pages(urls: string[], onDone?: () => void) {
   const iframe = document.createElement("iframe");
   iframe.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0";
   document.body.appendChild(iframe);
   const doc = iframe.contentDocument!;
   doc.open();
   doc.write(
-    `<!doctype html><html><head><title>Tờ thu chi</title><style>@page{size:A5 landscape;margin:0}html,body{margin:0}img{display:block;width:210mm;height:148mm}</style></head><body><img src="${url}"></body></html>`,
+    `<!doctype html><html><head><title>Tờ thu chi</title><style>@page{size:A5 landscape;margin:0}html,body{margin:0}img{display:block;width:210mm;height:148mm;break-after:page}img:last-child{break-after:auto}</style></head><body>${urls
+      .map((u) => `<img src="${u}">`)
+      .join("")}</body></html>`,
   );
   doc.close();
-  const img = doc.querySelector("img")!;
+  const imgs = [...doc.querySelectorAll("img")];
+  let pending = imgs.filter((img) => !img.complete).length;
   const go = () => {
     iframe.contentWindow!.focus();
     iframe.contentWindow!.print();
@@ -94,6 +97,13 @@ export function printA5Png(url: string, onDone?: () => void) {
       onDone?.();
     }, 60_000);
   };
-  if (img.complete) go();
-  else img.onload = go;
+  if (pending === 0) go();
+  else
+    imgs.forEach((img) => {
+      if (img.complete) return;
+      img.onload = () => {
+        pending -= 1;
+        if (pending === 0) go();
+      };
+    });
 }

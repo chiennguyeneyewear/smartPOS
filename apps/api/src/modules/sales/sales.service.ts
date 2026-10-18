@@ -9,6 +9,7 @@ import {
 import { prisma } from "../../lib/prisma.js";
 import { generateInvoiceCode } from "../../lib/codes.js";
 import { classifyPayment } from "../../lib/payment-kind.js";
+import { openBalanceOnDay } from "../../lib/open-balance.js";
 
 class SalesError extends Error {
   statusCode: number;
@@ -501,6 +502,54 @@ export async function listPaymentsOnDay(date: string, actor: Actor, sellerId?: s
       amount: Number(i.totalAmount) - Number(i.depositAmount),
     })),
   };
+}
+
+// The back of the day's thu-chi sheet: every partly paid ("sau cọc") invoice still waiting for its balance on
+// that Vietnam-local day, plus the ones whose balance was paid that very day (written, but crossed out).
+// Deliberately NOT limited to the signed-in user or branch: the customer may come back to any shop for the
+// glasses, so every sheet lists every open balance (unlike the front, which is each person's own money).
+export async function listOpenBalancesOnDay(date: string) {
+  const start = new Date(`${date}T00:00:00+07:00`);
+  const end = new Date(`${date}T23:59:59.999+07:00`);
+
+  const invoices = await prisma.invoice.findMany({
+    where: {
+      status: InvoiceStatus.COMPLETED,
+      // some money had come in by the end of the day, and the invoice is either still unsettled now or was
+      // paid on/after this day (so it can still be on, or crossed out on, this day's sheet)
+      payments: { some: { createdAt: { lte: end } } },
+      OR: [{ paymentStatus: PaymentStatus.PARTIAL }, { payments: { some: { createdAt: { gte: start } } } }],
+    },
+    select: {
+      code: true,
+      totalAmount: true,
+      depositAmount: true,
+      customer: { select: { name: true, phone: true } },
+      payments: { select: { createdAt: true, amount: true } },
+    },
+  });
+
+  const lines = invoices.flatMap((inv) => {
+    const owed = Number(inv.totalAmount) - Number(inv.depositAmount);
+    const line = openBalanceOnDay(
+      inv.payments.map((p) => ({ createdAt: p.createdAt, amount: Number(p.amount) })),
+      owed,
+      date,
+    );
+    if (!line) return [];
+    return [
+      {
+        invoiceCode: inv.code,
+        customerName: inv.customer?.name ?? "Khách lẻ",
+        customerPhone: inv.customer?.phone ?? "",
+        ...line,
+      },
+    ];
+  });
+
+  // oldest purchase first, like lines being added to the sheet day after day
+  lines.sort((a, b) => (a.boughtOn === b.boughtOn ? a.invoiceCode.localeCompare(b.invoiceCode) : a.boughtOn < b.boughtOn ? -1 : 1));
+  return { date, lines };
 }
 
 export async function voidInvoice(id: string, _voidedById: string) {

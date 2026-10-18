@@ -91,6 +91,16 @@ export function registerSalesRoutes(app: FastifyInstance) {
     return salesService.listPaymentsOnDay(date, request.authUser!, sellerId);
   });
 
+  // The back of the day's thu-chi sheet: partly paid (deposit) invoices of every branch and seller still owing a
+  // balance that day.
+  app.get("/sales/open-balances", { preHandler: authenticate }, async (request, reply) => {
+    const { date } = request.query as { date?: string };
+    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return reply.code(400).send({ error: "BadRequest", message: "Thiếu ngày (YYYY-MM-DD)" });
+    }
+    return salesService.listOpenBalancesOnDay(date);
+  });
+
   // Confirms (or corrects) how an invoice was paid, e.g. after a one-tap invoice.
   app.post(
     "/sales/invoices/:id/confirm-payment",

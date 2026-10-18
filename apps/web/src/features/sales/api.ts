@@ -58,6 +58,24 @@ export async function fetchPaymentsOnDay(params: { date: string; sellerId?: stri
   return data;
 }
 
+// One line on the back of the thu-chi sheet: a partly paid ("sau cọc") invoice still owing a balance.
+export interface OpenBalanceLine {
+  invoiceCode: string;
+  customerName: string;
+  customerPhone: string;
+  // what the customer still had to pay on that day's sheet
+  amount: number;
+  // day (YYYY-MM-DD) the customer bought
+  boughtOn: string;
+  // the balance was paid on this very day: crossed out here, gone from the next day's sheet
+  struck: boolean;
+}
+
+export async function fetchOpenBalances(params: { date: string }): Promise<{ date: string; lines: OpenBalanceLine[] }> {
+  const { data } = await apiClient.get<{ date: string; lines: OpenBalanceLine[] }>("/sales/open-balances", { params });
+  return data;
+}
+
 export async function voidInvoice(id: string): Promise<InvoiceSummary> {
   const { data } = await apiClient.post<InvoiceSummary>(`/sales/invoices/${id}/void`);
   return data;

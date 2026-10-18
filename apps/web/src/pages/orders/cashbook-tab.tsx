@@ -6,10 +6,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "@/stores/toast-store";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth-store";
-import { usePaymentsOnDay } from "@/features/sales/hooks";
+import { useOpenBalances, usePaymentsOnDay } from "@/features/sales/hooks";
 import { useExpenses } from "@/features/expenses/hooks";
 import { buildRows, type Row } from "@/lib/cashbook-rows";
-import { printA5Png, renderA5Png } from "@/lib/a5-sheet";
+import { printA5Pages, renderA5Png } from "@/lib/a5-sheet";
+import { CashbookBack } from "./cashbook-back";
 
 const MIN_ROWS = 16;
 const todayVn = () => new Date(Date.now() + 7 * 3600_000).toISOString().slice(0, 10);
@@ -37,8 +38,11 @@ export function CashbookTab({
   const [date, setDate] = useState(todayVn());
   const [sellerId, setSellerId] = useState("all");
   const sheetRef = useRef<HTMLDivElement>(null);
+  const backRef = useRef<HTMLDivElement>(null);
   const [saving, setSaving] = useState(false);
-  const { data, isLoading } = usePaymentsOnDay({ date, sellerId: isAdmin && sellerId !== "all" ? sellerId : undefined });
+  const sellerParam = isAdmin && sellerId !== "all" ? sellerId : undefined;
+  const { data, isLoading } = usePaymentsOnDay({ date, sellerId: sellerParam });
+  const { data: openBalances } = useOpenBalances({ date });
 
   // Expenses belong to a branch ("cơ sở"): the admin's seller filter maps to that seller's branches.
   const filterBranches = isAdmin && sellerId !== "all" ? (sellers?.find((s) => s.id === sellerId)?.branchIds ?? []) : [];
@@ -71,13 +75,14 @@ export function CashbookTab({
   const sellerName = isAdmin ? (sellerId === "all" ? "Tất cả" : (sellers?.find((s) => s.id === sellerId)?.name ?? "")) : username;
   const fixedCash = FIXED_CASH_BY_BRANCH[sellerName] ?? "-";
 
-  // The sheet as drawn on screen, laid onto one A5 landscape page (shrunk to fit, so nothing is cut off when printed).
-  async function makeA5(): Promise<string | null> {
-    const node = sheetRef.current;
-    if (!node || saving) return null;
+  // Both faces as drawn on screen, each laid onto one A5 landscape page (shrunk to fit, so nothing is cut off
+  // when printed). Front first, back second.
+  async function makeA5Pages(): Promise<string[] | null> {
+    const nodes = [sheetRef.current, backRef.current];
+    if (nodes.some((n) => !n) || saving) return null;
     setSaving(true);
     try {
-      return URL.createObjectURL(await renderA5Png(node));
+      return await Promise.all(nodes.map(async (n) => URL.createObjectURL(await renderA5Png(n!))));
     } catch {
       toast({ title: "Không tạo được ảnh tờ thu chi", variant: "destructive" });
       return null;
@@ -87,18 +92,20 @@ export function CashbookTab({
   }
 
   async function savePng() {
-    const url = await makeA5();
-    if (!url) return;
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `to-thu-chi-${date}-A5.png`;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    const urls = await makeA5Pages();
+    if (!urls) return;
+    ["mat-truoc", "mat-sau"].forEach((face, i) => {
+      const a = document.createElement("a");
+      a.href = urls[i]!;
+      a.download = `to-thu-chi-${date}-${face}-A5.png`;
+      a.click();
+    });
+    setTimeout(() => urls.forEach((u) => URL.revokeObjectURL(u)), 10_000);
   }
 
   async function printSheet() {
-    const url = await makeA5();
-    if (url) printA5Png(url, () => URL.revokeObjectURL(url));
+    const urls = await makeA5Pages();
+    if (urls) printA5Pages(urls, () => urls.forEach((u) => URL.revokeObjectURL(u)));
   }
 
   return (
@@ -128,14 +135,15 @@ export function CashbookTab({
         )}
         <div className="ml-auto flex gap-2">
           <Button variant="outline" className="gap-1.5" disabled={saving} onClick={savePng}>
-            <Download className="h-4 w-4" /> {saving ? "Đang tạo ảnh..." : "Tải ảnh A5"}
+            <Download className="h-4 w-4" /> {saving ? "Đang tạo ảnh..." : "Tải ảnh A5 (2 mặt)"}
           </Button>
           <Button className="gap-1.5" disabled={saving} onClick={printSheet}>
-            <Printer className="h-4 w-4" /> In A5
+            <Printer className="h-4 w-4" /> In A5 (2 mặt)
           </Button>
         </div>
       </div>
 
+      <p className="text-sm font-semibold">Mặt trước</p>
       <div className="overflow-x-auto">
         <div ref={sheetRef} className="min-w-[1000px] rounded-md border-2 border-black/80 bg-white text-sm text-black">
           {/* header: four equal cells */}
@@ -220,6 +228,19 @@ export function CashbookTab({
           </div>
         </div>
       </div>
+
+      <p className="text-sm font-semibold">Mặt sau</p>
+      <div className="overflow-x-auto">
+        {/* the grey frame is only for looking at it on screen; the picture/print is the plain white page inside */}
+        <div className="w-fit rounded-md border border-dashed border-muted-foreground/40">
+          <CashbookBack ref={backRef} lines={openBalances?.lines ?? []} />
+        </div>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Mặt sau để trắng, ghi các đơn khách trả cọc còn phải thu thêm của tất cả cơ sở và nhân viên (tên theo hóa đơn, số điện thoại, số tiền
+        còn thiếu, ngày mua). Đơn chưa trả hết sẽ được ghi lại ở các tờ ngày sau. Ngày khách nhận kính và trả nốt, tiền vẫn
+        vào mặt trước (cột Khách trả cọc), còn dòng ở mặt sau bị gạch ngang và không hiện ở tờ ngày tiếp theo nữa.
+      </p>
 
       {(data?.pending.length ?? 0) > 0 && (
         <p className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
