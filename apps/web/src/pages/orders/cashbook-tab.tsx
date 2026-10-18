@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Download } from "lucide-react";
+import { Download, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/shared/date-picker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -9,6 +9,7 @@ import { useAuthStore } from "@/stores/auth-store";
 import { usePaymentsOnDay } from "@/features/sales/hooks";
 import { useExpenses } from "@/features/expenses/hooks";
 import { buildRows, type Row } from "@/lib/cashbook-rows";
+import { printA5Png, renderA5Png } from "@/lib/a5-sheet";
 
 const MIN_ROWS = 16;
 const todayVn = () => new Date(Date.now() + 7 * 3600_000).toISOString().slice(0, 10);
@@ -70,23 +71,34 @@ export function CashbookTab({
   const sellerName = isAdmin ? (sellerId === "all" ? "Tất cả" : (sellers?.find((s) => s.id === sellerId)?.name ?? "")) : username;
   const fixedCash = FIXED_CASH_BY_BRANCH[sellerName] ?? "-";
 
-  // Saves the sheet exactly as drawn on screen, as a PNG picture.
-  async function savePng() {
+  // The sheet as drawn on screen, laid onto one A5 landscape page (shrunk to fit, so nothing is cut off when printed).
+  async function makeA5(): Promise<string | null> {
     const node = sheetRef.current;
-    if (!node || saving) return;
+    if (!node || saving) return null;
     setSaving(true);
     try {
-      const { toPng } = await import("html-to-image");
-      const dataUrl = await toPng(node, { pixelRatio: 2, backgroundColor: "#ffffff", cacheBust: true });
-      const a = document.createElement("a");
-      a.href = dataUrl;
-      a.download = `to-thu-chi-${date}.png`;
-      a.click();
+      return URL.createObjectURL(await renderA5Png(node));
     } catch {
-      toast({ title: "Không tải được ảnh tờ thu chi", variant: "destructive" });
+      toast({ title: "Không tạo được ảnh tờ thu chi", variant: "destructive" });
+      return null;
     } finally {
       setSaving(false);
     }
+  }
+
+  async function savePng() {
+    const url = await makeA5();
+    if (!url) return;
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `to-thu-chi-${date}-A5.png`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  }
+
+  async function printSheet() {
+    const url = await makeA5();
+    if (url) printA5Png(url, () => URL.revokeObjectURL(url));
   }
 
   return (
@@ -114,9 +126,14 @@ export function CashbookTab({
             </Select>
           </div>
         )}
-        <Button className="ml-auto gap-1.5" disabled={saving} onClick={savePng}>
-          <Download className="h-4 w-4" /> {saving ? "Đang tạo ảnh..." : "Tải xuống ảnh"}
-        </Button>
+        <div className="ml-auto flex gap-2">
+          <Button variant="outline" className="gap-1.5" disabled={saving} onClick={savePng}>
+            <Download className="h-4 w-4" /> {saving ? "Đang tạo ảnh..." : "Tải ảnh A5"}
+          </Button>
+          <Button className="gap-1.5" disabled={saving} onClick={printSheet}>
+            <Printer className="h-4 w-4" /> In A5
+          </Button>
+        </div>
       </div>
 
       <div className="overflow-x-auto">
