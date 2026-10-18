@@ -61,6 +61,9 @@ export async function fetchPaymentsOnDay(params: { date: string; sellerId?: stri
 // One line on the back of the thu-chi sheet: a partly paid ("sau cọc") invoice still owing a balance.
 export interface OpenBalanceLine {
   invoiceCode: string;
+  // the branch ("cơ sở") that sold it: every branch writes only its own orders
+  branchId: string;
+  branchName: string;
   customerName: string;
   customerPhone: string;
   // what the customer still had to pay on that day's sheet

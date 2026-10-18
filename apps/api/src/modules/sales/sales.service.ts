@@ -524,6 +524,7 @@ export async function listOpenBalancesOnDay(date: string, branchIds?: string[]) 
       code: true,
       totalAmount: true,
       depositAmount: true,
+      branch: { select: { id: true, name: true } },
       customer: { select: { name: true, phone: true } },
       payments: { select: { createdAt: true, amount: true } },
     },
@@ -540,6 +541,8 @@ export async function listOpenBalancesOnDay(date: string, branchIds?: string[]) 
     return [
       {
         invoiceCode: inv.code,
+        branchId: inv.branch.id,
+        branchName: inv.branch.name,
         customerName: inv.customer?.name ?? "Khách lẻ",
         customerPhone: inv.customer?.phone ?? "",
         ...line,
@@ -547,8 +550,12 @@ export async function listOpenBalancesOnDay(date: string, branchIds?: string[]) 
     ];
   });
 
-  // oldest purchase first, like lines being added to the sheet day after day
-  lines.sort((a, b) => (a.boughtOn === b.boughtOn ? a.invoiceCode.localeCompare(b.invoiceCode) : a.boughtOn < b.boughtOn ? -1 : 1));
+  // branch by branch, and within a branch the oldest purchase first, like lines being added day after day
+  lines.sort(
+    (a, b) =>
+      a.branchName.localeCompare(b.branchName) ||
+      (a.boughtOn === b.boughtOn ? a.invoiceCode.localeCompare(b.invoiceCode) : a.boughtOn < b.boughtOn ? -1 : 1),
+  );
   return { date, lines };
 }
 

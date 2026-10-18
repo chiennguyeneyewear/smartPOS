@@ -1,4 +1,3 @@
-import { forwardRef } from "react";
 import type { OpenBalanceLine } from "@/features/sales/api";
 
 // Same shape as one A5 landscape page (210 x 148 mm) at the sheet's usual 1000px width, so the writing sits at
@@ -22,10 +21,11 @@ const dong = (n: number) => `${Math.round(n).toLocaleString("vi-VN")}đ`;
 // balance to pay, one written line each:  Anh Chiến   0977912316   Còn 1.000.000đ   18/10  (no table, no
 // borders). On the day the customer picks the glasses up and pays the balance (the money itself goes on the front)
 // the line is crossed out, and it is not on the next day's sheet any more.
-export const CashbookBack = forwardRef<HTMLDivElement, { lines: OpenBalanceLine[] }>(function CashbookBack({ lines }, ref) {
+// One page per branch: `data-back-page` lets the tab find every page to export/print.
+export function CashbookBack({ lines }: { lines: OpenBalanceLine[] }) {
   return (
     <div
-      ref={ref}
+      data-back-page=""
       className="bg-white px-6 py-6 text-lg text-black"
       style={{ width: PAGE_WIDTH, minHeight: PAGE_MIN_HEIGHT }}
     >
@@ -43,4 +43,4 @@ export const CashbookBack = forwardRef<HTMLDivElement, { lines: OpenBalanceLine[
       ))}
     </div>
   );
-});
+}

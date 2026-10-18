@@ -7,6 +7,7 @@ import { toast } from "@/stores/toast-store";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth-store";
 import { useOpenBalances, usePaymentsOnDay } from "@/features/sales/hooks";
+import type { OpenBalanceLine } from "@/features/sales/api";
 import { useExpenses } from "@/features/expenses/hooks";
 import { buildRows, type Row } from "@/lib/cashbook-rows";
 import { printA5Pages, renderA5Png } from "@/lib/a5-sheet";
@@ -38,7 +39,7 @@ export function CashbookTab({
   const [date, setDate] = useState(todayVn());
   const [sellerId, setSellerId] = useState("all");
   const sheetRef = useRef<HTMLDivElement>(null);
-  const backRef = useRef<HTMLDivElement>(null);
+  const backAreaRef = useRef<HTMLDivElement>(null);
   const [saving, setSaving] = useState(false);
   const sellerParam = isAdmin && sellerId !== "all" ? sellerId : undefined;
   const { data, isLoading } = usePaymentsOnDay({ date, sellerId: sellerParam });
@@ -50,6 +51,18 @@ export function CashbookTab({
   const { data: openBalances } = useOpenBalances({ date, branchIds: branchParam });
   const { data: expenseList } = useExpenses({ date, branchIds: branchParam });
   const expenses = expenseList ?? [];
+
+  // Each branch writes only its own orders: one back page per branch (the admin's "Tất cả" gives one per branch
+  // instead of mixing them). Always at least one (blank) page.
+  const backPages = (() => {
+    const byBranch = new Map<string, { branchName: string; lines: OpenBalanceLine[] }>();
+    for (const line of openBalances?.lines ?? []) {
+      const page = byBranch.get(line.branchId) ?? { branchName: line.branchName, lines: [] };
+      page.lines.push(line);
+      byBranch.set(line.branchId, page);
+    }
+    return byBranch.size > 0 ? [...byBranch.values()] : [{ branchName: "", lines: [] as OpenBalanceLine[] }];
+  })();
 
   const payments = data?.payments ?? [];
   const receiptRows = buildRows(payments);
@@ -77,10 +90,11 @@ export function CashbookTab({
   const sellerName = isAdmin ? (sellerId === "all" ? "Tất cả" : (sellers?.find((s) => s.id === sellerId)?.name ?? "")) : username;
   const fixedCash = FIXED_CASH_BY_BRANCH[sellerName] ?? "-";
 
-  // Both faces as drawn on screen, each laid onto one A5 landscape page (shrunk to fit, so nothing is cut off
-  // when printed). Front first, back second.
+  // Every face as drawn on screen, each laid onto one A5 landscape page (shrunk to fit, so nothing is cut off
+  // when printed). Front first, then one back page per branch.
   async function makeA5Pages(): Promise<string[] | null> {
-    const nodes = [sheetRef.current, backRef.current];
+    const backNodes = Array.from(backAreaRef.current?.querySelectorAll<HTMLElement>("[data-back-page]") ?? []);
+    const nodes = [sheetRef.current, ...backNodes];
     if (nodes.some((n) => !n) || saving) return null;
     setSaving(true);
     try {
@@ -96,10 +110,15 @@ export function CashbookTab({
   async function savePng() {
     const urls = await makeA5Pages();
     if (!urls) return;
-    ["mat-truoc", "mat-sau"].forEach((face, i) => {
+    const slug = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^A-Za-z0-9]+/g, "-");
+    const names = [
+      "mat-truoc",
+      ...backPages.map((p) => (backPages.length > 1 && p.branchName ? `mat-sau-${slug(p.branchName)}` : "mat-sau")),
+    ];
+    urls.forEach((url, i) => {
       const a = document.createElement("a");
-      a.href = urls[i]!;
-      a.download = `to-thu-chi-${date}-${face}-A5.png`;
+      a.href = url;
+      a.download = `to-thu-chi-${date}-${names[i]}-A5.png`;
       a.click();
     });
     setTimeout(() => urls.forEach((u) => URL.revokeObjectURL(u)), 10_000);
@@ -231,16 +250,22 @@ export function CashbookTab({
         </div>
       </div>
 
-      <p className="text-sm font-semibold">Mặt sau</p>
-      <div className="overflow-x-auto">
-        {/* the grey frame is only for looking at it on screen; the picture/print is the plain white page inside */}
-        <div className="w-fit rounded-md border border-dashed border-muted-foreground/40">
-          <CashbookBack ref={backRef} lines={openBalances?.lines ?? []} />
-        </div>
+      <div ref={backAreaRef} className="space-y-4">
+        {backPages.map((page) => (
+          <div key={page.branchName || "blank"} className="space-y-1.5">
+            {/* the title and grey frame are only for looking at it on screen; the picture/print is the plain white page inside */}
+            <p className="text-sm font-semibold">{page.branchName ? `Mặt sau - cơ sở ${page.branchName}` : "Mặt sau"}</p>
+            <div className="overflow-x-auto">
+              <div className="w-fit rounded-md border border-dashed border-muted-foreground/40">
+                <CashbookBack lines={page.lines} />
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
       <p className="text-xs text-muted-foreground">
-        Mặt sau để trắng, ghi các đơn khách trả cọc còn phải thu thêm của chính cơ sở đó, không ghi chung (tên theo hóa đơn, số điện thoại, số tiền
-        còn thiếu, ngày mua). Đơn chưa trả hết sẽ được ghi lại ở các tờ ngày sau. Ngày khách nhận kính và trả nốt, tiền vẫn
+        Mặt sau để trắng, mỗi cơ sở một trang, chỉ ghi các đơn khách trả cọc còn phải thu thêm của chính cơ sở đó, không
+        ghi chung (tên theo hóa đơn, số điện thoại, số tiền còn thiếu, ngày mua). Đơn chưa trả hết sẽ được ghi lại ở các tờ ngày sau. Ngày khách nhận kính và trả nốt, tiền vẫn
         vào mặt trước (cột Khách trả cọc), còn dòng ở mặt sau bị gạch ngang và không hiện ở tờ ngày tiếp theo nữa.
       </p>
 
