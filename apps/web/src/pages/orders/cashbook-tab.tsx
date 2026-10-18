@@ -14,6 +14,8 @@ import { printA5Pages, renderA5Png } from "@/lib/a5-sheet";
 import { CashbookBack } from "./cashbook-back";
 
 const MIN_ROWS = 16;
+// Keeps a face rendered at its real width but out of sight (display:none would leave nothing to turn into a picture).
+const OFF_SCREEN = "pointer-events-none absolute -left-[10000px] top-0 w-[1000px]";
 const todayVn = () => new Date(Date.now() + 7 * 3600_000).toISOString().slice(0, 10);
 const money = (n: number) => (n ? n.toLocaleString("en-US") : "");
 
@@ -38,6 +40,7 @@ export function CashbookTab({
   const username = useAuthStore((s) => s.user?.username) ?? "";
   const [date, setDate] = useState(todayVn());
   const [sellerId, setSellerId] = useState("all");
+  const [face, setFace] = useState<"front" | "back">("front");
   const sheetRef = useRef<HTMLDivElement>(null);
   const backAreaRef = useRef<HTMLDivElement>(null);
   const [saving, setSaving] = useState(false);
@@ -164,8 +167,29 @@ export function CashbookTab({
         </div>
       </div>
 
-      <p className="text-sm font-semibold">Mặt trước</p>
-      <div className="overflow-x-auto">
+      <div className="flex gap-2">
+        {(
+          [
+            ["front", "Mặt trước"],
+            ["back", "Mặt sau"],
+          ] as const
+        ).map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setFace(key)}
+            className={cn(
+              "h-9 rounded-full border px-4 text-sm transition-colors",
+              face === key ? "border-primary bg-primary/10 font-medium text-primary" : "border-input text-muted-foreground hover:bg-accent",
+            )}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* the face that is not showing stays on the page, just out of sight, so "Tải ảnh" / "In" still output both */}
+      <div className={cn("overflow-x-auto", face !== "front" && OFF_SCREEN)} aria-hidden={face !== "front"}>
         <div ref={sheetRef} className="min-w-[1000px] rounded-md border-2 border-black/80 bg-white text-sm text-black">
           {/* header: four equal cells */}
           <div className="grid grid-cols-4 divide-x divide-black/80 border-b-2 border-black/80">
@@ -250,7 +274,7 @@ export function CashbookTab({
         </div>
       </div>
 
-      <div ref={backAreaRef} className="space-y-4">
+      <div ref={backAreaRef} className={cn("space-y-4", face !== "back" && OFF_SCREEN)} aria-hidden={face !== "back"}>
         {backPages.map((page) => (
           <div key={page.branchName || "blank"} className="space-y-1.5">
             {/* the title and grey frame are only for looking at it on screen; the picture/print is the plain white page inside */}
@@ -263,22 +287,27 @@ export function CashbookTab({
           </div>
         ))}
       </div>
-      <p className="text-xs text-muted-foreground">
-        Mặt sau để trắng, mỗi cơ sở một trang, chỉ ghi các đơn khách trả cọc còn phải thu thêm của chính cơ sở đó, không
-        ghi chung (tên theo hóa đơn, số điện thoại, số tiền còn thiếu, ngày mua). Đơn chưa trả hết sẽ được ghi lại ở các tờ ngày sau. Ngày khách nhận kính và trả nốt, tiền vẫn
-        vào mặt trước (cột Khách trả cọc), còn dòng ở mặt sau bị gạch ngang và không hiện ở tờ ngày tiếp theo nữa.
-      </p>
-
-      {(data?.pending.length ?? 0) > 0 && (
-        <p className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-          {data?.pending.length} hóa đơn ra trong ngày chưa ghi nhận tiền nên chưa lên tờ:{" "}
-          {data?.pending.map((p) => `${p.invoiceCode} ${p.customerName}`).join(" · ")}
+      {face === "back" ? (
+        <p className="text-xs text-muted-foreground">
+          Mặt sau để trắng, mỗi cơ sở một trang, chỉ ghi các đơn khách trả cọc còn phải thu thêm của chính cơ sở đó, không
+          ghi chung (tên theo hóa đơn, số điện thoại, số tiền còn thiếu, ngày mua). Đơn chưa trả hết sẽ được ghi lại ở các
+          tờ ngày sau. Ngày khách nhận kính và trả nốt, tiền vẫn vào mặt trước (cột Khách trả cọc), còn dòng ở mặt sau bị
+          gạch ngang và không hiện ở tờ ngày tiếp theo nữa.
         </p>
+      ) : (
+        <>
+          {(data?.pending.length ?? 0) > 0 && (
+            <p className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+              {data?.pending.length} hóa đơn ra trong ngày chưa ghi nhận tiền nên chưa lên tờ:{" "}
+              {data?.pending.map((p) => `${p.invoiceCode} ${p.customerName}`).join(" · ")}
+            </p>
+          )}
+          <p className="text-xs text-muted-foreground">
+            Tiền bàn giao = DS − chuyển khoản − quẹt thẻ − sau cọc còn − chi tiêu + trả cọc còn bằng tiền mặt (trả cọc bằng
+            chuyển khoản hoặc quẹt thẻ không tính).
+          </p>
+        </>
       )}
-      <p className="text-xs text-muted-foreground">
-        Tiền bàn giao = DS − chuyển khoản − quẹt thẻ − sau cọc còn − chi tiêu + trả cọc còn bằng tiền mặt (trả cọc bằng
-        chuyển khoản hoặc quẹt thẻ không tính).
-      </p>
     </div>
   );
 }
