@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Ban, Search, SlidersHorizontal, X } from "lucide-react";
-import { hasValidCustomerNoteForDate } from "@smartpos/shared";
+import { hasValidCustomerNoteForDate, type TransferAccount } from "@smartpos/shared";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
 import { Card, CardContent } from "@/components/ui/card";
@@ -16,6 +16,7 @@ import { InvoiceDetailPanel, goodsTotal } from "./invoice-detail-panel";
 import { ConfirmPaymentDialog } from "./confirm-payment-dialog";
 import { useSearchDropdown } from "@/hooks/use-search-dropdown";
 import { cn, formatCurrency, formatDateTime } from "@/lib/utils";
+import { paymentLabel } from "@/lib/payment";
 import { PERIOD_PRESET_OPTIONS, formatPeriodLabel, getPeriodRange, type PeriodPreset } from "@/lib/period-presets";
 import { useReportBranchId } from "@/hooks/use-report-branch-id";
 import { mergeSameProductItems, type ReceiptData } from "@/stores/print-receipt-store";
@@ -317,17 +318,25 @@ export function OrdersPage() {
           );
         }
         // One line per method with its amount, so a split payment shows how much was cash and how much transfer.
+        // a transfer to the personal (CN) and one to the business (HKD) account are separate lines
         const byMethod = new Map<string, number>();
-        for (const p of row.original.payments) byMethod.set(p.method, (byMethod.get(p.method) ?? 0) + p.amount);
+        for (const p of row.original.payments) {
+          const key = `${p.method}|${p.transferAccount ?? ""}`;
+          byMethod.set(key, (byMethod.get(key) ?? 0) + p.amount);
+        }
         if (byMethod.size === 0) return "";
         const partial = row.original.paymentStatus === "PARTIAL";
         // a partly paid invoice always lists its amounts, so the deposit is visible next to what is still owed
-        if (byMethod.size === 1 && !partial) return PAY_LABEL[[...byMethod.keys()][0] as PayMethod];
+        const labelOf = (key: string) => {
+          const [method, account] = key.split("|");
+          return paymentLabel(method!, (account || null) as TransferAccount | null);
+        };
+        if (byMethod.size === 1 && !partial) return labelOf([...byMethod.keys()][0]!);
         return (
           <div className="leading-tight">
             {[...byMethod.entries()].map(([m, amount]) => (
               <p key={m}>
-                {PAY_LABEL[m as PayMethod] ?? m} <span className="tabular-nums">{amount.toLocaleString("en-US")}</span>
+                {labelOf(m)} <span className="tabular-nums">{amount.toLocaleString("en-US")}</span>
               </p>
             ))}
             {partial && (

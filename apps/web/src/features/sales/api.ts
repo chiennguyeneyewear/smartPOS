@@ -4,6 +4,7 @@ import type {
   InvoiceSummary,
   PaymentMethod,
   SaveInvoiceInput,
+  TransferAccount,
 } from "@smartpos/shared";
 import { apiClient } from "@/lib/api-client";
 
@@ -40,6 +41,8 @@ export interface DayPayment {
   method: PaymentMethod;
   amount: number;
   reference: string | null;
+  // bank transfers only: personal (CN) or business (HKD) account
+  transferAccount?: TransferAccount | null;
   kind: "Bán hàng" | "Cọc" | "Thu nốt";
   remainingAfter: number;
   firstPaidAt: string;
@@ -95,13 +98,19 @@ export interface InvoiceListItem extends Omit<InvoiceSummary, "items"> {
     sellerId: string | null;
     sellerName: string | null;
   }[];
-  payments: { method: PaymentMethod; amount: number; reference?: string | null; createdAt?: string }[];
+  payments: {
+    method: PaymentMethod;
+    amount: number;
+    reference?: string | null;
+    transferAccount?: TransferAccount | null;
+    createdAt?: string;
+  }[];
   paymentLogs: {
     id: string;
     username: string;
     action: string;
-    before: { paymentStatus?: string; payments?: { method: PaymentMethod; amount: number }[] };
-    after: { paymentStatus?: string; payments?: { method: PaymentMethod; amount: number }[] };
+    before: { paymentStatus?: string; payments?: { method: PaymentMethod; amount: number; transferAccount?: TransferAccount | null }[] };
+    after: { paymentStatus?: string; payments?: { method: PaymentMethod; amount: number; transferAccount?: TransferAccount | null }[] };
     createdAt: string;
   }[];
   preorder: { code: string; depositMethod: PaymentMethod | null } | null;

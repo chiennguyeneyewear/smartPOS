@@ -1,4 +1,4 @@
-import { InvoiceStatus, PaymentMethod, PaymentStatus, PreorderStatus } from "@prisma/client";
+import { InvoiceStatus, PaymentMethod, PaymentStatus, PreorderStatus, type TransferAccount } from "@prisma/client";
 import {
   ROLES,
   clampFlatLineDiscount,
@@ -241,6 +241,10 @@ export async function checkoutInvoice(
   });
 }
 
+// Only a bank transfer has an account (personal CN / business HKD); any other method never keeps one.
+const transferAccountFor = (method: PaymentMethod, account?: TransferAccount | null) =>
+  method === PaymentMethod.BANK_TRANSFER ? (account ?? null) : null;
+
 const VN_OFFSET_MS = 7 * 60 * 60 * 1000;
 const vnDay = (d: Date) => new Date(d.getTime() + VN_OFFSET_MS).toISOString().slice(0, 10);
 
@@ -309,7 +313,7 @@ export async function confirmInvoicePayment(id: string, input: ConfirmPaymentInp
 
     const before = {
       paymentStatus: invoice.paymentStatus,
-      payments: invoice.payments.map((p) => ({ method: p.method, amount: Number(p.amount), reference: p.reference })),
+      payments: invoice.payments.map((p) => ({ method: p.method, amount: Number(p.amount), reference: p.reference, transferAccount: p.transferAccount })),
     };
     // A line that is unchanged (same method and amount) keeps the date it was really received. A new or
     // changed line is dated to when the invoice was ISSUED (not "now") — the money was already handed
@@ -328,6 +332,7 @@ export async function confirmInvoicePayment(id: string, input: ConfirmPaymentInp
         method: p.method,
         amount: p.amount,
         reference: p.reference || null,
+        transferAccount: transferAccountFor(p.method, p.transferAccount),
         createdAt: p.createdAt,
       })),
     });
@@ -351,7 +356,12 @@ export async function confirmInvoicePayment(id: string, input: ConfirmPaymentInp
         before,
         after: {
           paymentStatus: nextStatus,
-          payments: input.payments.map((p) => ({ method: p.method, amount: p.amount, reference: p.reference ?? null })),
+          payments: input.payments.map((p) => ({
+            method: p.method,
+            amount: p.amount,
+            reference: p.reference ?? null,
+            transferAccount: transferAccountFor(p.method, p.transferAccount),
+          })),
         },
       },
     });
@@ -391,6 +401,7 @@ export async function addInvoicePayment(id: string, input: ConfirmPaymentInput, 
         method: p.method,
         amount: p.amount,
         reference: p.reference || null,
+        transferAccount: transferAccountFor(p.method, p.transferAccount),
       })),
     });
     const settled = Math.abs(sum - remaining) <= 0.5;
@@ -404,6 +415,7 @@ export async function addInvoicePayment(id: string, input: ConfirmPaymentInput, 
       method: p.method,
       amount: Number(p.amount),
       reference: p.reference,
+      transferAccount: p.transferAccount,
     }));
     await tx.invoicePaymentLog.create({
       data: {
@@ -416,7 +428,12 @@ export async function addInvoicePayment(id: string, input: ConfirmPaymentInput, 
           paymentStatus: nextStatus,
           payments: [
             ...beforeLines,
-            ...input.payments.map((p) => ({ method: p.method, amount: p.amount, reference: p.reference ?? null })),
+            ...input.payments.map((p) => ({
+              method: p.method,
+              amount: p.amount,
+              reference: p.reference ?? null,
+              transferAccount: transferAccountFor(p.method, p.transferAccount),
+            })),
           ],
         },
       },
@@ -492,6 +509,7 @@ export async function listPaymentsOnDay(date: string, actor: Actor, sellerId?: s
         method: r.method,
         amount: Number(r.amount),
         reference: r.reference,
+        transferAccount: r.transferAccount,
         kind,
         sellerName: nameById.get(r.invoice.createdById) ?? "N/A",
       };

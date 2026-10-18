@@ -2,7 +2,9 @@ import { useState } from "react";
 import { Ban, FileDown, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn, formatDateTime } from "@/lib/utils";
+import type { TransferAccount } from "@smartpos/shared";
 import type { InvoiceListItem } from "@/features/sales/api";
+import { paymentLabel } from "@/lib/payment";
 import { useAuthStore } from "@/stores/auth-store";
 
 const fmt = (n: number) => n.toLocaleString("en-US");
@@ -197,10 +199,15 @@ export function InvoiceDetailPanel({
               )}
               <TotalLine label="Khách đã trả" value={fmt(invoice.paidAmount)} bold />
               {invoice.payments.length > 0 &&
-                [...invoice.payments.reduce((m, p) => m.set(p.method, (m.get(p.method) ?? 0) + p.amount), new Map<string, number>())].map(
-                  ([method, amount]) => (
-                    <div key={method} className="flex justify-between text-xs text-muted-foreground">
-                      <span>· {PAYMENT_METHOD_LABELS[method] ?? method}</span>
+                [
+                  ...invoice.payments.reduce((m, p) => {
+                    const key = `${p.method}|${p.transferAccount ?? ""}`;
+                    return m.set(key, (m.get(key) ?? 0) + p.amount);
+                  }, new Map<string, number>()),
+                ].map(
+                  ([key, amount]) => (
+                    <div key={key} className="flex justify-between text-xs text-muted-foreground">
+                      <span>· {paymentLabel(key.split("|")[0]!, (key.split("|")[1] || null) as TransferAccount | null)}</span>
                       <span className="tabular-nums">{fmt(amount)}</span>
                     </div>
                   ),
@@ -241,7 +248,7 @@ export function InvoiceDetailPanel({
                   <tr key={i} className="border-t">
                     <td className="p-2.5">{formatDateTime(p.createdAt ?? invoice.completedAt ?? invoice.createdAt)}</td>
                     <td className="p-2.5">
-                      {PAYMENT_METHOD_LABELS[p.method] ?? p.method}
+                      {paymentLabel(p.method, p.transferAccount)}
                       {p.reference && <span className="ml-2 text-xs text-muted-foreground">({p.reference})</span>}
                     </td>
                     <td className="p-2.5 text-right font-medium tabular-nums">{fmt(p.amount)}</td>
@@ -255,9 +262,9 @@ export function InvoiceDetailPanel({
           <div className="rounded-md border p-2.5">
             <p className="mb-1.5 text-xs font-semibold text-muted-foreground">Nhật ký thay đổi thanh toán</p>
             {invoice.paymentLogs.map((log) => {
-              const fmtLines = (l?: { method: string; amount: number }[]) =>
+              const fmtLines = (l?: { method: string; amount: number; transferAccount?: TransferAccount | null }[]) =>
                 l && l.length > 0
-                  ? l.map((x) => `${PAYMENT_METHOD_LABELS[x.method] ?? x.method} ${fmt(x.amount)}`).join(" + ")
+                  ? l.map((x) => `${paymentLabel(x.method, x.transferAccount)} ${fmt(x.amount)}`).join(" + ")
                   : "Chờ xác nhận";
               return (
                 <p key={log.id} className="py-0.5 text-xs">

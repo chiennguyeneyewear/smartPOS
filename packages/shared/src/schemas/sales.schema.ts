@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { PAYMENT_METHOD, SALE_MODE } from "../constants/enums.js";
+import { PAYMENT_METHOD, SALE_MODE, TRANSFER_ACCOUNT } from "../constants/enums.js";
 
 export const invoiceItemInputSchema = z.object({
   productId: z.string(),
@@ -45,6 +45,9 @@ export const confirmPaymentSchema = z.object({
         method: z.nativeEnum(PAYMENT_METHOD),
         amount: z.coerce.number().positive("Số tiền phải > 0"),
         reference: z.string().trim().max(200).optional().nullable(),
+        // Bank transfers only: personal (CN) or business (HKD) account. The form makes it a required pick; the
+        // API still accepts a line without it so a page opened before this existed keeps working.
+        transferAccount: z.nativeEnum(TRANSFER_ACCOUNT).optional().nullable(),
       }),
     )
     .min(1, "Phải có ít nhất 1 dòng thanh toán")

@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import { Plus, X } from "lucide-react";
-import { MAX_PAYMENT_LINES, type PaymentMethod } from "@smartpos/shared";
+import { MAX_PAYMENT_LINES, TRANSFER_ACCOUNT, type PaymentMethod, type TransferAccount } from "@smartpos/shared";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MoneyInput, formatMoney, parseMoney } from "@/components/shared/money-input";
-import { PAYMENT_LABELS } from "@/lib/payment";
+import { PAYMENT_LABELS, TRANSFER_ACCOUNT_LABELS } from "@/lib/payment";
 import { cn, formatCurrency } from "@/lib/utils";
 import { useAddInvoicePayment, useConfirmInvoicePayment } from "@/features/sales/hooks";
 import type { InvoiceListItem } from "@/features/sales/api";
@@ -15,6 +15,8 @@ interface Line {
   method: PaymentMethod;
   amount: string;
   reference: string;
+  // bank transfers only: personal (CN) or business (HKD) account — has to be picked
+  transferAccount: TransferAccount | null;
 }
 
 // Records how an invoice was really paid, split over up to 4 lines (for example 500,000 cash plus 500,000
@@ -49,8 +51,13 @@ export function ConfirmPaymentDialog({
     const existing =
       mode === "add"
         ? []
-        : invoice.payments.map((p) => ({ method: p.method, amount: formatMoney(p.amount), reference: p.reference ?? "" }));
-    setLines(existing.length > 0 ? existing : [{ method: "CASH", amount: formatMoney(expected), reference: "" }]);
+        : invoice.payments.map((p) => ({
+            method: p.method,
+            amount: formatMoney(p.amount),
+            reference: p.reference ?? "",
+            transferAccount: p.transferAccount ?? null,
+          }));
+    setLines(existing.length > 0 ? existing : [{ method: "CASH", amount: formatMoney(expected), reference: "", transferAccount: null }]);
   }, [invoice?.id, mode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const entered = lines.reduce((sum, l) => sum + parseMoney(l.amount), 0);
@@ -68,7 +75,7 @@ export function ConfirmPaymentDialog({
   function addLine() {
     setLines((prev) => [
       ...prev,
-      { method: "BANK_TRANSFER", amount: formatMoney(Math.max(0, remaining)), reference: "" },
+      { method: "BANK_TRANSFER", amount: formatMoney(Math.max(0, remaining)), reference: "", transferAccount: null },
     ]);
   }
 
@@ -76,6 +83,9 @@ export function ConfirmPaymentDialog({
     if (!invoice) return;
     if (lines.some((l) => parseMoney(l.amount) <= 0)) return setError("Mỗi dòng phải có số tiền lớn hơn 0");
     // Paying only part now is allowed (a deposit); paying more than what is owed is not.
+    if (lines.some((l) => l.method === "BANK_TRANSFER" && !l.transferAccount)) {
+      return setError("Chọn Cá nhân (CN) hoặc Doanh nghiệp (HKD) cho khoản chuyển khoản");
+    }
     if (over) return setError(`Đang vượt ${formatCurrency(-remaining)} so với số tiền cần thanh toán`);
     confirm.mutate(
       {
@@ -85,6 +95,7 @@ export function ConfirmPaymentDialog({
             method: l.method,
             amount: parseMoney(l.amount),
             reference: l.reference.trim() || null,
+            transferAccount: l.method === "BANK_TRANSFER" ? l.transferAccount : null,
           })),
         },
       },
@@ -164,11 +175,32 @@ export function ConfirmPaymentDialog({
                   )}
                 </div>
                 {line.method === "BANK_TRANSFER" && (
-                  <Input
-                    value={line.reference}
-                    onChange={(e) => update(i, { reference: e.target.value })}
-                    placeholder="Mã giao dịch / nội dung chuyển khoản (nên nhập)"
-                  />
+                  <>
+                    <div className="flex gap-2" role="radiogroup" aria-label="Tài khoản nhận chuyển khoản">
+                      {Object.values(TRANSFER_ACCOUNT).map((account) => (
+                        <button
+                          key={account}
+                          type="button"
+                          role="radio"
+                          aria-checked={line.transferAccount === account}
+                          onClick={() => update(i, { transferAccount: account })}
+                          className={cn(
+                            "h-9 flex-1 rounded-md border px-3 text-sm transition-colors",
+                            line.transferAccount === account
+                              ? "border-primary bg-primary/10 font-medium text-primary"
+                              : "border-input text-muted-foreground hover:bg-accent",
+                          )}
+                        >
+                          {TRANSFER_ACCOUNT_LABELS[account]}
+                        </button>
+                      ))}
+                    </div>
+                    <Input
+                      value={line.reference}
+                      onChange={(e) => update(i, { reference: e.target.value })}
+                      placeholder="Mã giao dịch / nội dung chuyển khoản (nên nhập)"
+                    />
+                  </>
                 )}
               </div>
             ))}

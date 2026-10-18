@@ -37,6 +37,13 @@ export const PAYMENT_METHOD = {
 } as const;
 export type PaymentMethod = (typeof PAYMENT_METHOD)[keyof typeof PAYMENT_METHOD];
 
+// Which account a bank transfer went to: the personal account (CN) or the business one (HKD).
+export const TRANSFER_ACCOUNT = {
+  PERSONAL: "PERSONAL",
+  BUSINESS: "BUSINESS",
+} as const;
+export type TransferAccount = (typeof TRANSFER_ACCOUNT)[keyof typeof TRANSFER_ACCOUNT];
+
 // CONFIRMED = the payment method(s) are recorded; PENDING = invoice issued in one tap, method still to be confirmed.
 export const PAYMENT_STATUS = {
   CONFIRMED: "CONFIRMED",

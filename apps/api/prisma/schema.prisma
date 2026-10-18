@@ -367,15 +367,23 @@ enum PaymentMethod {
   DEBT
 }
 
+// Which account a bank transfer went to: the owner's personal account (CN) or the business one (HKD).
+enum TransferAccount {
+  PERSONAL
+  BUSINESS
+}
+
 model Payment {
-  id        String        @id @default(cuid())
-  invoiceId String
-  method    PaymentMethod
-  amount    Decimal       @db.Decimal(14, 2)
+  id              String           @id @default(cuid())
+  invoiceId       String
+  method          PaymentMethod
+  amount          Decimal          @db.Decimal(14, 2)
   // Bank transfer code / receipt note, so transfers can be checked against the statement.
-  reference String?
-  createdAt DateTime      @default(now())
-  invoice   Invoice       @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  reference       String?
+  // Only for BANK_TRANSFER: personal (CN) or business (HKD) account. Null for older payments and other methods.
+  transferAccount TransferAccount?
+  createdAt       DateTime         @default(now())
+  invoice         Invoice          @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 
   @@map("payments")
 }
