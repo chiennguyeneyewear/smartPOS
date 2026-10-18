@@ -72,7 +72,7 @@ export function CashbookTab({
   // receipts and expenses are independent columns, so line i carries the i-th receipt and the i-th expense
   const lineCount = Math.max(MIN_ROWS, receiptRows.length, expenses.length);
   const shown: Row[] = Array.from({ length: lineCount }, (_, i) => {
-    const base = receiptRows[i] ?? { key: `blank-${i}`, cash: 0, transfer: 0, card: 0, owedAfter: 0, owedText: "", paidBalance: "", balanceParts: [], expenseText: "", expenseNote: "" };
+    const base = receiptRows[i] ?? { key: `blank-${i}`, cash: 0, transfer: 0, transferText: "", card: 0, owedAfter: 0, owedText: "", paidBalance: "", balanceParts: [], expenseText: "", expenseNote: "" };
     const e = expenses[i];
     return { ...base, expenseText: e ? `${e.amount.toLocaleString("en-US")} - ${e.payer}` : "", expenseNote: e?.content ?? "" };
   });
@@ -84,8 +84,8 @@ export function CashbookTab({
   const totalOwed = rows.reduce((s, r) => s + r.owedAfter, 0);
   const totalExpenses = expenses.reduce((s, e) => s + e.amount, 0);
   const ds = data?.salesTotal ?? 0;
-  // Only balances paid in cash count towards the cash handed over; balances paid by transfer or card do not.
-  const totalBalancePaid = payments.filter((p) => p.kind === "Thu nốt").reduce((s, p) => s + p.amount, 0);
+  // Only balances paid in cash count — in the total of the Khách trả cọc column and in the cash handed over;
+  // balances paid by transfer or card are written on their line but not added.
   const balanceCash = payments.filter((p) => p.kind === "Thu nốt" && p.method === "CASH").reduce((s, p) => s + p.amount, 0);
   const handover = ds - totalTransfer - totalCard - totalOwed - totalExpenses + balanceCash;
 
@@ -237,7 +237,7 @@ export function CashbookTab({
                 shown.map((r) => (
                   <tr key={r.key} className="h-9 border-b border-dashed border-black/50">
                     <td className={cn(cell, num)}>{money(r.cash)}</td>
-                    <td className={cn(cell, num)}>{money(r.transfer)}</td>
+                    <td className={cn(cell, num, "whitespace-pre-line leading-5")}>{r.transferText}</td>
                     <td className={cn(cell, num)}>{money(r.card)}</td>
                     <td className={cn(cell, num)}>{r.owedText}</td>
                     <td className={cn(cell, num)}>{r.paidBalance}</td>
@@ -250,7 +250,7 @@ export function CashbookTab({
                 <td className={cn(cell, num)}>{money(totalTransfer)}</td>
                 <td className={cn(cell, num)}>{money(totalCard)}</td>
                 <td className={cn(cell, num)}>{money(totalOwed)}</td>
-                <td className={cn(cell, num)}>{money(totalBalancePaid)}</td>
+                <td className={cn(cell, num)}>{money(balanceCash)}</td>
                 <td className={cn(cell, num)}>{money(totalExpenses)}</td>
                 <td className={cell} />
               </tr>
