@@ -24,8 +24,11 @@ const money = (n: number) => (n ? n.toLocaleString("en-US") : "");
 const FIXED_CASH_BY_BRANCH: Record<string, string> = { CS1: "3 triệu", CS2: "1 triệu", CS3: "3 triệu" };
 
 // Equal-width columns, so the sheet reads as an even grid; Ghi chú takes the rest.
-const COLS = Array.from({ length: 7 }, () => "w-[14.28%]");
-const cell = "border-r border-black/80 px-3 py-2 last:border-r-0";
+// Column widths of the front, in the order of the columns (they add up to 100%): Sau cọc còn and Khách trả cọc
+// are the widest (they carry a name and an amount), Chuyển khoản is wider than the other money columns so a
+// "10,000,000 HKD" stays on one line, and the rest are just wide enough for an amount.
+const COLS = ["w-[10%]", "w-[14%]", "w-[10%]", "w-[20%]", "w-[25%]", "w-[13%]", "w-[8%]"];
+const cell = "border-r border-black/80 px-2 py-2 last:border-r-0";
 const num = "text-center tabular-nums";
 
 // The day's thu-chi sheet, drawn with the same columns as the paper one and filled from what the system
@@ -236,9 +239,9 @@ export function CashbookTab({
               {!isLoading &&
                 shown.map((r) => (
                   <tr key={r.key} className="h-9 border-b border-dashed border-black/50">
-                    <td className={cn(cell, num)}>{money(r.cash)}</td>
-                    <td className={cn(cell, num, "whitespace-pre-line leading-5")}>{r.transferText}</td>
-                    <td className={cn(cell, num)}>{money(r.card)}</td>
+                    <td className={cn(cell, num, "whitespace-nowrap")}>{money(r.cash)}</td>
+                    <td className={cn(cell, num, "whitespace-pre leading-5")}>{r.transferText}</td>
+                    <td className={cn(cell, num, "whitespace-nowrap")}>{money(r.card)}</td>
                     <td className={cn(cell, num)}>{r.owedText}</td>
                     <td className={cn(cell, num)}>{r.paidBalance}</td>
                     <td className={cn(cell, num)}>{r.expenseText}</td>
@@ -246,9 +249,9 @@ export function CashbookTab({
                   </tr>
                 ))}
               <tr className="border-t-2 border-black/80 font-semibold">
-                <td className={cn(cell, num)}>{money(totalCash)}</td>
-                <td className={cn(cell, num)}>{money(totalTransfer)}</td>
-                <td className={cn(cell, num)}>{money(totalCard)}</td>
+                <td className={cn(cell, num, "whitespace-nowrap")}>{money(totalCash)}</td>
+                <td className={cn(cell, num, "whitespace-nowrap")}>{money(totalTransfer)}</td>
+                <td className={cn(cell, num, "whitespace-nowrap")}>{money(totalCard)}</td>
                 <td className={cn(cell, num)}>{money(totalOwed)}</td>
                 <td className={cn(cell, num)}>{money(balanceCash)}</td>
                 <td className={cn(cell, num)}>{money(totalExpenses)}</td>
