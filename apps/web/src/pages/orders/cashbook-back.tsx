@@ -29,18 +29,20 @@ export function CashbookBack({ lines }: { lines: OpenBalanceLine[] }) {
       className="bg-white px-6 py-6 text-lg text-black"
       style={{ width: PAGE_WIDTH, minHeight: PAGE_MIN_HEIGHT }}
     >
-      {lines.map((line) => {
-        // balance paid today: every piece of the line is underlined, right at the foot of the letters
-        const underline = line.struck ? " underline decoration-2 underline-offset-2" : "";
-        return (
-          <div key={line.invoiceCode} className={`${COLUMNS} h-9 items-center text-center leading-9`}>
-            <span className={`whitespace-nowrap font-medium${underline}`}>{line.customerName}</span>
-            <span className={`whitespace-nowrap tabular-nums${underline}`}>{line.customerPhone}</span>
-            <span className={`whitespace-nowrap tabular-nums${underline}`}>{`Còn ${dong(line.amount)}`}</span>
-            <span className={`whitespace-nowrap tabular-nums${underline}`}>{dayMonth(line.boughtOn)}</span>
-          </div>
-        );
-      })}
+      {lines.map((line) => (
+        <div key={line.invoiceCode} className={`${COLUMNS} relative h-9 items-center text-center leading-9`}>
+          <span className="whitespace-nowrap font-medium">{line.customerName}</span>
+          <span className="whitespace-nowrap tabular-nums">{line.customerPhone}</span>
+          <span className="whitespace-nowrap tabular-nums">{`Còn ${dong(line.amount)}`}</span>
+          <span className="whitespace-nowrap tabular-nums">{dayMonth(line.boughtOn)}</span>
+          {line.struck && (
+            // balance paid today: ONE unbroken line from the start to the end of the written line, right at the foot of
+            // the letters. The row is 36px high with the text centred, so the baseline sits 24.8px from the top of the
+            // row (measured with Inter 18px); the line starts at 25px.
+            <span className="pointer-events-none absolute inset-x-0 top-[25px] h-[2px] bg-black" />
+          )}
+        </div>
+      ))}
     </div>
   );
 }
