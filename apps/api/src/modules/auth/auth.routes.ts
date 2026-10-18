@@ -6,13 +6,21 @@ import * as authService from "./auth.service.js";
 const REFRESH_COOKIE = "smartpos_refresh_token";
 const REFRESH_COOKIE_PATH = "/api/v1/auth";
 
+// In production the web (vercel.app) and the API (onrender.com) are different sites, so the browser only
+// sends this cookie back on the refresh call if it is SameSite=None (which requires Secure).
+const REFRESH_COOKIE_OPTIONS = {
+  httpOnly: true,
+  path: REFRESH_COOKIE_PATH,
+  ...(process.env.NODE_ENV === "production"
+    ? { sameSite: "none" as const, secure: true }
+    : { sameSite: "lax" as const }),
+};
+
 export function registerAuthRoutes(app: FastifyInstance) {
   app.post("/auth/login", async (request, reply) => {
     const result = await authService.login(request.body as LoginInput);
     reply.setCookie(REFRESH_COOKIE, result.refreshToken, {
-      httpOnly: true,
-      sameSite: "lax",
-      path: REFRESH_COOKIE_PATH,
+      ...REFRESH_COOKIE_OPTIONS,
       maxAge: 60 * 60 * 24 * 7,
     });
     return { accessToken: result.accessToken, user: result.user };
@@ -25,9 +33,7 @@ export function registerAuthRoutes(app: FastifyInstance) {
     }
     const result = await authService.refresh(token);
     reply.setCookie(REFRESH_COOKIE, result.refreshToken, {
-      httpOnly: true,
-      sameSite: "lax",
-      path: REFRESH_COOKIE_PATH,
+      ...REFRESH_COOKIE_OPTIONS,
       maxAge: 60 * 60 * 24 * 7,
     });
     return { accessToken: result.accessToken, user: result.user };
