@@ -94,7 +94,7 @@ export function usePaymentsOnDay(params: { date: string; sellerId?: string }, op
 }
 
 // Starts with "payments-on-day" so every place that refreshes the day's payments refreshes the back of the sheet too.
-export function useOpenBalances(params: { date: string }) {
+export function useOpenBalances(params: { date: string; branchIds?: string }) {
   return useQuery({
     queryKey: ["payments-on-day", "open-balances", params],
     queryFn: () => fetchOpenBalances(params),

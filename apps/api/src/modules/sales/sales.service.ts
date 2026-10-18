@@ -506,15 +506,15 @@ export async function listPaymentsOnDay(date: string, actor: Actor, sellerId?: s
 
 // The back of the day's thu-chi sheet: every partly paid ("sau cọc") invoice still waiting for its balance on
 // that Vietnam-local day, plus the ones whose balance was paid that very day (written, but crossed out).
-// Deliberately NOT limited to the signed-in user or branch: the customer may come back to any shop for the
-// glasses, so every sheet lists every open balance (unlike the front, which is each person's own money).
-export async function listOpenBalancesOnDay(date: string) {
+// Each branch ("cơ sở") writes only its own orders: `branchIds` limits it to those branches (undefined = all).
+export async function listOpenBalancesOnDay(date: string, branchIds?: string[]) {
   const start = new Date(`${date}T00:00:00+07:00`);
   const end = new Date(`${date}T23:59:59.999+07:00`);
 
   const invoices = await prisma.invoice.findMany({
     where: {
       status: InvoiceStatus.COMPLETED,
+      ...(branchIds ? { branchId: { in: branchIds } } : {}),
       // some money had come in by the end of the day, and the invoice is either still unsettled now or was
       // paid on/after this day (so it can still be on, or crossed out on, this day's sheet)
       payments: { some: { createdAt: { lte: end } } },

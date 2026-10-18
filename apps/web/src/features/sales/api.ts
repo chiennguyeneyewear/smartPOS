@@ -71,7 +71,7 @@ export interface OpenBalanceLine {
   struck: boolean;
 }
 
-export async function fetchOpenBalances(params: { date: string }): Promise<{ date: string; lines: OpenBalanceLine[] }> {
+export async function fetchOpenBalances(params: { date: string; branchIds?: string }): Promise<{ date: string; lines: OpenBalanceLine[] }> {
   const { data } = await apiClient.get<{ date: string; lines: OpenBalanceLine[] }>("/sales/open-balances", { params });
   return data;
 }

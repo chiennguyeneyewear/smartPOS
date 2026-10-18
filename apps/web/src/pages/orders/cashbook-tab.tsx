@@ -42,11 +42,13 @@ export function CashbookTab({
   const [saving, setSaving] = useState(false);
   const sellerParam = isAdmin && sellerId !== "all" ? sellerId : undefined;
   const { data, isLoading } = usePaymentsOnDay({ date, sellerId: sellerParam });
-  const { data: openBalances } = useOpenBalances({ date });
 
-  // Expenses belong to a branch ("cơ sở"): the admin's seller filter maps to that seller's branches.
+  // Expenses and the back of the sheet belong to a branch ("cơ sở"): the admin's seller filter maps to that
+  // seller's branches (staff are limited to their own branches by the API).
   const filterBranches = isAdmin && sellerId !== "all" ? (sellers?.find((s) => s.id === sellerId)?.branchIds ?? []) : [];
-  const { data: expenseList } = useExpenses({ date, branchIds: filterBranches.length > 0 ? filterBranches.join(",") : undefined });
+  const branchParam = filterBranches.length > 0 ? filterBranches.join(",") : undefined;
+  const { data: openBalances } = useOpenBalances({ date, branchIds: branchParam });
+  const { data: expenseList } = useExpenses({ date, branchIds: branchParam });
   const expenses = expenseList ?? [];
 
   const payments = data?.payments ?? [];
@@ -237,7 +239,7 @@ export function CashbookTab({
         </div>
       </div>
       <p className="text-xs text-muted-foreground">
-        Mặt sau để trắng, ghi các đơn khách trả cọc còn phải thu thêm của tất cả cơ sở và nhân viên (tên theo hóa đơn, số điện thoại, số tiền
+        Mặt sau để trắng, ghi các đơn khách trả cọc còn phải thu thêm của chính cơ sở đó, không ghi chung (tên theo hóa đơn, số điện thoại, số tiền
         còn thiếu, ngày mua). Đơn chưa trả hết sẽ được ghi lại ở các tờ ngày sau. Ngày khách nhận kính và trả nốt, tiền vẫn
         vào mặt trước (cột Khách trả cọc), còn dòng ở mặt sau bị gạch ngang và không hiện ở tờ ngày tiếp theo nữa.
       </p>
