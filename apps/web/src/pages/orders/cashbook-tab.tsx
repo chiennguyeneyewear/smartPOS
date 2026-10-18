@@ -147,8 +147,10 @@ export function CashbookTab({
               ["Tháng / Năm", `${m} / ${y}`],
             ].map(([label, value]) => (
               <div key={label} className="flex flex-col items-center justify-center px-3 py-2 text-center">
-                <span className="text-xs font-semibold text-black/70">{label}</span>
-                <span className="text-xl font-bold leading-tight">{value}</span>
+                {/* fixed line heights: stacked Vietnamese marks (ệ, ữ...) must not make one cell's line taller
+                    than its neighbours', which pushed the value down in the exported picture */}
+                <span className="block h-4 whitespace-nowrap text-xs font-semibold leading-4 text-black/70">{label}</span>
+                <span className="block h-7 whitespace-nowrap text-xl font-bold leading-7">{value}</span>
               </div>
             ))}
           </div>
@@ -211,8 +213,8 @@ export function CashbookTab({
               ["Người tổng kết", isAdmin ? "" : username],
             ].map(([label, value]) => (
               <div key={label} className="flex min-h-[64px] flex-col items-center justify-center px-3 py-2 text-center">
-                <span className="text-xs font-semibold text-black/70">{label}</span>
-                <span className="text-lg font-bold leading-tight tabular-nums">{value}</span>
+                <span className="block h-4 whitespace-nowrap text-xs font-semibold leading-4 text-black/70">{label}</span>
+                <span className="block h-7 whitespace-nowrap text-lg font-bold leading-7 tabular-nums">{value}</span>
               </div>
             ))}
           </div>
