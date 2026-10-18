@@ -20,7 +20,7 @@ const dong = (n: number) => `${Math.round(n).toLocaleString("vi-VN")}đ`;
 // The back of the day's thu-chi sheet: a plain blank page with only the customers who paid a deposit and still have a
 // balance to pay, one written line each:  Anh Chiến   0977912316   Còn 1.000.000đ   18/10  (no table, no
 // borders). On the day the customer picks the glasses up and pays the balance (the money itself goes on the front)
-// the line is crossed out, and it is not on the next day's sheet any more.
+// the line is underlined, and it is not on the next day's sheet any more.
 // One page per branch: `data-back-page` lets the tab find every page to export/print.
 export function CashbookBack({ lines }: { lines: OpenBalanceLine[] }) {
   return (
@@ -29,18 +29,18 @@ export function CashbookBack({ lines }: { lines: OpenBalanceLine[] }) {
       className="bg-white px-6 py-6 text-lg text-black"
       style={{ width: PAGE_WIDTH, minHeight: PAGE_MIN_HEIGHT }}
     >
-      {lines.map((line) => (
-        <div key={line.invoiceCode} className={`${COLUMNS} relative h-9 items-center text-center leading-9`}>
-          <span className="whitespace-nowrap font-medium">{line.customerName}</span>
-          <span className="whitespace-nowrap tabular-nums">{line.customerPhone}</span>
-          <span className="whitespace-nowrap tabular-nums">{`Còn ${dong(line.amount)}`}</span>
-          <span className="whitespace-nowrap tabular-nums">{dayMonth(line.boughtOn)}</span>
-          {line.struck && (
-            // paid today: one line struck through the whole written line
-            <span className="pointer-events-none absolute inset-x-4 top-1/2 h-[2px] -translate-y-1/2 bg-black" />
-          )}
-        </div>
-      ))}
+      {lines.map((line) => {
+        // balance paid today: every piece of the line is underlined, right at the foot of the letters
+        const underline = line.struck ? " underline decoration-2 underline-offset-2" : "";
+        return (
+          <div key={line.invoiceCode} className={`${COLUMNS} h-9 items-center text-center leading-9`}>
+            <span className={`whitespace-nowrap font-medium${underline}`}>{line.customerName}</span>
+            <span className={`whitespace-nowrap tabular-nums${underline}`}>{line.customerPhone}</span>
+            <span className={`whitespace-nowrap tabular-nums${underline}`}>{`Còn ${dong(line.amount)}`}</span>
+            <span className={`whitespace-nowrap tabular-nums${underline}`}>{dayMonth(line.boughtOn)}</span>
+          </div>
+        );
+      })}
     </div>
   );
 }

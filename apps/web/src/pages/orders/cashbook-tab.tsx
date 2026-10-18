@@ -291,8 +291,8 @@ export function CashbookTab({
         <p className="text-xs text-muted-foreground">
           Mặt sau để trắng, mỗi cơ sở một trang, chỉ ghi các đơn khách trả cọc còn phải thu thêm của chính cơ sở đó, không
           ghi chung (tên theo hóa đơn, số điện thoại, số tiền còn thiếu, ngày mua). Đơn chưa trả hết sẽ được ghi lại ở các
-          tờ ngày sau. Ngày khách nhận kính và trả nốt, tiền vẫn vào mặt trước (cột Khách trả cọc), còn dòng ở mặt sau bị
-          gạch ngang và không hiện ở tờ ngày tiếp theo nữa.
+          tờ ngày sau. Ngày khách nhận kính và trả nốt, tiền vẫn vào mặt trước (cột Khách trả cọc), còn dòng ở mặt sau được
+          gạch chân và không hiện ở tờ ngày tiếp theo nữa.
         </p>
       ) : (
         <>
