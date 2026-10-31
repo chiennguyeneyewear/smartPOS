@@ -15,8 +15,11 @@ import { Prisma } from "@prisma/client";
 import { importProducts } from "./products.service.js";
 import { generateProductCode } from "../../lib/codes.js";
 import { createStockMovement } from "../inventory/inventory.service.js";
+import { canManageProducts, requireProductCreate } from "../../lib/product-access.js";
 
 const PAGE_SIZE_DEFAULT = 24;
+// A cashier may attach photos only while still filling in the product they just created.
+const CASHIER_PHOTO_WINDOW_MS = 15 * 60_000;
 
 const imageSelect = { id: true, mimeType: true } satisfies Prisma.ProductImageSelect;
 
@@ -38,6 +41,7 @@ function toNumbers<T extends { costPrice: unknown; sellPrice: unknown; reorderTh
 export function registerProductRoutes(app: FastifyInstance) {
   // Used by the POS product grid (search F3 + barcode scan) and the back-office product list.
   app.get("/products", { preHandler: authenticate }, async (request) => {
+    const seesCost = canManageProducts(request.authUser!);
     const query = request.query as {
       search?: string;
       note?: string;
@@ -91,7 +95,7 @@ export function registerProductRoutes(app: FastifyInstance) {
         take: pageSize,
       }),
       prisma.product.count({ where }),
-      query.branchId
+      query.branchId && seesCost
         ? prisma.stockItem.findMany({
             where: { product: where },
             select: { quantity: true, product: { select: { costPrice: true } } },
@@ -106,6 +110,7 @@ export function registerProductRoutes(app: FastifyInstance) {
     return {
       data: data.map(({ stockItems, ...p }) => ({
         ...toNumbers(p),
+        ...(seesCost ? {} : { costPrice: 0 }),
         stockQuantity: query.branchId
           ? stockItems.reduce((sum, s) => sum + Number(s.quantity), 0)
           : undefined,
@@ -116,9 +121,11 @@ export function registerProductRoutes(app: FastifyInstance) {
 
   app.post(
     "/products",
-    { preHandler: [authenticate, requirePermission(PERMISSIONS.PRODUCTS_MANAGE)] },
+    { preHandler: [authenticate, requireProductCreate] },
     async (request, reply) => {
       const { initialStock, branchId, ...input } = productCreateSchema.parse(request.body);
+      // Cost prices are the manager's to set; a cashier-created product starts at 0 until they fill it in.
+      if (!canManageProducts(request.authUser!)) input.costPrice = 0;
 
       // A blank code is generated; retry a couple of times in case two creates race for the same one.
       for (let attempt = 0; attempt < 3; attempt++) {
@@ -139,8 +146,7 @@ export function registerProductRoutes(app: FastifyInstance) {
               request.authUser!.id,
             );
           }
-          return reply.code(201).send({ ...toNumbers(product), stockQuantity: initialStock ?? 0 });
-        } catch (error) {
+          return reply.code(201).send({ ...toNumbers(product), stockQuantity: initialStock ?? 0 });        } catch (error) {
           if (!isUniqueViolation(error)) throw error;
           if (input.sku) return reply.code(409).send({ message: "Mã hàng đã tồn tại" });
         }
@@ -192,7 +198,7 @@ export function registerProductRoutes(app: FastifyInstance) {
   app.post(
     "/products/:id/images",
     {
-      preHandler: [authenticate, requirePermission(PERMISSIONS.PRODUCTS_MANAGE)],
+      preHandler: [authenticate, requireProductCreate],
       bodyLimit: PRODUCT_IMAGE_LIMITS.maxBytes + 1024,
     },
     async (request, reply) => {
@@ -211,8 +217,14 @@ export function registerProductRoutes(app: FastifyInstance) {
       if (data.length > PRODUCT_IMAGE_LIMITS.maxBytes) {
         return reply.code(413).send({ message: "Mỗi ảnh không quá 2 MB" });
       }
-      const product = await prisma.product.findFirst({ where: { id, deletedAt: null }, select: { id: true } });
+      const product = await prisma.product.findFirst({
+        where: { id, deletedAt: null },
+        select: { id: true, createdAt: true },
+      });
       if (!product) return reply.code(404).send({ message: "Không tìm thấy sản phẩm" });
+      if (!canManageProducts(request.authUser!) && Date.now() - product.createdAt.getTime() > CASHIER_PHOTO_WINDOW_MS) {
+        return reply.code(403).send({ error: "Forbidden", message: "Bạn không có quyền sửa sản phẩm này" });
+      }
       if ((await prisma.productImage.count({ where: { productId: id } })) >= PRODUCT_IMAGE_LIMITS.maxPerProduct) {
         return reply.code(400).send({ message: `Mỗi sản phẩm tối đa ${PRODUCT_IMAGE_LIMITS.maxPerProduct} ảnh` });
       }
@@ -257,7 +269,7 @@ export function registerProductRoutes(app: FastifyInstance) {
 
   app.post(
     "/categories",
-    { preHandler: [authenticate, requirePermission(PERMISSIONS.PRODUCTS_MANAGE)] },
+    { preHandler: [authenticate, requireProductCreate] },
     async (request, reply) => {
       const input = categorySchema.parse(request.body);
       const category = await prisma.category.create({ data: input });

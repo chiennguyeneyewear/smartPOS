@@ -3,6 +3,7 @@ import { PERMISSIONS, ROLES } from "@smartpos/shared";
 import { authenticate } from "../../middleware/authenticate.js";
 import { requirePermission } from "../../middleware/require-permission.js";
 import { branchScope } from "../../middleware/branch-scope.js";
+import { canManageProducts } from "../../lib/product-access.js";
 import * as reportsService from "./reports.service.js";
 
 export function registerReportRoutes(app: FastifyInstance) {
@@ -49,7 +50,13 @@ export function registerReportRoutes(app: FastifyInstance) {
       const days = [30, 90, 180, 365].includes(Number(query.days)) ? Number(query.days) : 30;
       const data = await reportsService.getProductAnalysis(query.productId, days, query.branchId);
       if (!data) return reply.code(404).send({ error: "NotFound", message: "Không tìm thấy hàng hóa" });
-      return data;
+      if (canManageProducts(request.authUser!)) return data;
+      // Cost and profit are derived from the cost price, so they are blanked for a cashier too.
+      return {
+        ...data,
+        totals: { ...data.totals, cost: 0, averageCostPerUnit: 0, profit: 0, averageProfitPerUnit: 0, margin: 0 },
+        series: data.series.map((s) => ({ ...s, cost: 0, profit: 0, unitCost: 0 })),
+      };
     },
   );
 

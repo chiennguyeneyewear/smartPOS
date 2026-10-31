@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Line, LineChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { BarChart3, Loader2 } from "lucide-react";
-import type { ProductSummary } from "@smartpos/shared";
+import { PERMISSIONS, type ProductSummary } from "@smartpos/shared";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -194,6 +194,7 @@ export function ProductAnalysisDialog({
   const user = useAuthStore((s) => s.user);
   const activeBranchId = useAuthStore((s) => s.activeBranchId);
   const isAdmin = user?.role === "admin";
+  const canSeeCost = user?.permissions.includes(PERMISSIONS.PRODUCTS_MANAGE) ?? false;
   const { data: allBranches } = useBranches();
   const allowedIds = new Set((user?.branches ?? []).map((b) => b.id));
   const branches = (allBranches ?? []).filter((b) => isAdmin || allowedIds.has(b.id));
@@ -284,23 +285,27 @@ export function ProductAnalysisDialog({
                     ["Tỷ lệ trả", `${Math.round(t.returnRate * 100)} %`],
                   ]}
                 />
-                <KpiCard
-                  label="Tổng giá vốn"
-                  value={t.cost}
-                  spark={spark("cost")}
-                  color={ORANGE}
-                  stats={[["Trung bình/sản phẩm", fmt(t.averageCostPerUnit)]]}
-                />
-                <KpiCard
-                  label="Lợi nhuận gộp"
-                  value={t.profit}
-                  spark={spark("profit")}
-                  color={GREEN}
-                  stats={[
-                    ["Trung bình/sản phẩm", fmt(t.averageProfitPerUnit)],
-                    ["Tỷ suất lợi nhuận", `${Math.round(t.margin * 100)} %`],
-                  ]}
-                />
+                {canSeeCost && (
+                  <>
+                    <KpiCard
+                      label="Tổng giá vốn"
+                      value={t.cost}
+                      spark={spark("cost")}
+                      color={ORANGE}
+                      stats={[["Trung bình/sản phẩm", fmt(t.averageCostPerUnit)]]}
+                    />
+                    <KpiCard
+                      label="Lợi nhuận gộp"
+                      value={t.profit}
+                      spark={spark("profit")}
+                      color={GREEN}
+                      stats={[
+                        ["Trung bình/sản phẩm", fmt(t.averageProfitPerUnit)],
+                        ["Tỷ suất lợi nhuận", `${Math.round(t.margin * 100)} %`],
+                      ]}
+                    />
+                  </>
+                )}
               </div>
 
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -309,16 +314,20 @@ export function ProductAnalysisDialog({
                   data={data.series}
                   lines={[
                     { key: "revenue", name: "Doanh thu thuần", color: BLUE },
-                    { key: "cost", name: "Tổng giá vốn", color: ORANGE },
-                    { key: "profit", name: "Lợi nhuận gộp", color: GREEN },
+                    ...(canSeeCost
+                      ? [
+                          { key: "cost" as const, name: "Tổng giá vốn", color: ORANGE },
+                          { key: "profit" as const, name: "Lợi nhuận gộp", color: GREEN },
+                        ]
+                      : []),
                   ]}
                 />
                 <ChartCard
-                  title="Giá vốn và giá bán"
+                  title={canSeeCost ? "Giá vốn và giá bán" : "Giá bán"}
                   data={data.series}
                   lines={[
                     { key: "price", name: "Giá bán", color: GREEN },
-                    { key: "unitCost", name: "Giá vốn", color: ORANGE },
+                    ...(canSeeCost ? [{ key: "unitCost" as const, name: "Giá vốn", color: ORANGE }] : []),
                   ]}
                 />
               </div>

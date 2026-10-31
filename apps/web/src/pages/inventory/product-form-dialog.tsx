@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronUp, ImagePlus, Loader2, X } from "lucide-react";
-import { PRODUCT_IMAGE_LIMITS, productCreateSchema, type ProductSummary } from "@smartpos/shared";
+import { PERMISSIONS, PRODUCT_IMAGE_LIMITS, productCreateSchema, type ProductSummary } from "@smartpos/shared";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { useAuthStore } from "@/stores/auth-store";
 import { prepareImage, useObjectUrl } from "@/lib/media";
 import {
   deleteProductImage,
@@ -163,6 +164,7 @@ export function ProductFormDialog({
   const updateProduct = useUpdateProduct();
   const createCategory = useCreateCategory();
   const fileInput = useRef<HTMLInputElement>(null);
+  const canSeeCost = useAuthStore((s) => s.user?.permissions.includes(PERMISSIONS.PRODUCTS_MANAGE) ?? false);
 
   const [tab, setTab] = useState<Tab>("info");
   const [sku, setSku] = useState("");
@@ -452,11 +454,13 @@ export function ProductFormDialog({
                 </div>
               </div>
 
-              <Section title="Giá vốn, giá bán">
+              <Section title={canSeeCost ? "Giá vốn, giá bán" : "Giá bán"}>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                  <Field label="Giá vốn">
-                    <NumberInput value={costPrice} onChange={setCostPrice} suffix="VNĐ" />
-                  </Field>
+                  {canSeeCost && (
+                    <Field label="Giá vốn">
+                      <NumberInput value={costPrice} onChange={setCostPrice} suffix="VNĐ" />
+                    </Field>
+                  )}
                   <Field label="Giá bán">
                     <NumberInput value={sellPrice} onChange={setSellPrice} suffix="VNĐ" />
                   </Field>

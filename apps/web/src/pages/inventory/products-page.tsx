@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useState } from "react";
 import { ChartNoAxesCombined, ChevronDown, ChevronLeft, ChevronRight, Pencil, Trash2, Upload } from "lucide-react";
-import type { ProductSummary } from "@smartpos/shared";
+import { PERMISSIONS, type ProductSummary } from "@smartpos/shared";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,6 +25,9 @@ function formatNumber(value: number): string {
 
 export function ProductsPage() {
   const activeBranchId = useAuthStore((s) => s.activeBranchId);
+  // Cashiers (CS1/CS2/CS3) only browse and create: no cost price, stock value, edit, delete or import.
+  const canManage = useAuthStore((s) => s.user?.permissions.includes(PERMISSIONS.PRODUCTS_MANAGE) ?? false);
+  const columnCount = canManage ? 7 : 5;
   const [search, setSearch] = useState("");
   const [note, setNote] = useState("");
   const [categoryIds, setCategoryIds] = useState<string[]>([]);
@@ -117,7 +120,7 @@ export function ProductsPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          {selectedIds.size > 0 && (
+          {canManage && selectedIds.size > 0 && (
             <Button
               variant="outline"
               className="gap-1.5 border-destructive text-destructive hover:bg-destructive/5"
@@ -140,14 +143,16 @@ export function ProductsPage() {
               <DropdownMenuItem onClick={openCreateDialog}>Hàng hóa</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button
-            variant="outline"
-            className="gap-1.5"
-            onClick={() => setImportOpen(true)}
-          >
-            <Upload className="h-4 w-4" />
-            Import
-          </Button>
+          {canManage && (
+            <Button
+              variant="outline"
+              className="gap-1.5"
+              onClick={() => setImportOpen(true)}
+            >
+              <Upload className="h-4 w-4" />
+              Import
+            </Button>
+          )}
         </div>
       </div>
 
@@ -155,9 +160,11 @@ export function ProductsPage() {
         <table className="w-full text-sm">
           <thead className="bg-muted/50">
             <tr>
-              <th className="w-10 p-3">
-                <input type="checkbox" checked={allSelected} onChange={toggleAll} />
-              </th>
+              {canManage && (
+                <th className="w-10 p-3">
+                  <input type="checkbox" checked={allSelected} onChange={toggleAll} />
+                </th>
+              )}
               <th className="whitespace-nowrap p-3 text-left text-sm font-semibold text-muted-foreground">
                 Mã hàng
               </th>
@@ -170,16 +177,18 @@ export function ProductsPage() {
               <th className="whitespace-nowrap p-3 text-right text-sm font-semibold text-muted-foreground">
                 Giá bán
               </th>
-              <th className="whitespace-nowrap p-3 text-right text-sm font-semibold text-muted-foreground">
-                Giá vốn
-              </th>
+              {canManage && (
+                <th className="whitespace-nowrap p-3 text-right text-sm font-semibold text-muted-foreground">
+                  Giá vốn
+                </th>
+              )}
               <th className="whitespace-nowrap p-3 text-right text-sm font-semibold text-muted-foreground">
                 Tồn kho
               </th>
             </tr>
           </thead>
           <tbody>
-            {!isLoading && products.length > 0 && (
+            {canManage && !isLoading && products.length > 0 && (
               <tr className="border-t bg-muted/20">
                 <td colSpan={5} />
                 <td colSpan={2} className="whitespace-nowrap p-3 text-right font-semibold">
@@ -189,14 +198,14 @@ export function ProductsPage() {
             )}
             {isLoading && (
               <tr>
-                <td colSpan={7} className="p-6 text-center text-sm text-muted-foreground">
+                <td colSpan={columnCount} className="p-6 text-center text-sm text-muted-foreground">
                   Đang tải dữ liệu...
                 </td>
               </tr>
             )}
             {!isLoading && products.length === 0 && (
               <tr>
-                <td colSpan={7} className="p-6 text-center text-sm text-muted-foreground">
+                <td colSpan={columnCount} className="p-6 text-center text-sm text-muted-foreground">
                   Chưa có sản phẩm
                 </td>
               </tr>
@@ -215,21 +224,23 @@ export function ProductsPage() {
                           : "cursor-pointer border-t hover:bg-accent"
                       }
                     >
-                      <td className="p-3" onClick={(e) => e.stopPropagation()}>
-                        <input type="checkbox" checked={selectedIds.has(p.id)} onChange={() => toggleOne(p.id)} />
-                      </td>
+                      {canManage && (
+                        <td className="p-3" onClick={(e) => e.stopPropagation()}>
+                          <input type="checkbox" checked={selectedIds.has(p.id)} onChange={() => toggleOne(p.id)} />
+                        </td>
+                      )}
                       <td className="whitespace-nowrap p-3">{p.sku}</td>
                       <td className="min-w-[220px] p-3 font-medium">{p.name}</td>
                       <td className="whitespace-nowrap p-3">{category?.name ?? "Chưa phân loại"}</td>
                       <td className="whitespace-nowrap p-3 text-right">{formatNumber(p.sellPrice)}</td>
-                      <td className="whitespace-nowrap p-3 text-right">{formatNumber(p.costPrice)}</td>
+                      {canManage && <td className="whitespace-nowrap p-3 text-right">{formatNumber(p.costPrice)}</td>}
                       <td className="whitespace-nowrap p-3 text-right">
                         {typeof p.stockQuantity === "number" ? formatNumber(p.stockQuantity) : "—"}
                       </td>
                     </tr>
                     {isExpanded && (
                       <tr className="border-l-[3px] border-l-primary bg-primary/5">
-                        <td colSpan={7} className="p-4">
+                        <td colSpan={columnCount} className="p-4">
                           <div className="flex flex-wrap items-start justify-between gap-4">
                             <div className="grid flex-1 grid-cols-2 gap-x-8 gap-y-2 text-sm sm:grid-cols-4">
                               <div>
@@ -252,10 +263,12 @@ export function ProductsPage() {
                                 <p className="text-xs text-muted-foreground">Đơn vị tính</p>
                                 <p className="font-medium">{p.unit.name}</p>
                               </div>
-                              <div>
-                                <p className="text-xs text-muted-foreground">Giá vốn</p>
-                                <p className="font-medium">{formatNumber(p.costPrice)}</p>
-                              </div>
+                              {canManage && (
+                                <div>
+                                  <p className="text-xs text-muted-foreground">Giá vốn</p>
+                                  <p className="font-medium">{formatNumber(p.costPrice)}</p>
+                                </div>
+                              )}
                               <div>
                                 <p className="text-xs text-muted-foreground">Giá bán</p>
                                 <p className="font-medium">{formatNumber(p.sellPrice)}</p>
@@ -297,24 +310,26 @@ export function ProductsPage() {
                                 </div>
                               )}
                             </div>
-                            <div className="flex shrink-0 items-center gap-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="gap-1.5"
-                                onClick={() => openEditDialog(p)}
-                              >
-                                <Pencil className="h-3.5 w-3.5" /> Chỉnh sửa
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="gap-1.5 border-destructive text-destructive hover:bg-destructive/5"
-                                onClick={() => setDeleteTarget({ ids: [p.id], label: p.name })}
-                              >
-                                <Trash2 className="h-3.5 w-3.5" /> Xóa
-                              </Button>
-                            </div>
+                            {canManage && (
+                              <div className="flex shrink-0 items-center gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="gap-1.5"
+                                  onClick={() => openEditDialog(p)}
+                                >
+                                  <Pencil className="h-3.5 w-3.5" /> Chỉnh sửa
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="gap-1.5 border-destructive text-destructive hover:bg-destructive/5"
+                                  onClick={() => setDeleteTarget({ ids: [p.id], label: p.name })}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" /> Xóa
+                                </Button>
+                              </div>
+                            )}
                           </div>
                         </td>
                       </tr>

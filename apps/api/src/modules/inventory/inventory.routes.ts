@@ -3,6 +3,7 @@ import { PERMISSIONS, createStockMovementSchema } from "@smartpos/shared";
 import { authenticate } from "../../middleware/authenticate.js";
 import { requirePermission } from "../../middleware/require-permission.js";
 import { branchScope } from "../../middleware/branch-scope.js";
+import { canManageProducts } from "../../lib/product-access.js";
 import * as inventoryService from "./inventory.service.js";
 
 export function registerInventoryRoutes(app: FastifyInstance) {
@@ -12,7 +13,8 @@ export function registerInventoryRoutes(app: FastifyInstance) {
       lowStock: query.lowStock === "true",
       search: query.search,
     });
-    return { data };
+    if (canManageProducts(request.authUser!)) return { data };
+    return { data: data.map((row) => ({ ...row, product: { ...row.product, costPrice: 0 } })) };
   });
 
   app.post(
@@ -28,6 +30,16 @@ export function registerInventoryRoutes(app: FastifyInstance) {
   app.get("/inventory/movements", { preHandler: [authenticate, branchScope] }, async (request) => {
     const query = request.query as { branchId?: string; type?: string };
     const data = await inventoryService.listMovements(query);
-    return { data };
+    if (canManageProducts(request.authUser!)) return { data };
+    return {
+      data: data.map((movement) => ({
+        ...movement,
+        lines: movement.lines.map((line) => ({
+          ...line,
+          unitCost: null,
+          product: { ...line.product, costPrice: 0 },
+        })),
+      })),
+    };
   });
 }

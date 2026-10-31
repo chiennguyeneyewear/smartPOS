@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Search } from "lucide-react";
+import { PERMISSIONS } from "@smartpos/shared";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
 import { Input } from "@/components/ui/input";
@@ -11,7 +12,13 @@ import { useAuthStore } from "@/stores/auth-store";
 import { useStock } from "@/features/inventory/hooks";
 import type { StockRow } from "@/features/inventory/api";
 
-const columns: ColumnDef<StockRow, any>[] = [
+const valueColumn: ColumnDef<StockRow, any> = {
+  id: "value",
+  header: "Giá trị tồn",
+  cell: ({ row }) => formatCurrency(row.original.quantity * row.original.product.costPrice),
+};
+
+const baseColumns: ColumnDef<StockRow, any>[] = [
   { accessorFn: (row) => row.product.sku, header: "Mã hàng" },
   { accessorFn: (row) => row.product.name, header: "Tên sản phẩm" },
   { accessorFn: (row) => row.product.unit.name, header: "ĐVT" },
@@ -26,17 +33,15 @@ const columns: ColumnDef<StockRow, any>[] = [
       );
     },
   },
-  {
-    id: "value",
-    header: "Giá trị tồn",
-    cell: ({ row }) => formatCurrency(row.original.quantity * row.original.product.costPrice),
-  },
 ];
+
+const columnsWithValue = [...baseColumns, valueColumn];
 
 export function StockPage() {
   const [search, setSearch] = useState("");
   const [lowStockOnly, setLowStockOnly] = useState(false);
   const activeBranchId = useAuthStore((s) => s.activeBranchId);
+  const canSeeCost = useAuthStore((s) => s.user?.permissions.includes(PERMISSIONS.PRODUCTS_MANAGE) ?? false);
   const { data, isLoading } = useStock({ branchId: activeBranchId ?? "", search, lowStock: lowStockOnly });
 
   return (
@@ -56,7 +61,7 @@ export function StockPage() {
           Sắp hết hàng
         </Button>
       </div>
-      <DataTable columns={columns} data={data ?? []} isLoading={isLoading} emptyMessage="Không có dữ liệu tồn kho" />
+      <DataTable columns={canSeeCost ? columnsWithValue : baseColumns}data={data ?? []} isLoading={isLoading} emptyMessage="Không có dữ liệu tồn kho" />
     </div>
   );
 }
