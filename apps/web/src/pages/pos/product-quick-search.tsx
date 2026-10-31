@@ -1,5 +1,7 @@
 import { forwardRef, useImperativeHandle, useRef, useState } from "react";
-import { ScanLine, Search, ImageOff } from "lucide-react";
+import { ScanLine, Search, ImageOff, Plus } from "lucide-react";
+import { PERMISSIONS, ROLES } from "@smartpos/shared";
+import { ProductFormDialog } from "@/pages/inventory/product-form-dialog";
 import { useProducts } from "@/features/products/hooks";
 import { usePosStore } from "@/stores/pos-store";
 import { useAuthStore } from "@/stores/auth-store";
@@ -15,6 +17,11 @@ export const ProductQuickSearch = forwardRef<HTMLInputElement, { className?: str
   forwardedRef,
 ) {
   const [search, setSearch] = useState("");
+  const [createOpen, setCreateOpen] = useState(false);
+  // Same rule as the API: managers/admin/warehouse and cashiers may create products.
+  const canCreate = useAuthStore(
+    (s) => !!s.user && (s.user.permissions.includes(PERMISSIONS.PRODUCTS_MANAGE) || s.user.role === ROLES.CASHIER),
+  );
   const debouncedSearch = useDebouncedValue(search, 250);
   const { open, openNow, closeSoon } = useSearchDropdown();
   const addItem = usePosStore((s) => s.addItem);
@@ -70,7 +77,20 @@ export const ProductQuickSearch = forwardRef<HTMLInputElement, { className?: str
       {open && hasSearch && (
         <div className="absolute left-0 top-full z-30 mt-1 max-h-80 w-full min-w-[320px] overflow-auto rounded-md border bg-popover shadow-lg">
           {results.length === 0 ? (
-            <p className="px-3 py-2 text-xs text-muted-foreground">Không tìm thấy sản phẩm phù hợp.</p>
+            <div className="px-3 py-2">
+              <p className="text-xs text-muted-foreground">Không tìm thấy sản phẩm phù hợp.</p>
+              {canCreate && (
+                <button
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    setCreateOpen(true);
+                  }}
+                  className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-md border border-primary px-3 py-1.5 text-sm font-medium text-primary hover:bg-primary/5"
+                >
+                  <Plus className="h-4 w-4" /> Thêm sản phẩm
+                </button>
+              )}
+            </div>
           ) : (
             results.map((product) => (
               <button
@@ -103,6 +123,14 @@ export const ProductQuickSearch = forwardRef<HTMLInputElement, { className?: str
           )}
         </div>
       )}
+
+      <ProductFormDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        product={null}
+        activeBranchId={activeBranchId}
+        defaultName={search.trim()}
+      />
     </div>
   );
 });

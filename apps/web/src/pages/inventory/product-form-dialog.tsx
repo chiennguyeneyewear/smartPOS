@@ -151,11 +151,14 @@ export function ProductFormDialog({
   onOpenChange,
   product,
   activeBranchId,
+  defaultName,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   product: ProductSummary | null;
   activeBranchId: string | null;
+  // Pre-fills the name of a new product (e.g. the text typed in the POS search that found nothing).
+  defaultName?: string;
 }) {
   const queryClient = useQueryClient();
   const { data: categories } = useCategories();
@@ -187,10 +190,10 @@ export function ProductFormDialog({
 
   const isEdit = !!product;
 
-  function resetForm(source: ProductSummary | null) {
+  function resetForm(source: ProductSummary | null, withDefaultName = false) {
     setTab("info");
     setSku(source?.sku ?? "");
-    setName(source?.name ?? "");
+    setName(source?.name ?? (withDefaultName ? (defaultName ?? "") : ""));
     setCategoryId(source?.categoryId ?? "");
     setUnitId(source?.unitId ?? "");
     setCostPrice(String(source?.costPrice ?? 0));
@@ -206,7 +209,7 @@ export function ProductFormDialog({
   }
 
   useEffect(() => {
-    if (open) resetForm(product);
+    if (open) resetForm(product, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, product]);
 
