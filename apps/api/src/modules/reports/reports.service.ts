@@ -1,3 +1,4 @@
+import { GOODS_TYPE_START } from "@smartpos/shared";
 import { prisma } from "../../lib/prisma.js";
 
 interface DateRange {
@@ -159,9 +160,12 @@ export async function getQuantitySold(range: DateRange, groupBy: "day" | "month"
     bucket(keyOf(new Date(end)));
   }
 
+  const goodsTypeStart = new Date(GOODS_TYPE_START).getTime();
   for (const item of items) {
     const at = item.invoice.completedAt;
     if (!at) continue;
+    // Hóa đơn trước ngày bắt đầu ghi loại hàng (08/11/2026) không có TN/CN và không phải "chưa phân loại".
+    if (!item.goodsType && at.getTime() < goodsTypeStart) continue;
     const qty = Number(item.quantity);
     const b = bucket(keyOf(at));
     if (item.goodsType === "TN") b.tn += qty;

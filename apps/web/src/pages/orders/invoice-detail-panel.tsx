@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Ban, FileDown, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn, formatDateTime } from "@/lib/utils";
-import type { GoodsType, TransferAccount } from "@smartpos/shared";
+import { GOODS_TYPE_START, type GoodsType, type TransferAccount } from "@smartpos/shared";
 import { useUpdateItemGoodsType } from "@/features/sales/hooks";
 import type { InvoiceListItem } from "@/features/sales/api";
 import { paymentLabel } from "@/lib/payment";
@@ -92,6 +92,8 @@ export function InvoiceDetailPanel({
   const isAdmin = useAuthStore((s) => s.user?.role === "admin");
   const [tab, setTab] = useState<Tab>("info");
   const updateGoodsType = useUpdateItemGoodsType();
+  // Hóa đơn trước ngày bắt đầu ghi loại hàng (08/11/2026) không bị coi là "Chưa phân loại".
+  const beforeGoodsType = new Date(invoice.completedAt ?? invoice.createdAt).getTime() < new Date(GOODS_TYPE_START).getTime();
   const isCompleted = invoice.status === "COMPLETED";
   const customer = invoice.customer;
 
@@ -180,11 +182,11 @@ export function InvoiceDetailPanel({
                               }
                               className={cn(
                                 "h-6 rounded border bg-background px-1.5 text-xs font-medium text-foreground",
-                                item.goodsType ? "border-input" : "border-amber-400",
+                                item.goodsType || beforeGoodsType ? "border-input" : "border-amber-400",
                               )}
                               title="TN = tiểu ngạch, CN = chính ngạch"
                             >
-                              {!item.goodsType && <option value="">Chưa phân loại</option>}
+                              {!item.goodsType && <option value="">{beforeGoodsType ? "—" : "Chưa phân loại"}</option>}
                               <option value="TN">TN</option>
                               <option value="CN">CN</option>
                             </select>

@@ -33,6 +33,9 @@ export const GOODS_TYPE_LABEL: Record<GoodsType, string> = {
   TN: "Tiểu ngạch",
   CN: "Chính ngạch",
 };
+// Loại hàng chỉ bắt đầu được ghi từ 0h ngày 08/11/2026 (giờ Việt Nam). Hóa đơn trước mốc này không có loại hàng
+// và KHÔNG bị coi là "Chưa phân loại": không hiện mục đó, không tính vào biểu đồ TN/CN.
+export const GOODS_TYPE_START = "2026-11-08T00:00:00+07:00";
 
 export const GENDER = {
   MALE: "MALE",
