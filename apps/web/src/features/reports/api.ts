@@ -29,7 +29,22 @@ export async function fetchRevenue(params: ReportRange & { groupBy?: "day" | "we
   return data.data;
 }
 
-export async function fetchTopProducts(params: ReportRange & { limit?: number; sortBy?: "revenue" | "quantity" }) {
+export interface QuantitySoldPoint {
+  period: string;
+  tn: number;
+  cn: number;
+  other: number;
+  total: number;
+}
+
+export async function fetchQuantitySold(params: ReportRange & { groupBy: "day" | "month" | "year" }) {
+  const { data } = await apiClient.get<{ data: QuantitySoldPoint[] }>("/reports/quantity-sold", { params });
+  return data.data;
+}
+
+export async function fetchTopProducts(
+  params: ReportRange & { limit?: number; sortBy?: "revenue" | "quantity"; goodsType?: "TN" | "CN" },
+) {
   const { data } = await apiClient.get<{
     data: { productId: string; name: string; quantity: number; revenue: number }[];
   }>("/reports/top-products", { params });

@@ -9,6 +9,7 @@ import {
   type SaleMode,
   type CustomerSummary,
   type LineDiscountType,
+  type GoodsType,
 } from "@smartpos/shared";
 
 export type { LineDiscountType };
@@ -27,6 +28,8 @@ export interface CartLine {
   // invoice are often sold by different staff), defaults to the tab's `defaultSellerId` when the line
   // is added and can be overridden per line from there.
   sellerId: string | null;
+  // Loại hàng của dòng này: TN (tiểu ngạch) hoặc CN (chính ngạch); null = chưa chọn.
+  goodsType: GoodsType | null;
 }
 
 // Discount is entered either as a flat VND amount or a percentage of unitPrice,
@@ -89,6 +92,7 @@ interface PosState {
   updateLinePrice: (tabId: string, lineId: string, unitPrice: number) => void;
   setLineDiscount: (tabId: string, lineId: string, discountType: LineDiscountType, discountValue: number) => void;
   setLineSeller: (tabId: string, lineId: string, staffId: string | null) => void;
+  setLineGoodsType: (tabId: string, lineId: string, goodsType: GoodsType | null) => void;
   setFitter: (tabId: string, staffId: string | null) => void;
   // Sets the tab's "apply to all" default AND overwrites every current line's sellerId with it — a
   // deliberate bulk overwrite (including lines already customized individually), not a merge.
@@ -152,6 +156,7 @@ export const usePosStore = create<PosState>()(
               discountType: "PERCENT",
               discountValue: 0,
               sellerId: tab.defaultSellerId,
+              goodsType: null,
             };
             return { ...tab, items: [...tab.items, newLine] };
           }),
@@ -223,6 +228,15 @@ export const usePosStore = create<PosState>()(
           ),
         })),
 
+      setLineGoodsType: (tabId, lineId, goodsType) =>
+        set((state) => ({
+          tabs: state.tabs.map((tab) =>
+            tab.id !== tabId
+              ? tab
+              : { ...tab, items: tab.items.map((line) => (line.lineId === lineId ? { ...line, goodsType } : line)) },
+          ),
+        })),
+
       setFitter: (tabId, staffId) =>
         set((state) => ({
           tabs: state.tabs.map((tab) => (tab.id !== tabId ? tab : { ...tab, fitterId: staffId })),
@@ -284,7 +298,8 @@ export const usePosStore = create<PosState>()(
       // `sellerId` moves back to per-line (a frame and its lenses can be sold by different staff). The
       // old tab-level `sellerId` becomes the new `defaultSellerId` and is copied onto every existing line
       // so a cart mid-checkout doesn't suddenly look unfilled.
-      version: 4,
+      // v4 -> v5: added the per-line `goodsType` (TN/CN); a cart mid-checkout gets null = not chosen yet.
+      version: 5,
       migrate: (persistedState, version) => {
         const state = persistedState as {
           tabs?: Array<
@@ -325,6 +340,11 @@ export const usePosStore = create<PosState>()(
             tab.items = tab.items?.map((line) => ({ ...line, sellerId: oldSellerId }));
             tab.defaultSellerId = oldSellerId;
             delete tab.sellerId;
+          }
+        }
+        if (version < 5 && state?.tabs) {
+          for (const tab of state.tabs) {
+            tab.items = tab.items?.map((line) => ({ goodsType: null, ...line }));
           }
         }
         return state as unknown as PosState;

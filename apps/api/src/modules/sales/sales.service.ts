@@ -62,6 +62,7 @@ export async function createDraftInvoice(input: SaveInvoiceInput, createdById: s
           discount: clampFlatLineDiscount(item.discount, item.quantity, item.unitPrice),
           lineTotal: computeLineTotal(item),
           sellerId: item.sellerId || null,
+          goodsType: item.goodsType || null,
         })),
       },
     },
@@ -98,6 +99,7 @@ export async function updateDraftInvoice(id: string, input: SaveInvoiceInput) {
             discount: item.discount,
             lineTotal: computeLineTotal(item),
             sellerId: item.sellerId || null,
+            goodsType: item.goodsType || null,
           })),
         },
       },
@@ -257,6 +259,21 @@ interface Actor {
 // Confirms (or later corrects) how an invoice was paid. The lines only redistribute the amount still
 // owed across methods, so the invoice total never changes. Staff can do it for their own invoice on the
 // day it was issued; after that only the admin can. Every change is written to the payment log.
+// Staff may fix the TN/CN loại hàng of a line after the invoice is out (the route has already checked
+// they own the invoice); a cancelled invoice is left alone.
+export async function updateInvoiceItemGoodsType(invoiceId: string, itemId: string, goodsType: "TN" | "CN") {
+  const item = await prisma.invoiceItem.findUnique({
+    where: { id: itemId },
+    include: { invoice: { select: { id: true, status: true } } },
+  });
+  if (!item || item.invoiceId !== invoiceId) throw new SalesError("Không tìm thấy dòng hóa đơn", 404);
+  if (item.invoice.status !== InvoiceStatus.COMPLETED) {
+    throw new SalesError("Chỉ sửa loại hàng cho hóa đơn đã hoàn tất");
+  }
+  const updated = await prisma.invoiceItem.update({ where: { id: itemId }, data: { goodsType } });
+  return { id: updated.id, goodsType: updated.goodsType };
+}
+
 export async function confirmInvoicePayment(id: string, input: ConfirmPaymentInput, actor: Actor) {
   const isAdmin = actor.role === ROLES.ADMIN;
   return prisma.$transaction(async (tx) => {

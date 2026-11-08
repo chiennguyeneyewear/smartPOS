@@ -330,6 +330,11 @@ model Invoice {
   @@map("invoices")
 }
 
+enum GoodsType {
+  TN
+  CN
+}
+
 model InvoiceItem {
   id        String      @id @default(cuid())
   invoiceId String
@@ -341,6 +346,8 @@ model InvoiceItem {
   // Who sold/advised this specific product — picked per line since a frame and its lenses on the same
   // invoice can be sold by different staff.
   sellerId  String?
+  // TN = tiểu ngạch, CN = chính ngạch. Null = chưa phân loại (hóa đơn cũ, trước khi có lựa chọn này).
+  goodsType GoodsType?
   invoice   Invoice     @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   product   Product     @relation(fields: [productId], references: [id])
   seller    SalesStaff? @relation("InvoiceItemSeller", fields: [sellerId], references: [id], onDelete: SetNull)

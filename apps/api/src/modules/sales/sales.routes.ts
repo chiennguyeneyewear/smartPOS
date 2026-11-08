@@ -6,6 +6,7 @@ import {
   checkoutInvoiceSchema,
   confirmPaymentSchema,
   salesStaffSchema,
+  updateItemGoodsTypeSchema,
   type SaveInvoiceInput,
 } from "@smartpos/shared";
 import { prisma } from "../../lib/prisma.js";
@@ -111,6 +112,18 @@ export function registerSalesRoutes(app: FastifyInstance) {
       const { id } = request.params as { id: string };
       const input = confirmPaymentSchema.parse(request.body);
       return salesService.confirmInvoicePayment(id, input, request.authUser!);
+    },
+  );
+
+  // Fixing TN/CN on one line after the invoice is issued: the staff who made the invoice, or the admin.
+  app.patch(
+    "/sales/invoices/:id/items/:itemId/goods-type",
+    { preHandler: [authenticate, requirePermission(PERMISSIONS.SALES_CREATE)] },
+    async (request) => {
+      const { id, itemId } = request.params as { id: string; itemId: string };
+      const input = updateItemGoodsTypeSchema.parse(request.body);
+      await assertOwnsInvoice(id, request.authUser!);
+      return salesService.updateInvoiceItemGoodsType(id, itemId, input.goodsType);
     },
   );
 

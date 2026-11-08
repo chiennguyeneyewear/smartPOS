@@ -101,6 +101,7 @@ export interface InvoiceItemSummary {
   lineTotal: number;
   sellerId: string | null;
   sellerName: string | null;
+  goodsType: "TN" | "CN" | null;
 }
 
 export interface SalesStaffSummary {

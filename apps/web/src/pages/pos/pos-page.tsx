@@ -88,6 +88,15 @@ export function PosPage() {
       return;
     }
 
+    if (currentTab.items.some((line) => !line.goodsType)) {
+      toast({
+        title: "Thiếu thông tin bán hàng",
+        description: "Vui lòng chọn loại hàng (TN hoặc CN) cho tất cả sản phẩm trước khi ra hóa đơn",
+        variant: "destructive",
+      });
+      return;
+    }
+
     createDraft.mutate(
       {
         branchId: activeBranchId,
@@ -102,6 +111,7 @@ export function PosPage() {
           unitPrice: line.unitPrice,
           discount: getLineUnitDiscount(line) * line.quantity,
           sellerId: line.sellerId,
+          goodsType: line.goodsType,
         })),
       },
       {
@@ -225,7 +235,7 @@ export function PosPage() {
             setQuickAddOpen(true);
           }}
           onRequestCheckout={handleOpenCheckout}
-          checkoutDisabled={tab.items.length === 0 || !tab.fitterId || tab.items.some((line) => !line.sellerId)}
+          checkoutDisabled={tab.items.length === 0 || !tab.fitterId || tab.items.some((line) => !line.sellerId || !line.goodsType)}
         />
       </div>
 

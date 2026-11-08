@@ -89,6 +89,7 @@ export async function voidInvoice(id: string): Promise<InvoiceSummary> {
 
 export interface InvoiceListItem extends Omit<InvoiceSummary, "items"> {
   items: {
+    id: string;
     productId: string;
     quantity: number;
     unitPrice: number;
@@ -97,6 +98,7 @@ export interface InvoiceListItem extends Omit<InvoiceSummary, "items"> {
     product: { name: string; sku: string };
     sellerId: string | null;
     sellerName: string | null;
+    goodsType: "TN" | "CN" | null;
   }[];
   payments: {
     method: PaymentMethod;
@@ -130,6 +132,14 @@ export async function fetchInvoices(params: {
 }): Promise<InvoiceListItem[]> {
   const { data } = await apiClient.get<{ data: InvoiceListItem[] }>("/sales/invoices", { params });
   return data.data;
+}
+
+export async function updateItemGoodsType(params: { invoiceId: string; itemId: string; goodsType: "TN" | "CN" }) {
+  const { data } = await apiClient.patch<{ id: string; goodsType: "TN" | "CN" | null }>(
+    `/sales/invoices/${params.invoiceId}/items/${params.itemId}/goods-type`,
+    { goodsType: params.goodsType },
+  );
+  return data;
 }
 
 export async function voidInvoices(ids: string[]): Promise<void> {

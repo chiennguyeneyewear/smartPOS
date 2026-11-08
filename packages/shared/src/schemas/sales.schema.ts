@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { PAYMENT_METHOD, SALE_MODE, TRANSFER_ACCOUNT } from "../constants/enums.js";
+import { GOODS_TYPE, PAYMENT_METHOD, SALE_MODE, TRANSFER_ACCOUNT } from "../constants/enums.js";
 
 export const invoiceItemInputSchema = z.object({
   productId: z.string(),
@@ -9,6 +9,8 @@ export const invoiceItemInputSchema = z.object({
   // Who sold/advised this specific product — picked per line, optional (required before checkout is
   // enforced in the route handler, not here, so a draft can still be saved half-filled).
   sellerId: z.string().optional().nullable(),
+  // Loại hàng của dòng này: tiểu ngạch (TN) hoặc chính ngạch (CN).
+  goodsType: z.nativeEnum(GOODS_TYPE).optional().nullable(),
 });
 export type InvoiceItemInput = z.infer<typeof invoiceItemInputSchema>;
 
@@ -24,6 +26,12 @@ export const saveInvoiceSchema = z.object({
   items: z.array(invoiceItemInputSchema).min(1, "Hóa đơn phải có ít nhất 1 sản phẩm"),
 });
 export type SaveInvoiceInput = z.infer<typeof saveInvoiceSchema>;
+
+// Sửa loại hàng của một dòng sau khi đã ra hóa đơn: chỉ đổi giữa TN và CN, không được bỏ trống.
+export const updateItemGoodsTypeSchema = z.object({
+  goodsType: z.nativeEnum(GOODS_TYPE),
+});
+export type UpdateItemGoodsTypeInput = z.infer<typeof updateItemGoodsTypeSchema>;
 
 export const paymentInputSchema = z.object({
   method: z.nativeEnum(PAYMENT_METHOD),

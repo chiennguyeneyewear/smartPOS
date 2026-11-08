@@ -11,6 +11,7 @@ import {
   fetchPaymentsOnDay,
   fetchInvoices,
   updateDraftInvoice,
+  updateItemGoodsType,
   voidInvoice,
   voidInvoices,
 } from "./api";
@@ -68,6 +69,21 @@ export function useConfirmInvoicePayment() {
     },
     onError: (error: unknown) =>
       toast({ title: "Không lưu được thanh toán", description: errorMessage(error), variant: "destructive" }),
+  });
+}
+
+// Fix a line's TN/CN after the invoice was issued; refreshes the order list and the dashboard charts.
+export function useUpdateItemGoodsType() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: updateItemGoodsType,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["invoices"] });
+      queryClient.invalidateQueries({ queryKey: ["reports"] });
+      toast({ title: "Đã cập nhật loại hàng", variant: "success" });
+    },
+    onError: (error: unknown) =>
+      toast({ title: "Không cập nhật được loại hàng", description: errorMessage(error), variant: "destructive" }),
   });
 }
 

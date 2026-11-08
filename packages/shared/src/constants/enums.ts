@@ -23,6 +23,17 @@ export const SALE_MODE = {
 } as const;
 export type SaleMode = (typeof SALE_MODE)[keyof typeof SALE_MODE];
 
+// Loại hàng của từng dòng hóa đơn: TN = tiểu ngạch, CN = chính ngạch. Chọn khi bán, ngay cạnh "Người bán".
+export const GOODS_TYPE = {
+  TN: "TN",
+  CN: "CN",
+} as const;
+export type GoodsType = (typeof GOODS_TYPE)[keyof typeof GOODS_TYPE];
+export const GOODS_TYPE_LABEL: Record<GoodsType, string> = {
+  TN: "Tiểu ngạch",
+  CN: "Chính ngạch",
+};
+
 export const GENDER = {
   MALE: "MALE",
   FEMALE: "FEMALE",

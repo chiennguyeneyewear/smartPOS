@@ -100,9 +100,14 @@ export async function getRevenueOverTime(
     .sort((a, b) => a.period.localeCompare(b.period));
 }
 
-export async function getTopProducts(range: DateRange, limit = 10, sortBy: "revenue" | "quantity" = "revenue") {
+export async function getTopProducts(
+  range: DateRange,
+  limit = 10,
+  sortBy: "revenue" | "quantity" = "revenue",
+  goodsType?: "TN" | "CN",
+) {
   const items = await prisma.invoiceItem.findMany({
-    where: { invoice: dateFilter(range) },
+    where: { invoice: dateFilter(range), ...(goodsType ? { goodsType } : {}) },
     include: { product: true },
   });
 
@@ -122,6 +127,50 @@ export async function getTopProducts(range: DateRange, limit = 10, sortBy: "reve
   return Array.from(totals.values())
     .sort((a, b) => b[sortBy] - a[sortBy])
     .slice(0, limit);
+}
+
+// Số lượng hàng bán ra theo ngày / tháng / năm, tách theo loại hàng (TN = tiểu ngạch, CN = chính ngạch;
+// "other" = dòng chưa phân loại, ví dụ hóa đơn cũ). Mọi mốc trong khoảng đều có mặt (điền 0) để biểu đồ liền mạch.
+export async function getQuantitySold(range: DateRange, groupBy: "day" | "month" | "year") {
+  const items = await prisma.invoiceItem.findMany({
+    where: { invoice: dateFilter(range) },
+    select: { quantity: true, goodsType: true, invoice: { select: { completedAt: true } } },
+  });
+
+  const keyOf = (date: Date) => {
+    const p = toVnParts(date);
+    const day = `${p.year}-${String(p.month + 1).padStart(2, "0")}-${String(p.date).padStart(2, "0")}`;
+    return groupBy === "day" ? day : groupBy === "month" ? day.slice(0, 7) : day.slice(0, 4);
+  };
+
+  const buckets = new Map<string, { period: string; tn: number; cn: number; other: number; total: number }>();
+  const bucket = (period: string) => {
+    let b = buckets.get(period);
+    if (!b) {
+      b = { period, tn: 0, cn: 0, other: 0, total: 0 };
+      buckets.set(period, b);
+    }
+    return b;
+  };
+
+  if (range.from && range.to) {
+    const end = new Date(range.to).getTime();
+    for (let t = new Date(range.from).getTime(); t <= end; t += 24 * 60 * 60 * 1000) bucket(keyOf(new Date(t)));
+    bucket(keyOf(new Date(end)));
+  }
+
+  for (const item of items) {
+    const at = item.invoice.completedAt;
+    if (!at) continue;
+    const qty = Number(item.quantity);
+    const b = bucket(keyOf(at));
+    if (item.goodsType === "TN") b.tn += qty;
+    else if (item.goodsType === "CN") b.cn += qty;
+    else b.other += qty;
+    b.total += qty;
+  }
+
+  return Array.from(buckets.values()).sort((a, b) => a.period.localeCompare(b.period));
 }
 
 export async function getTopCustomers(range: DateRange, limit = 10) {

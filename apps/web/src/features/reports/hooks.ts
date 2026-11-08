@@ -7,6 +7,7 @@ import {
   fetchEndOfDay,
   fetchProductAnalysis,
   fetchProfit,
+  fetchQuantitySold,
   fetchRevenue,
   fetchSellerPerformance,
   fetchStockValue,
@@ -31,7 +32,17 @@ export function useDashboardSummary(params: { branchId?: string; from: string; t
   });
 }
 
-export function useTopProductsReport(params: ReportRange & { limit?: number; sortBy?: "revenue" | "quantity" }) {
+export function useQuantitySoldReport(params: ReportRange & { groupBy: "day" | "month" | "year" }) {
+  return useQuery({
+    queryKey: ["reports", "quantity-sold", params],
+    queryFn: () => fetchQuantitySold(params),
+    refetchInterval: 60_000,
+  });
+}
+
+export function useTopProductsReport(
+  params: ReportRange & { limit?: number; sortBy?: "revenue" | "quantity"; goodsType?: "TN" | "CN" },
+) {
   return useQuery({
     queryKey: ["reports", "top-products", params],
     queryFn: () => fetchTopProducts(params),

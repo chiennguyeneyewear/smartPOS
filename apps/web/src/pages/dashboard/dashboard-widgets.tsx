@@ -136,6 +136,78 @@ export function ColumnBars({ data }: { data: { period: string; revenue: number }
   );
 }
 
+export const CN_COLOR = "#0070f4";
+export const TN_COLOR = "#f97316";
+const OTHER_COLOR = "#cbd5e1";
+
+interface QuantityPoint {
+  period: string;
+  tn: number;
+  cn: number;
+  other: number;
+  total: number;
+}
+
+function QuantityTooltip({ active, payload, label }: { active?: boolean; payload?: { payload: QuantityPoint }[]; label?: string }) {
+  if (!active || !payload?.length) return null;
+  const p = payload[0]!.payload;
+  return (
+    <div className="space-y-0.5 rounded-lg bg-slate-900 px-3 py-2 text-xs text-white shadow-lg">
+      <p className="font-bold">{label}</p>
+      <p>Tổng: {formatFull(p.total)}</p>
+      <p style={{ color: "#fdba74" }}>TN (tiểu ngạch): {formatFull(p.tn)}</p>
+      <p style={{ color: "#93c5fd" }}>CN (chính ngạch): {formatFull(p.cn)}</p>
+      {p.other > 0 && <p style={{ color: "#cbd5e1" }}>Chưa phân loại: {formatFull(p.other)}</p>}
+    </div>
+  );
+}
+
+// Số lượng hàng bán ra theo thời gian, cột chồng: TN (cam) + CN (xanh) + chưa phân loại (xám).
+export function QuantityBars({ data }: { data: QuantityPoint[] }) {
+  const max = Math.max(0, ...data.map((d) => d.total));
+  const hasOther = data.some((d) => d.other > 0);
+  const sameMonth = data.length > 0 && data[0]!.period.slice(0, 7) === data[data.length - 1]!.period.slice(0, 7);
+  return (
+    <div className="flex h-full flex-col">
+      <div className="min-h-0 flex-1">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }} barCategoryGap="30%">
+            <CartesianGrid vertical={false} stroke={GRID_COLOR} />
+            <XAxis
+              dataKey="period"
+              tick={TICK}
+              tickLine={false}
+              axisLine={{ stroke: "#d4d4d8" }}
+              tickMargin={8}
+              interval="preserveStartEnd"
+              minTickGap={6}
+              tickFormatter={(v: string) => (/^\d{4}$/.test(v) ? v : formatPeriodTick(v, sameMonth))}
+            />
+            <YAxis tick={TICK} tickLine={false} axisLine={false} width={40} allowDecimals={false} domain={[0, Math.max(4, max)]} />
+            <Tooltip cursor={{ fill: "#f4f4f5" }} content={<QuantityTooltip />} />
+            <Bar dataKey="cn" stackId="q" maxBarSize={36} fill={CN_COLOR} />
+            <Bar dataKey="tn" stackId="q" maxBarSize={36} fill={TN_COLOR} />
+            <Bar dataKey="other" stackId="q" maxBarSize={36} fill={OTHER_COLOR} />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+      <div className="mt-2 flex items-center justify-center gap-4 text-xs text-muted-foreground">
+        <span className="flex items-center gap-1.5">
+          <span className="h-2 w-2" style={{ backgroundColor: TN_COLOR }} /> TN (tiểu ngạch)
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="h-2 w-2" style={{ backgroundColor: CN_COLOR }} /> CN (chính ngạch)
+        </span>
+        {hasOther && (
+          <span className="flex items-center gap-1.5">
+            <span className="h-2 w-2" style={{ backgroundColor: OTHER_COLOR }} /> Chưa phân loại
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // Ranked bars, each with its name above a thin solid bar and the value at the end;
 // hovering shows a blue "value - name" pill. Plain HTML so the label placement is exact.
 export function RankedBars({

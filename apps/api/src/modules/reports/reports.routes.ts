@@ -33,9 +33,24 @@ export function registerReportRoutes(app: FastifyInstance) {
   });
 
   app.get("/reports/top-products", { preHandler: guard }, async (request) => {
-    const query = request.query as { branchId?: string; from?: string; to?: string; limit?: string; sortBy?: string };
+    const query = request.query as {
+      branchId?: string;
+      from?: string;
+      to?: string;
+      limit?: string;
+      sortBy?: string;
+      goodsType?: string;
+    };
     const sortBy = query.sortBy === "quantity" ? "quantity" : "revenue";
-    const data = await reportsService.getTopProducts(query, Number(query.limit ?? 10), sortBy);
+    const goodsType = query.goodsType === "TN" || query.goodsType === "CN" ? query.goodsType : undefined;
+    const data = await reportsService.getTopProducts(query, Number(query.limit ?? 10), sortBy, goodsType);
+    return { data };
+  });
+
+  app.get("/reports/quantity-sold", { preHandler: guard }, async (request) => {
+    const query = request.query as { branchId?: string; from?: string; to?: string; groupBy?: string };
+    const groupBy = query.groupBy === "month" || query.groupBy === "year" ? query.groupBy : "day";
+    const data = await reportsService.getQuantitySold(query, groupBy);
     return { data };
   });
 

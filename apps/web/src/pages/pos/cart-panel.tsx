@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Minus, MoreVertical, Plus, Trash2 } from "lucide-react";
-import { hasValidCustomerNoteForDate, TASK_STATUS } from "@smartpos/shared";
+import { hasValidCustomerNoteForDate, TASK_STATUS, type GoodsType } from "@smartpos/shared";
 import { usePosStore, getLineTotal, getLineUnitDiscount, type PosTab } from "@/stores/pos-store";
 import { useInvoices } from "@/features/sales/hooks";
 import { useTasks } from "@/features/tasks/hooks";
@@ -32,6 +32,7 @@ export function CartPanel({ tab }: CartPanelProps) {
   const removeItem = usePosStore((s) => s.removeItem);
   const duplicateLine = usePosStore((s) => s.duplicateLine);
   const setLineSeller = usePosStore((s) => s.setLineSeller);
+  const setLineGoodsType = usePosStore((s) => s.setLineGoodsType);
   const setFitter = usePosStore((s) => s.setFitter);
   const [openDiscountLineId, setOpenDiscountLineId] = useState<string | null>(null);
 
@@ -144,6 +145,19 @@ export function CartPanel({ tab }: CartPanelProps) {
                     <div className="mt-1 flex items-center gap-1.5 pl-6">
                       <span className="shrink-0 text-xs text-muted-foreground">Người bán:</span>
                       <InlineStaffSelect value={line.sellerId} onChange={(staffId) => setLineSeller(tab.id, line.lineId, staffId)} />
+                      <span className="ml-2 shrink-0 text-xs text-muted-foreground">Loại hàng:</span>
+                      <select
+                        value={line.goodsType ?? ""}
+                        onChange={(e) => setLineGoodsType(tab.id, line.lineId, (e.target.value || null) as GoodsType | null)}
+                        className={`h-6 shrink-0 rounded border bg-background px-1.5 text-xs font-medium ${
+                          line.goodsType ? "border-input" : "border-amber-400"
+                        }`}
+                        title="TN = tiểu ngạch, CN = chính ngạch"
+                      >
+                        <option value="">Chưa chọn</option>
+                        <option value="TN">TN</option>
+                        <option value="CN">CN</option>
+                      </select>
                     </div>
                   </div>
                 );

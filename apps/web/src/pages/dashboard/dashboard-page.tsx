@@ -12,12 +12,13 @@ import { DatePicker } from "@/components/shared/date-picker";
 import { formatCurrency, formatRelativeTime } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth-store";
-import { ChartTooltip, ColumnBars, MoneyValue, RankedBars, formatCompact, formatFull } from "./dashboard-widgets";
+import { ChartTooltip, ColumnBars, MoneyValue, QuantityBars, RankedBars, formatCompact, formatFull } from "./dashboard-widgets";
 import { useReportBranchId } from "@/hooks/use-report-branch-id";
 import {
   useBranchComparisonReport,
   useDashboardSummary,
   useProfitReport,
+  useQuantitySoldReport,
   useRevenueReport,
   useSellerPerformanceReport,
   useTopCustomersReport,
@@ -37,6 +38,31 @@ const CHART_TABS: { value: ChartMode; label: string }[] = [
   { value: "hour", label: "Theo giờ" },
   { value: "weekday", label: "Theo thứ" },
 ];
+
+type QuantityMode = "day" | "month" | "year";
+
+const QUANTITY_TABS: { value: QuantityMode; label: string; hint: string }[] = [
+  { value: "day", label: "Theo ngày", hint: "30 ngày gần nhất" },
+  { value: "month", label: "Theo tháng", hint: "12 tháng gần nhất" },
+  { value: "year", label: "Theo năm", hint: "5 năm gần nhất" },
+];
+
+// Cửa sổ thời gian cố định cho từng chế độ xem của biểu đồ số lượng (không phụ thuộc bộ chọn kỳ của trang).
+function quantityWindow(mode: QuantityMode): { from: string; to: string } {
+  const end = new Date();
+  end.setHours(23, 59, 59, 999);
+  const start = new Date(end);
+  start.setHours(0, 0, 0, 0);
+  if (mode === "day") start.setDate(start.getDate() - 29);
+  else if (mode === "month") {
+    start.setDate(1);
+    start.setMonth(start.getMonth() - 11);
+  } else {
+    start.setMonth(0, 1);
+    start.setFullYear(start.getFullYear() - 4);
+  }
+  return { from: start.toISOString(), to: end.toISOString() };
+}
 
 function toDateInputValue(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -192,6 +218,23 @@ export function DashboardPage() {
   const sellerPeriod = useCardPeriod(preset, customFrom, customTo);
   const productsPeriod = useCardPeriod(preset, customFrom, customTo);
   const [productMetric, setProductMetric] = useState<"revenue" | "quantity">("revenue");
+  const [productGoodsType, setProductGoodsType] = useState<"ALL" | "TN" | "CN">("ALL");
+  const [quantityMode, setQuantityMode] = useState<QuantityMode>("day");
+  const quantityRange = useMemo(() => quantityWindow(quantityMode), [quantityMode]);
+  const { data: quantitySold } = useQuantitySoldReport({
+    branchId: reportBranchId,
+    groupBy: quantityMode,
+    from: quantityRange.from,
+    to: quantityRange.to,
+  });
+  const quantityTotals = useMemo(
+    () =>
+      (quantitySold ?? []).reduce(
+        (acc, p) => ({ total: acc.total + p.total, tn: acc.tn + p.tn, cn: acc.cn + p.cn }),
+        { total: 0, tn: 0, cn: 0 },
+      ),
+    [quantitySold],
+  );
   const customersPeriod = useCardPeriod(preset, customFrom, customTo);
 
   const { data: topProducts } = useTopProductsReport({
@@ -200,6 +243,7 @@ export function DashboardPage() {
     to: productsPeriod.toIso,
     limit: 10,
     sortBy: productMetric,
+    goodsType: productGoodsType === "ALL" ? undefined : productGoodsType,
   });
   const { data: topCustomers } = useTopCustomersReport({
     branchId: reportBranchId,
@@ -403,6 +447,31 @@ export function DashboardPage() {
         </div>
       </div>
 
+      <Card>
+        <CardHeader className="flex-row items-start justify-between gap-4 space-y-0">
+          <div>
+            <p className={LABEL_CLASS}>Số lượng hàng bán ra</p>
+            <p className="mt-2 text-3xl font-semibold tabular-nums tracking-tight">{formatFull(quantityTotals.total)}</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {QUANTITY_TABS.find((t) => t.value === quantityMode)?.hint} · TN {formatFull(quantityTotals.tn)} · CN{" "}
+              {formatFull(quantityTotals.cn)}
+            </p>
+          </div>
+          <Tabs value={quantityMode} onValueChange={(v) => setQuantityMode(v as QuantityMode)}>
+            <TabsList>
+              {QUANTITY_TABS.map((tab) => (
+                <TabsTrigger key={tab.value} value={tab.value}>
+                  {tab.label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
+        </CardHeader>
+        <CardContent className="h-72">
+          <QuantityBars data={quantitySold ?? []} />
+        </CardContent>
+      </Card>
+
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {isAdmin && (
           <Card>
@@ -479,9 +548,9 @@ export function DashboardPage() {
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card>
-          <CardHeader className="flex-row items-start justify-between gap-2 space-y-0">
-            <CardTitle>Top 10 hàng bán chạy</CardTitle>
-            <div className="flex items-center gap-2">
+          <CardHeader className="flex-row flex-wrap items-start justify-between gap-2 space-y-0">
+            <CardTitle className="shrink-0 whitespace-nowrap">Top 10 hàng bán chạy</CardTitle>
+            <div className="flex flex-wrap items-center gap-2">
               <Select value={productMetric} onValueChange={(v) => setProductMetric(v as "revenue" | "quantity")}>
                 <SelectTrigger className="h-8 w-[185px] shrink-0 whitespace-nowrap text-xs">
                   <SelectValue />
@@ -489,6 +558,16 @@ export function DashboardPage() {
                 <SelectContent>
                   <SelectItem value="revenue">Theo doanh thu thuần</SelectItem>
                   <SelectItem value="quantity">Theo số lượng</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={productGoodsType} onValueChange={(v) => setProductGoodsType(v as "ALL" | "TN" | "CN")}>
+                <SelectTrigger className="h-8 w-[110px] shrink-0 whitespace-nowrap text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">Mọi loại hàng</SelectItem>
+                  <SelectItem value="TN">TN - Tiểu ngạch</SelectItem>
+                  <SelectItem value="CN">CN - Chính ngạch</SelectItem>
                 </SelectContent>
               </Select>
               <PeriodSelect period={productsPeriod} />

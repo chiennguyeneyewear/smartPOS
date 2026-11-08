@@ -2,7 +2,8 @@ import { useState } from "react";
 import { Ban, FileDown, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn, formatDateTime } from "@/lib/utils";
-import type { TransferAccount } from "@smartpos/shared";
+import type { GoodsType, TransferAccount } from "@smartpos/shared";
+import { useUpdateItemGoodsType } from "@/features/sales/hooks";
 import type { InvoiceListItem } from "@/features/sales/api";
 import { paymentLabel } from "@/lib/payment";
 import { useAuthStore } from "@/stores/auth-store";
@@ -90,6 +91,7 @@ export function InvoiceDetailPanel({
   // Exporting and re-printing an invoice are admin-only.
   const isAdmin = useAuthStore((s) => s.user?.role === "admin");
   const [tab, setTab] = useState<Tab>("info");
+  const updateGoodsType = useUpdateItemGoodsType();
   const isCompleted = invoice.status === "COMPLETED";
   const customer = invoice.customer;
 
@@ -159,7 +161,38 @@ export function InvoiceDetailPanel({
                     <td className="p-2.5 text-primary">{item.product.sku}</td>
                     <td className="p-2.5">
                       <p>{item.product.name}</p>
-                      {item.sellerName && <p className="mt-0.5 text-xs text-muted-foreground">Bán: {item.sellerName}</p>}
+                      <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                        {item.sellerName && <span>Bán: {item.sellerName}</span>}
+                        {item.sellerName && (isCompleted || item.goodsType) && <span>·</span>}
+                        {isCompleted ? (
+                          <>
+                            <span>Loại hàng:</span>
+                            <select
+                              value={item.goodsType ?? ""}
+                              disabled={updateGoodsType.isPending}
+                              onChange={(e) =>
+                                e.target.value &&
+                                updateGoodsType.mutate({
+                                  invoiceId: invoice.id,
+                                  itemId: item.id,
+                                  goodsType: e.target.value as GoodsType,
+                                })
+                              }
+                              className={cn(
+                                "h-6 rounded border bg-background px-1.5 text-xs font-medium text-foreground",
+                                item.goodsType ? "border-input" : "border-amber-400",
+                              )}
+                              title="TN = tiểu ngạch, CN = chính ngạch"
+                            >
+                              {!item.goodsType && <option value="">Chưa phân loại</option>}
+                              <option value="TN">TN</option>
+                              <option value="CN">CN</option>
+                            </select>
+                          </>
+                        ) : (
+                          item.goodsType && <span>Loại: {item.goodsType}</span>
+                        )}
+                      </div>
                     </td>
                     <td className="p-2.5 text-right tabular-nums">{fmt(item.quantity)}</td>
                     <td className="p-2.5 text-right tabular-nums">{fmt(item.unitPrice)}</td>
