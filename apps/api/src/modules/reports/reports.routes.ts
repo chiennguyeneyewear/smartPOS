@@ -16,6 +16,7 @@ export function registerReportRoutes(app: FastifyInstance) {
       branchId?: string;
       from?: string;
       to?: string;
+      createdById?: string;
       groupBy?: "day" | "week" | "month" | "hour" | "weekday";
     };
     const data = await reportsService.getRevenueOverTime(query, query.groupBy ?? "day");
@@ -23,13 +24,18 @@ export function registerReportRoutes(app: FastifyInstance) {
   });
 
   app.get("/reports/dashboard-summary", { preHandler: guard }, async (request) => {
-    const query = request.query as { branchId?: string; from?: string; to?: string };
+    const query = request.query as { branchId?: string; from?: string; to?: string; createdById?: string };
     // Fallback only (the frontend always sends from/to) — anchored to
     // Vietnam-local midnight, not the server's own (UTC) timezone.
     const todayDate = new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString().slice(0, 10);
     const todayStart = `${todayDate}T00:00:00+07:00`;
     const todayEnd = `${todayDate}T23:59:59.999+07:00`;
-    return reportsService.getDashboardSummary(query.branchId, query.from ?? todayStart, query.to ?? todayEnd);
+    return reportsService.getDashboardSummary(
+      query.branchId,
+      query.from ?? todayStart,
+      query.to ?? todayEnd,
+      query.createdById,
+    );
   });
 
   app.get("/reports/top-products", { preHandler: guard }, async (request) => {
@@ -37,6 +43,7 @@ export function registerReportRoutes(app: FastifyInstance) {
       branchId?: string;
       from?: string;
       to?: string;
+      createdById?: string;
       limit?: string;
       sortBy?: string;
       goodsType?: string;
@@ -48,7 +55,7 @@ export function registerReportRoutes(app: FastifyInstance) {
   });
 
   app.get("/reports/quantity-sold", { preHandler: guard }, async (request) => {
-    const query = request.query as { branchId?: string; from?: string; to?: string; groupBy?: string };
+    const query = request.query as { branchId?: string; from?: string; to?: string; createdById?: string; groupBy?: string };
     const groupBy = query.groupBy === "month" || query.groupBy === "year" ? query.groupBy : "day";
     const data = await reportsService.getQuantitySold(query, groupBy);
     return { data };
@@ -76,7 +83,7 @@ export function registerReportRoutes(app: FastifyInstance) {
   );
 
   app.get("/reports/top-customers", { preHandler: guard }, async (request) => {
-    const query = request.query as { branchId?: string; from?: string; to?: string; limit?: string };
+    const query = request.query as { branchId?: string; from?: string; to?: string; createdById?: string; limit?: string };
     const data = await reportsService.getTopCustomers(query, Number(query.limit ?? 10));
     return { data };
   });
@@ -90,7 +97,7 @@ export function registerReportRoutes(app: FastifyInstance) {
     "/reports/branch-comparison",
     { preHandler: [authenticate, requirePermission(PERMISSIONS.REPORTS_VIEW)] },
     async (request) => {
-      const query = request.query as { from?: string; to?: string };
+      const query = request.query as { from?: string; to?: string; createdById?: string };
       // Not gated through branchScope (it compares across branches by design) — instead,
       // a non-admin only ever sees the branches they're assigned to, admins see all.
       const allowedBranchIds = request.authUser!.role === ROLES.ADMIN ? undefined : request.authUser!.branchIds;
@@ -106,24 +113,24 @@ export function registerReportRoutes(app: FastifyInstance) {
   });
 
   app.get("/reports/category-performance", { preHandler: guard }, async (request) => {
-    const query = request.query as { branchId?: string; from?: string; to?: string };
+    const query = request.query as { branchId?: string; from?: string; to?: string; createdById?: string };
     const data = await reportsService.getCategoryPerformance(query);
     return { data };
   });
 
   app.get("/reports/customer-insights", { preHandler: guard }, async (request) => {
-    const query = request.query as { branchId?: string; from?: string; to?: string };
+    const query = request.query as { branchId?: string; from?: string; to?: string; createdById?: string };
     return reportsService.getCustomerInsights(query);
   });
 
   app.get("/reports/seller-performance", { preHandler: guard }, async (request) => {
-    const query = request.query as { branchId?: string; from?: string; to?: string };
+    const query = request.query as { branchId?: string; from?: string; to?: string; createdById?: string };
     const data = await reportsService.getSellerPerformance(query);
     return { data };
   });
 
   app.get("/reports/profit", { preHandler: guard }, async (request) => {
-    const query = request.query as { branchId?: string; from?: string; to?: string };
+    const query = request.query as { branchId?: string; from?: string; to?: string; createdById?: string };
     return reportsService.getProfit(query);
   });
 }

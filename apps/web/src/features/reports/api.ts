@@ -4,6 +4,8 @@ export interface ReportRange {
   branchId?: string;
   from?: string;
   to?: string;
+  // Chỉ tính hóa đơn của một tài khoản (CS1, CS2, CS3...); bỏ trống = tất cả.
+  createdById?: string;
 }
 
 export interface DashboardSummary {
@@ -66,7 +68,7 @@ export async function fetchStockValue(branchId?: string) {
   return data;
 }
 
-export async function fetchBranchComparison(params: { from?: string; to?: string }) {
+export async function fetchBranchComparison(params: { from?: string; to?: string; createdById?: string }) {
   const { data } = await apiClient.get<{
     data: { branchId: string; branchName: string; revenue: number; invoiceCount: number }[];
   }>("/reports/branch-comparison", { params });
@@ -80,7 +82,7 @@ export async function fetchProfit(params: ReportRange) {
   return data;
 }
 
-export async function fetchDashboardSummary(params: { branchId?: string; from: string; to: string }) {
+export async function fetchDashboardSummary(params: { branchId?: string; from: string; to: string; createdById?: string }) {
   const { data } = await apiClient.get<DashboardSummary>("/reports/dashboard-summary", { params });
   return data;
 }

@@ -24,7 +24,7 @@ export function useRevenueReport(params: ReportRange & { groupBy?: "day" | "week
   });
 }
 
-export function useDashboardSummary(params: { branchId?: string; from: string; to: string }) {
+export function useDashboardSummary(params: { branchId?: string; from: string; to: string; createdById?: string }) {
   return useQuery({
     queryKey: ["reports", "dashboard-summary", params],
     queryFn: () => fetchDashboardSummary(params),
@@ -62,7 +62,7 @@ export function useStockValueReport(branchId?: string) {
   return useQuery({ queryKey: ["reports", "stock-value", branchId], queryFn: () => fetchStockValue(branchId) });
 }
 
-export function useBranchComparisonReport(params: { from?: string; to?: string }) {
+export function useBranchComparisonReport(params: { from?: string; to?: string; createdById?: string }) {
   return useQuery({ queryKey: ["reports", "branch-comparison", params], queryFn: () => fetchBranchComparison(params) });
 }
 

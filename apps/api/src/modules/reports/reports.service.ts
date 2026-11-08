@@ -5,6 +5,8 @@ interface DateRange {
   from?: string;
   to?: string;
   branchId?: string;
+  // Chỉ tính hóa đơn do một tài khoản (CS1, CS2, CS3...) lập — để xem báo cáo riêng từng người dùng.
+  createdById?: string;
 }
 
 // The business operates out of Ho Chi Minh City (UTC+7, no DST), but this
@@ -29,6 +31,7 @@ function toVnParts(date: Date) {
 function dateFilter(range: DateRange) {
   return {
     ...(range.branchId ? { branchId: range.branchId } : {}),
+    ...(range.createdById ? { createdById: range.createdById } : {}),
     status: "COMPLETED" as const,
     ...(range.from || range.to
       ? {
@@ -213,7 +216,10 @@ export async function getStockValue(branchId?: string) {
   return { totalValue, totalUnits, itemCount: items.length };
 }
 
-export async function getBranchComparison(range: { from?: string; to?: string }, allowedBranchIds?: string[]) {
+export async function getBranchComparison(
+  range: { from?: string; to?: string; createdById?: string },
+  allowedBranchIds?: string[],
+) {
   const branches = await prisma.branch.findMany({
     where: { isActive: true, ...(allowedBranchIds ? { id: { in: allowedBranchIds } } : {}) },
   });
@@ -242,14 +248,14 @@ function sumAmount(invoices: { totalAmount: unknown }[]): number {
 // see PeriodPreset on the frontend). The comparison percentage is computed
 // against the immediately-preceding period of the same length, so it stays
 // meaningful regardless of which preset the user picked.
-export async function getDashboardSummary(branchId: string | undefined, from: string, to: string) {
+export async function getDashboardSummary(branchId: string | undefined, from: string, to: string, createdById?: string) {
   const rangeStart = new Date(from);
   const rangeEnd = new Date(to);
   const rangeMs = Math.max(0, rangeEnd.getTime() - rangeStart.getTime());
   const previousEnd = new Date(rangeStart.getTime() - 1);
   const previousStart = new Date(previousEnd.getTime() - rangeMs);
 
-  const branchFilter = branchId ? { branchId } : {};
+  const branchFilter = { ...(branchId ? { branchId } : {}), ...(createdById ? { createdById } : {}) };
 
   const [periodInvoices, previousInvoices, cancelledCount, recentCompleted, recentCancelled] =
     await Promise.all([

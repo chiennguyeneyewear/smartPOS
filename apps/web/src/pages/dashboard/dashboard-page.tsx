@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth-store";
 import { ChartTooltip, ColumnBars, MoneyValue, QuantityBars, RankedBars, formatCompact, formatFull } from "./dashboard-widgets";
 import { useReportBranchId } from "@/hooks/use-report-branch-id";
+import { useUsers } from "@/features/users/hooks";
 import {
   useBranchComparisonReport,
   useDashboardSummary,
@@ -191,6 +192,11 @@ function PeriodSelect({
 export function DashboardPage() {
   const reportBranchId = useReportBranchId();
   const isAdmin = useAuthStore((s) => s.user?.role === "admin");
+  // Admin có thể xem báo cáo riêng từng người dùng (CS1, CS2, CS3...); "all" = gộp tất cả.
+  const [userId, setUserId] = useState<string>("all");
+  const { data: users } = useUsers({ enabled: isAdmin });
+  const createdById = isAdmin && userId !== "all" ? userId : undefined;
+  const selectedUserName = users?.find((u) => u.id === userId)?.username;
   const [chartMode, setChartMode] = useState<ChartMode>("day");
   const [preset, setPreset] = useState<PeriodPreset>("today");
   const [customFrom, setCustomFrom] = useState(() => toDateInputValue(new Date()));
@@ -204,9 +210,10 @@ export function DashboardPage() {
   const toIso = range.to.toISOString();
   const periodLabel = formatPeriodLabel(preset, range);
 
-  const { data: summary } = useDashboardSummary({ branchId: reportBranchId, from: fromIso, to: toIso });
+  const { data: summary } = useDashboardSummary({ branchId: reportBranchId, from: fromIso, to: toIso, createdById });
   const { data: revenue } = useRevenueReport({
     branchId: reportBranchId,
+    createdById,
     groupBy: chartMode,
     from: fromIso,
     to: toIso,
@@ -223,6 +230,7 @@ export function DashboardPage() {
   const quantityRange = useMemo(() => quantityWindow(quantityMode), [quantityMode]);
   const { data: quantitySold } = useQuantitySoldReport({
     branchId: reportBranchId,
+    createdById,
     groupBy: quantityMode,
     from: quantityRange.from,
     to: quantityRange.to,
@@ -239,6 +247,7 @@ export function DashboardPage() {
 
   const { data: topProducts } = useTopProductsReport({
     branchId: reportBranchId,
+    createdById,
     from: productsPeriod.fromIso,
     to: productsPeriod.toIso,
     limit: 10,
@@ -247,13 +256,14 @@ export function DashboardPage() {
   });
   const { data: topCustomers } = useTopCustomersReport({
     branchId: reportBranchId,
+    createdById,
     from: customersPeriod.fromIso,
     to: customersPeriod.toIso,
     limit: 10,
   });
 
   // Invoices issued but not paid in full yet (deposit taken, balance due when the goods are picked up).
-  const { data: partlyPaid } = useInvoices({ paymentStatus: "PARTIAL", status: "COMPLETED" }, { enabled: isAdmin });
+  const { data: partlyPaid } = useInvoices({ paymentStatus: "PARTIAL", status: "COMPLETED", createdById }, { enabled: isAdmin });
   const owedList = (partlyPaid ?? []).map((inv) => ({
     inv,
     owed: inv.totalAmount - inv.depositAmount - inv.payments.reduce((s, p) => s + p.amount, 0),
@@ -262,10 +272,15 @@ export function DashboardPage() {
   const owedTotal = owedList.reduce((sum, x) => sum + x.owed, 0);
   const owedOld = owedList.filter((x) => x.days >= 14).length;
   const owedMid = owedList.filter((x) => x.days >= 7 && x.days < 14).length;
-  const { data: profit } = useProfitReport({ branchId: reportBranchId, from: fromIso, to: toIso });
-  const { data: branchComparison } = useBranchComparisonReport({ from: branchPeriod.fromIso, to: branchPeriod.toIso });
+  const { data: profit } = useProfitReport({ branchId: reportBranchId, createdById, from: fromIso, to: toIso });
+  const { data: branchComparison } = useBranchComparisonReport({
+    from: branchPeriod.fromIso,
+    to: branchPeriod.toIso,
+    createdById,
+  });
   const { data: sellerPerformance } = useSellerPerformanceReport({
     branchId: reportBranchId,
+    createdById,
     from: sellerPeriod.fromIso,
     to: sellerPeriod.toIso,
   });
@@ -304,8 +319,26 @@ export function DashboardPage() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <PageHeader title="Tổng quan" description={`Kết quả bán hàng: ${periodLabel}`} />
+        <PageHeader
+          title="Tổng quan"
+          description={`Kết quả bán hàng: ${periodLabel}${selectedUserName ? ` · ${selectedUserName}` : ""}`}
+        />
         <div className="flex flex-wrap items-center gap-2">
+          {isAdmin && (
+            <Select value={userId} onValueChange={setUserId}>
+              <SelectTrigger className="w-[170px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tất cả người dùng</SelectItem>
+                {users?.map((u) => (
+                  <SelectItem key={u.id} value={u.id}>
+                    {u.username}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           <Select value={preset} onValueChange={(v) => setPreset(v as PeriodPreset)}>
             <SelectTrigger className="w-[160px]">
               <SelectValue />
