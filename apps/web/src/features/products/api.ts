@@ -25,7 +25,8 @@ export interface ProductQuery {
 }
 
 export async function fetchProducts(query: ProductQuery): Promise<PagedResult<ProductSummary>> {
-  const { data } = await apiClient.get<PagedResult<ProductSummary>>("/products", { params: query });
+  // A server that never answers must end in an error the screen can show, not an endless spinner.
+  const { data } = await apiClient.get<PagedResult<ProductSummary>>("/products", { params: query, timeout: 40_000 });
   return data;
 }
 

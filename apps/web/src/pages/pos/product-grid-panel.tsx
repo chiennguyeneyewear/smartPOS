@@ -34,7 +34,12 @@ export function ProductGridPanel({
   const addItem = usePosStore((s) => s.addItem);
   const setCustomer = usePosStore((s) => s.setCustomer);
 
-  const { data, isLoading } = useProducts({ page, pageSize: PAGE_SIZE, sellable: true, sort: "bestseller" });
+  const { data, isLoading, isError, refetch, isFetching } = useProducts({
+    page,
+    pageSize: PAGE_SIZE,
+    sellable: true,
+    sort: "bestseller",
+  });
   const totalPages = data ? Math.max(1, Math.ceil(data.meta.total / PAGE_SIZE)) : 1;
 
   return (
@@ -50,6 +55,18 @@ export function ProductGridPanel({
 
       <div className="flex-1 overflow-auto p-2">
         {isLoading && <p className="p-4 text-sm text-muted-foreground">Đang tải sản phẩm...</p>}
+        {isError && !data && (
+          <div className="flex flex-col items-start gap-2 p-4 text-sm">
+            <p className="text-destructive">Không tải được sản phẩm — máy chủ đang khởi động hoặc không phản hồi.</p>
+            <button
+              onClick={() => refetch()}
+              disabled={isFetching}
+              className="rounded-md border px-3 py-1.5 font-medium hover:border-primary disabled:opacity-50"
+            >
+              {isFetching ? "Đang thử lại..." : "Thử lại"}
+            </button>
+          </div>
+        )}
         {!isLoading && data?.data.length === 0 && (
           <p className="p-4 text-sm text-muted-foreground">Chưa có sản phẩm nào.</p>
         )}
