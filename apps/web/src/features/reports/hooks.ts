@@ -7,6 +7,7 @@ import {
   fetchEndOfDay,
   fetchProductAnalysis,
   fetchProfit,
+  fetchQuantityByUser,
   fetchQuantitySold,
   fetchRevenue,
   fetchSellerPerformance,
@@ -28,6 +29,14 @@ export function useDashboardSummary(params: { branchId?: string; from: string; t
   return useQuery({
     queryKey: ["reports", "dashboard-summary", params],
     queryFn: () => fetchDashboardSummary(params),
+    refetchInterval: 60_000,
+  });
+}
+
+export function useQuantityByUserReport(params: Omit<ReportRange, "createdById">) {
+  return useQuery({
+    queryKey: ["reports", "quantity-by-user", params],
+    queryFn: () => fetchQuantityByUser(params),
     refetchInterval: 60_000,
   });
 }

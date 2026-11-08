@@ -44,6 +44,20 @@ export async function fetchQuantitySold(params: ReportRange & { groupBy: "day" |
   return data.data;
 }
 
+export interface QuantityByUserRow {
+  userId: string;
+  username: string;
+  tn: number;
+  cn: number;
+  other: number;
+  total: number;
+}
+
+export async function fetchQuantityByUser(params: Omit<ReportRange, "createdById">) {
+  const { data } = await apiClient.get<{ data: QuantityByUserRow[] }>("/reports/quantity-by-user", { params });
+  return data.data;
+}
+
 export async function fetchTopProducts(
   params: ReportRange & { limit?: number; sortBy?: "revenue" | "quantity"; goodsType?: "TN" | "CN" },
 ) {

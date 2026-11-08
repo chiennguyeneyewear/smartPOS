@@ -61,6 +61,12 @@ export function registerReportRoutes(app: FastifyInstance) {
     return { data };
   });
 
+  app.get("/reports/quantity-by-user", { preHandler: guard }, async (request) => {
+    const query = request.query as { branchId?: string; from?: string; to?: string };
+    const data = await reportsService.getQuantityByUser(query);
+    return { data };
+  });
+
   // Opened from the product list ("Xem phân tích"), so any signed-in user may call it; branchScope
   // still confines a non-admin to their own branches.
   app.get(

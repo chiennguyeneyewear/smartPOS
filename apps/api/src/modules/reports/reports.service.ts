@@ -180,6 +180,37 @@ export async function getQuantitySold(range: DateRange, groupBy: "day" | "month"
   return Array.from(buckets.values()).sort((a, b) => a.period.localeCompare(b.period));
 }
 
+// Số lượng bán ra của TỪNG người dùng, tách TN (tiểu ngạch) / CN (chính ngạch) — để so sánh CS1, CS2, CS3...
+// Mọi tài khoản đều có mặt (kể cả chưa bán gì). Dòng chưa có loại hàng trước 08/11/2026 không được tính.
+export async function getQuantityByUser(range: DateRange) {
+  const [items, users] = await Promise.all([
+    prisma.invoiceItem.findMany({
+      where: { invoice: dateFilter(range) },
+      select: { quantity: true, goodsType: true, invoice: { select: { createdById: true, completedAt: true } } },
+    }),
+    prisma.user.findMany({ select: { id: true, username: true } }),
+  ]);
+
+  const rows = new Map(
+    users.map((u) => [u.id, { userId: u.id, username: u.username, tn: 0, cn: 0, other: 0, total: 0 }]),
+  );
+  const goodsTypeStart = new Date(GOODS_TYPE_START).getTime();
+  for (const item of items) {
+    const at = item.invoice.completedAt;
+    if (!at) continue;
+    if (!item.goodsType && at.getTime() < goodsTypeStart) continue;
+    const row = rows.get(item.invoice.createdById);
+    if (!row) continue;
+    const qty = Number(item.quantity);
+    if (item.goodsType === "TN") row.tn += qty;
+    else if (item.goodsType === "CN") row.cn += qty;
+    else row.other += qty;
+    row.total += qty;
+  }
+
+  return Array.from(rows.values()).sort((a, b) => b.total - a.total || a.username.localeCompare(b.username));
+}
+
 export async function getTopCustomers(range: DateRange, limit = 10) {
   const invoices = await prisma.invoice.findMany({
     where: { ...dateFilter(range), customerId: { not: null } },

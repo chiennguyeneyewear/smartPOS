@@ -12,13 +12,24 @@ import { DatePicker } from "@/components/shared/date-picker";
 import { formatCurrency, formatRelativeTime } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth-store";
-import { ChartTooltip, ColumnBars, MoneyValue, QuantityBars, RankedBars, formatCompact, formatFull } from "./dashboard-widgets";
+import {
+  CN_COLOR,
+  ChartTooltip,
+  ColumnBars,
+  MoneyValue,
+  QuantityBars,
+  RankedBars,
+  TN_COLOR,
+  formatCompact,
+  formatFull,
+} from "./dashboard-widgets";
 import { useReportBranchId } from "@/hooks/use-report-branch-id";
 import { useUsers } from "@/features/users/hooks";
 import {
   useBranchComparisonReport,
   useDashboardSummary,
   useProfitReport,
+  useQuantityByUserReport,
   useQuantitySoldReport,
   useRevenueReport,
   useSellerPerformanceReport,
@@ -235,6 +246,25 @@ export function DashboardPage() {
     from: quantityRange.from,
     to: quantityRange.to,
   });
+  // Bảng "Số lượng bán theo người dùng": so sánh TN/CN của từng tài khoản, mặc định 30 ngày qua.
+  const userQtyPeriod = useCardPeriod(preset, customFrom, customTo);
+  useEffect(() => {
+    userQtyPeriod.setPreset("last_30_days");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const { data: quantityByUser } = useQuantityByUserReport({
+    branchId: reportBranchId,
+    from: userQtyPeriod.fromIso,
+    to: userQtyPeriod.toIso,
+  });
+  const userQtyTotals = useMemo(
+    () =>
+      (quantityByUser ?? []).reduce(
+        (acc, r) => ({ tn: acc.tn + r.tn, cn: acc.cn + r.cn, other: acc.other + r.other, total: acc.total + r.total }),
+        { tn: 0, cn: 0, other: 0, total: 0 },
+      ),
+    [quantityByUser],
+  );
   const quantityTotals = useMemo(
     () =>
       (quantitySold ?? []).reduce(
@@ -502,6 +532,72 @@ export function DashboardPage() {
         </CardHeader>
         <CardContent className="h-72">
           <QuantityBars data={quantitySold ?? []} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex-row flex-wrap items-start justify-between gap-2 space-y-0">
+          <div>
+            <CardTitle>Số lượng bán theo người dùng</CardTitle>
+            <p className="mt-1 text-xs text-muted-foreground">Mỗi người bán bao nhiêu TN (tiểu ngạch), bao nhiêu CN (chính ngạch)</p>
+          </div>
+          <PeriodSelect period={userQtyPeriod} />
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[520px] text-sm">
+              <thead>
+                <tr className="border-b text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  <th className="py-2 pr-3">Người dùng</th>
+                  <th className="px-3 py-2 text-right">
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className="h-2 w-2" style={{ backgroundColor: TN_COLOR }} /> TN
+                    </span>
+                  </th>
+                  <th className="px-3 py-2 text-right">
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className="h-2 w-2" style={{ backgroundColor: CN_COLOR }} /> CN
+                    </span>
+                  </th>
+                  {userQtyTotals.other > 0 && <th className="px-3 py-2 text-right">Chưa phân loại</th>}
+                  <th className="px-3 py-2 text-right">Tổng</th>
+                  <th className="w-[28%] py-2 pl-3" />
+                </tr>
+              </thead>
+              <tbody>
+                {(quantityByUser ?? []).map((row) => (
+                  <tr key={row.userId} className="border-b last:border-0">
+                    <td className="py-2.5 pr-3 font-medium">{row.username}</td>
+                    <td className="px-3 py-2.5 text-right tabular-nums">{formatFull(row.tn)}</td>
+                    <td className="px-3 py-2.5 text-right tabular-nums">{formatFull(row.cn)}</td>
+                    {userQtyTotals.other > 0 && (
+                      <td className="px-3 py-2.5 text-right tabular-nums text-muted-foreground">{formatFull(row.other)}</td>
+                    )}
+                    <td className="px-3 py-2.5 text-right font-semibold tabular-nums">{formatFull(row.total)}</td>
+                    <td className="py-2.5 pl-3">
+                      <div className="flex h-2.5 w-full overflow-hidden rounded-sm bg-muted">
+                        <div style={{ width: `${row.total ? (row.tn / row.total) * 100 : 0}%`, backgroundColor: TN_COLOR }} />
+                        <div style={{ width: `${row.total ? (row.cn / row.total) * 100 : 0}%`, backgroundColor: CN_COLOR }} />
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {quantityByUser && quantityByUser.length > 0 && (
+                  <tr className="border-t-2 font-semibold">
+                    <td className="py-2.5 pr-3">Tổng cộng</td>
+                    <td className="px-3 py-2.5 text-right tabular-nums">{formatFull(userQtyTotals.tn)}</td>
+                    <td className="px-3 py-2.5 text-right tabular-nums">{formatFull(userQtyTotals.cn)}</td>
+                    {userQtyTotals.other > 0 && (
+                      <td className="px-3 py-2.5 text-right tabular-nums">{formatFull(userQtyTotals.other)}</td>
+                    )}
+                    <td className="px-3 py-2.5 text-right tabular-nums">{formatFull(userQtyTotals.total)}</td>
+                    <td />
+                  </tr>
+                )}
+              </tbody>
+            </table>
+            {!quantityByUser?.length && <p className={EMPTY_CLASS}>Chưa có dữ liệu</p>}
+          </div>
         </CardContent>
       </Card>
 
